@@ -1,6 +1,8 @@
 ---
 title: CMD or ENTRYPOINT in Dockerfile?
 date: 2020-01-17 12:23:41
+description: CMD和ENTRYPOINT在Dockerfile中的使用和动能比较类似，但是使用细节，特别是组合使用需要特别留意
+categories: Docker
 tags: [Docker, TechNotes]
 ---
 

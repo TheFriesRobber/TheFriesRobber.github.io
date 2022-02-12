@@ -1,6 +1,8 @@
 ---
 title: Docker Image中为什么要用tini作为入口
 date: 2020-01-16 07:33:21
+description: tini是什么？为什么要用tini作为container的入口？
+categories: Docker
 tags: [Docker, Process, Linux, TechNotes]
 ---
 
