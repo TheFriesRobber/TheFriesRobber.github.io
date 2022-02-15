@@ -128,7 +128,7 @@ ENTRYPOINT也同样是为container指定默认执行的任务，有exec模式和
 所以从结果上看，CMD和ENTRYPOINT都可以给container指定默认的执行入口。并且，如果镜像中既没有指定CMD也没有指定ENTRYPOINT那么在启动容器时会报错。不过现在绝大多数镜像都默认添加了CMD或ENTRYPOINT指令。
 多数情况下，这两个应该单独使用，结合使用的时候会出现比较复杂的情况，我们可以借助docker官方的这张table[^3]:，具体分析。
 
-|        | No ENTRYPOINT | ENTRYPOINT exec_entry p1_entry | ENTRYPOINT [“exec_entry”, “p1_entry”]
+|        | No ENTRYPOINT | ENTRYPOINT exec_entry p1_entry | ENTRYPOINT [“exec_entry”, “p1_entry”] |
 | ------- | -------------- | ---------------------------- | ----------------------------------- |
 | No CMD | error, not allowed | /bin/sh -c exec_entry p1_entry | exec_entry p1_entry |
 | CMD [“exec_cmd”, “p1_cmd”] | exec_cmd p1_cmd | /bin/sh -c exec_entry p1_entry | exec_entry p1_entry exec_cmd p1_cmd|
