@@ -4,7 +4,7 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
-  current?: 'home' | 'archive' | 'tags' | 'categories' | 'about';
+  current?: 'home' | 'archive' | 'tags' | 'categories';
 }
 
 const {
@@ -36,7 +36,6 @@ const pageTitle = title === '留痕' ? title : `${title} | 留痕`;
           </a>
           <nav class="nav" aria-label="Main navigation">
             <a href="/" aria-current={current === 'home' ? 'page' : undefined}>首页</a>
-            <a href="/about/" aria-current={current === 'about' ? 'page' : undefined}>关于</a>
             <a href="/tags/" aria-current={current === 'tags' ? 'page' : undefined}>标签</a>
             <a href="/categories/" aria-current={current === 'categories' ? 'page' : undefined}>分类</a>
           </nav>
