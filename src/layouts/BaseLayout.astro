@@ -1,0 +1,50 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  current?: 'home' | 'archive' | 'tags' | 'categories' | 'about';
+}
+
+const {
+  title = '留痕',
+  description = '积跬步至千里',
+  current
+} = Astro.props;
+
+const pageTitle = title === '留痕' ? title : `${title} | 留痕`;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" href="/images/avatar-furhead.jpeg" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <div class="site-shell">
+      <aside class="sidebar">
+        <div class="sidebar-inner">
+          <a class="brand" href="/">
+            <img class="avatar" src="/images/avatar-furhead.jpeg" alt="Xiaoyuan Gu" />
+            <h1 class="brand-title">留痕</h1>
+            <p class="brand-subtitle">积跬步至千里</p>
+          </a>
+          <nav class="nav" aria-label="Main navigation">
+            <a href="/" aria-current={current === 'home' ? 'page' : undefined}>首页</a>
+            <a href="/about/" aria-current={current === 'about' ? 'page' : undefined}>关于</a>
+            <a href="/tags/" aria-current={current === 'tags' ? 'page' : undefined}>标签</a>
+            <a href="/categories/" aria-current={current === 'categories' ? 'page' : undefined}>分类</a>
+          </nav>
+        </div>
+      </aside>
+      <main class="main">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

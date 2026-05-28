@@ -1,0 +1,29 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { formatDate, postUrl, sortPosts } from '../lib/posts';
+
+const posts = sortPosts(await getCollection('blog'));
+---
+
+<BaseLayout current="home">
+  <p class="eyebrow">Xiaoyuan Gu</p>
+  <h1 class="page-title">留痕</h1>
+  <p class="lead">一些关于分布式系统、数据工程、基础设施和日常思考的笔记。</p>
+
+  <section class="post-list" aria-label="Posts">
+    {posts.map((post) => (
+      <article class="post-card">
+        <h2><a href={postUrl(post)}>{post.data.title}</a></h2>
+        <div class="meta">
+          <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
+          <span>{post.data.categories.join(' / ')}</span>
+        </div>
+        {post.data.description && <p>{post.data.description}</p>}
+        <div class="tag-row">
+          {post.data.tags.map((tag) => <a class="pill" href={`/tags/${encodeURIComponent(tag)}/`}>{tag}</a>)}
+        </div>
+      </article>
+    ))}
+  </section>
+</BaseLayout>

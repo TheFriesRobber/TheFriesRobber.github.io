@@ -1,0 +1,28 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import { formatDate } from '../lib/posts';
+import type { BlogPost } from '../lib/posts';
+
+interface Props {
+  post: BlogPost;
+}
+
+const { post } = Astro.props;
+---
+
+<BaseLayout title={post.data.title} description={post.data.description ?? post.data.title}>
+  <article class="article">
+    <header class="article-header">
+      <p class="eyebrow">{post.data.categories.join(' / ')}</p>
+      <h1 class="page-title">{post.data.title}</h1>
+      <div class="meta">
+        <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
+        {post.data.updated && <span>更新于 {formatDate(post.data.updated)}</span>}
+      </div>
+      <div class="tag-row">
+        {post.data.tags.map((tag) => <a class="pill" href={`/tags/${encodeURIComponent(tag)}/`}>{tag}</a>)}
+      </div>
+    </header>
+    <slot />
+  </article>
+</BaseLayout>

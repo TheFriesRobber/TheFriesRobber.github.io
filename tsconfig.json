@@ -1,0 +1,5 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": ["src/**/*.ts", "src/**/*.astro"],
+  "exclude": ["hexo-workspace", "node_modules", "dist"]
+}
