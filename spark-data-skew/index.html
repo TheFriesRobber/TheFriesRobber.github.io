@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="数据倾斜通常不是 Spark 本身的 bug，而是数据分布、shuffle 边界和 join key 基数共同作用的结果。本文梳理如何识别、定位和处理 Spark 数据倾斜。"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Spark 数据倾斜问题梳理 | 留痕</title><style>:root{color-scheme:light;--bg: #f6f7f4;--surface: #ffffff;--surface-soft: #eef2ee;--text: #1f2324;--muted: #65706b;--line: #dfe5df;--accent: #2d6a4f;--accent-strong: #1b4332;--code: #f0f4f1;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-size:16px;line-height:1.75}a{color:var(--accent-strong);text-decoration-thickness:1px;text-underline-offset:.18em}img{max-width:100%;height:auto}code{border-radius:4px;background:var(--code);padding:.12rem .28rem;font-size:.92em}pre{overflow-x:auto;border:1px solid var(--line);border-radius:6px;padding:1rem;background:#f8faf8}pre code{background:transparent;padding:0}.site-shell{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);min-height:100vh}.sidebar{border-right:1px solid var(--line);background:var(--surface)}.sidebar-inner{position:sticky;top:0;padding:2rem}.brand{display:grid;gap:.7rem;color:inherit;text-decoration:none}.brand-title{margin:0;font-size:1.75rem;line-height:1.2}.brand-subtitle{margin:0;color:var(--muted)}.avatar{width:96px;height:96px;border-radius:50%;border:1px solid var(--line);object-fit:cover;background:var(--surface-soft)}.nav{display:grid;gap:.45rem;margin-top:2rem}.nav a{border-radius:6px;color:var(--text);padding:.45rem .55rem;text-decoration:none}.nav a:hover,.nav a[aria-current=page]{background:var(--surface-soft);color:var(--accent-strong)}.main{width:min(920px,100%);padding:3rem 2rem 5rem}.eyebrow{margin:0 0 .5rem;color:var(--muted);font-size:.92rem}.page-title{margin:0 0 1rem;font-size:clamp(2rem,4vw,3.75rem);line-height:1.08}.lead{max-width:720px;margin:0 0 2rem;color:var(--muted);font-size:1.08rem}.post-list{display:grid;gap:1rem;margin-top:2rem}.post-card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:1.25rem}.post-card h2{margin:0 0 .5rem;font-size:1.35rem;line-height:1.35}.post-card h2 a{color:inherit;text-decoration:none}.post-card h2 a:hover{color:var(--accent-strong)}.meta{display:flex;flex-wrap:wrap;gap:.45rem .8rem;color:var(--muted);font-size:.9rem}.tag-row{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.9rem}.pill{border:1px solid var(--line);border-radius:999px;color:var(--muted);padding:.16rem .55rem;text-decoration:none;font-size:.86rem}.pill:hover{border-color:var(--accent);color:var(--accent-strong)}.article-header{border-bottom:1px solid var(--line);margin-bottom:2rem;padding-bottom:1.5rem}.article{max-width:800px}.article h1,.article h2,.article h3{line-height:1.3}.article h2{margin-top:2.3rem}.article table{display:block;overflow-x:auto;border-collapse:collapse;margin:1.2rem 0}.article th,.article td{border:1px solid var(--line);padding:.55rem .75rem}.article blockquote{border-left:3px solid var(--accent);margin-left:0;padding-left:1rem;color:var(--muted)}.article figure{margin:1.5rem 0}.article figcaption{color:var(--muted);font-size:.9rem;text-align:center}.term-grid{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1.5rem}.term-grid .pill{background:var(--surface);font-size:.95rem}@media(max-width:760px){.site-shell{display:block}.sidebar-inner{position:static;padding:1.25rem}.brand{grid-template-columns:auto 1fr;align-items:center}.brand-subtitle{grid-column:2}.avatar{grid-row:span 2;width:64px;height:64px}.nav{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:1.25rem}.nav a{text-align:center}.main{padding:2rem 1.25rem 4rem}}
+</style></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt="Xiaoyuan Gu"> <h1 class="brand-title">留痕</h1> <p class="brand-subtitle">积跬步至千里</p> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">首页</a> <a href="/about/">关于</a> <a href="/tags/">标签</a> <a href="/categories/">分类</a> </nav> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Spark 数据倾斜问题梳理</h1> <div class="meta"> <time datetime="2020-04-16T12:54:21.000Z">2020/04/16</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a><a class="pill" href="/tags/Performance/">Performance</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>Spark 作业中经常会遇到这样一种现象：大部分 task 很快结束，少数几个 task 长时间跑不完，甚至 executor 反复 OOM 或者 shuffle fetch failed。直觉上看，集群资源还有很多，但整个 stage 只能等那几个慢 task。</p>
+<p>这类问题很多时候不是资源不够，而是<strong>数据倾斜</strong>：某些 partition 中的数据量明显大于其他 partition，导致同一个 stage 里的 task 负载不均。</p>
+<h2 id="数据倾斜为什么会发生">数据倾斜为什么会发生</h2>
+<p>Spark 的很多算子都会触发 shuffle，例如 <code>groupByKey</code>、<code>reduceByKey</code>、<code>join</code>、<code>distinct</code>、<code>repartition</code>。shuffle 之后的数据会按照 partitioner 被分配到不同 partition。默认情况下，key 相同的数据会进入同一个 partition。</p>
+<p>如果某些 key 的数据量特别大，例如：</p>
+<ul>
+<li>某个用户、商家、城市、渠道天然就是热点。</li>
+<li>join key 中存在大量空值、默认值或脏数据。</li>
+<li>业务时间窗口造成某些分区数据集中爆发。</li>
+<li>上游数据已经按照某个维度聚集，后续又按相同或相关维度 shuffle。</li>
+</ul>
+<p>那么这些 key 所在的 partition 就会比其他 partition 大很多。Spark 的调度单位是 task，而一个 task 通常处理一个 partition，所以这个 partition 会拖慢整个 stage。</p>
+<h2 id="如何识别倾斜">如何识别倾斜</h2>
+<p>最直接的方式是看 Spark UI。</p>
+<p>在 stage 页面里关注：</p>
+<ul>
+<li>task duration 是否长尾明显。</li>
+<li>shuffle read/write size 是否只有少数 task 特别大。</li>
+<li>records 数量是否集中在少数 task。</li>
+<li>executor 是否只有个别节点频繁 GC 或 OOM。</li>
+</ul>
+<p>如果 UI 中看到 90% 的 task 都很快完成，剩下几个 task 的 input records 或 shuffle read size 大出一个数量级，基本就可以判断为倾斜。</p>
+<p>也可以在数据层面先做 key 分布抽样：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">df.groupBy(</span><span style="color:#032F62">"join_key"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .count()</span></span>
+<span class="line"><span style="color:#24292E">  .orderBy(desc(</span><span style="color:#032F62">"count"</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#24292E">  .show(</span><span style="color:#005CC5">50</span><span style="color:#24292E">, truncate </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> false</span><span style="color:#24292E">)</span></span></code></pre>
+<p>这一步的价值很高。很多时候我们以为是 Spark 参数问题，真正看完 key 分布后会发现是业务数据中有一个非常大的热点 key。</p>
+<h2 id="常见处理思路">常见处理思路</h2>
+<h3 id="1-先过滤或单独处理异常-key">1. 先过滤或单独处理异常 key</h3>
+<p>如果倾斜来自脏数据，例如空字符串、<code>null</code>、<code>unknown</code>、<code>-1</code> 这类默认值，最优先的做法不是调参数，而是明确业务语义：</p>
+<ul>
+<li>可以过滤就过滤。</li>
+<li>可以拆到单独流程就单独处理。</li>
+<li>可以补齐真实 key 就在上游修正。</li>
+</ul>
+<p>这种方式最干净，因为它减少的是不必要的数据，而不是把问题往后推。</p>
+<h3 id="2-避免使用-groupbykey">2. 避免使用 <code>groupByKey</code></h3>
+<p>如果是聚合类逻辑，优先使用带 map-side combine 的算子，比如 <code>reduceByKey</code>、<code>aggregateByKey</code>，或者 DataFrame API 中的聚合表达式。相比 <code>groupByKey</code> 把同一个 key 的所有 value 拉到一起，提前聚合可以减少 shuffle 数据量。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#6A737D">// 不推荐：把所有 value 拉到 reducer 端</span></span>
+<span class="line"><span style="color:#24292E">rdd.groupByKey().mapValues(_.sum)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// 推荐：map 端先局部聚合</span></span>
+<span class="line"><span style="color:#24292E">rdd.reduceByKey(_ </span><span style="color:#D73A49">+</span><span style="color:#24292E"> _)</span></span></code></pre>
+<p>如果热点 key 本身极大，这不能完全消除倾斜，但通常能先把数据量压下来。</p>
+<h3 id="3-增加-shuffle-partition-数量">3. 增加 shuffle partition 数量</h3>
+<p>对于倾斜不严重、只是 partition 太粗的情况，可以提高 <code>spark.sql.shuffle.partitions</code> 或 RDD 算子中的 partition 数。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">spark.conf.set(</span><span style="color:#032F62">"spark.sql.shuffle.partitions"</span><span style="color:#24292E">, </span><span style="color:#005CC5">600</span><span style="color:#24292E">)</span></span></code></pre>
+<p>这个方法适合“每个 partition 都偏大”或“倾斜轻微”的场景。它不适合只有一个 key 特别大的场景，因为同一个 key 仍然会被分到同一个 partition。</p>
+<h3 id="4-大小表-join-使用-broadcast">4. 大小表 join 使用 broadcast</h3>
+<p>如果 join 的一侧足够小，使用 broadcast join 可以避免大表按 join key shuffle。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">broadcast</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">largeDf.join(broadcast(smallDf), </span><span style="color:#6F42C1">Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"id"</span><span style="color:#24292E">))</span></span></code></pre>
+<p>这类优化特别适合维表 join。需要注意的是，broadcast 的表要能放进 executor 内存，否则会引入新的内存问题。</p>
+<h3 id="5-对热点-key-加盐">5. 对热点 key 加盐</h3>
+<p>如果某个 key 特别大，并且必须参与 join 或聚合，可以把热点 key 拆散到多个随机 bucket 中。这通常叫 salting。</p>
+<p>以 join 为例，假设大表中 <code>id = 42</code> 特别热点：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">_</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> saltBuckets</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 16</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> skewedLarge</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> largeDf.withColumn(</span></span>
+<span class="line"><span style="color:#032F62">  "salt"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">  when(col(</span><span style="color:#032F62">"id"</span><span style="color:#24292E">) </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> 42</span><span style="color:#24292E">, floor(rand() </span><span style="color:#D73A49">*</span><span style="color:#24292E"> saltBuckets)).otherwise(lit(</span><span style="color:#005CC5">0</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> expandedSmall</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> smallDf.withColumn(</span></span>
+<span class="line"><span style="color:#032F62">  "salt"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">  when(col(</span><span style="color:#032F62">"id"</span><span style="color:#24292E">) </span><span style="color:#D73A49">===</span><span style="color:#005CC5"> 42</span><span style="color:#24292E">, explode(array((</span><span style="color:#005CC5">0</span><span style="color:#24292E"> until saltBuckets).map(lit)</span><span style="color:#D73A49">:</span><span style="color:#D73A49"> _*</span><span style="color:#24292E">))).otherwise(lit(</span><span style="color:#005CC5">0</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> joined</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> skewedLarge.join(expandedSmall, </span><span style="color:#6F42C1">Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"id"</span><span style="color:#24292E">, </span><span style="color:#032F62">"salt"</span><span style="color:#24292E">))</span></span></code></pre>
+<p>加盐的本质是把一个热点 key 拆成多个逻辑 key，从而让它落到多个 partition。代价是小表热点 key 需要复制多份，代码复杂度也会上升。</p>
+<h3 id="6-利用-adaptive-query-execution">6. 利用 Adaptive Query Execution</h3>
+<p>Spark SQL 的 Adaptive Query Execution（AQE）可以在运行时根据 shuffle 统计信息处理部分倾斜 join。相关参数包括：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.enabled</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionFactor</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes</span></span></code></pre>
+<p>AQE 很有用，但它不是万能的。它解决的是 Spark SQL 计划中的一部分运行时倾斜问题；如果数据本身有异常 key、业务逻辑选错 join 粒度，仍然需要从数据和逻辑层面处理。</p>
+<h2 id="排查顺序">排查顺序</h2>
+<p>我会按这个顺序看：</p>
+<ol>
+<li>Spark UI 确认是否存在明显 task 长尾。</li>
+<li>找到慢 stage 对应的算子和 SQL plan。</li>
+<li>看 shuffle read/write size 和 records 分布。</li>
+<li>对 join key 或 group key 做 topN 分布统计。</li>
+<li>判断是脏数据、热点 key、partition 太少，还是 join 策略不合适。</li>
+<li>先改数据和逻辑，再调 Spark 参数。</li>
+</ol>
+<h2 id="回到问题">回到问题</h2>
+<p>Spark 数据倾斜的核心不是“某个 task 慢”，而是<strong>相同 stage 内 task 处理的数据量不均匀</strong>。解决它也不应该只盯着 executor memory 或 core 数量，而要回到 shuffle、key 分布和 join/aggregate 逻辑。</p>
+<p>如果只是 partition 过粗，可以增加 shuffle partition；如果是小表 join，可以 broadcast；如果是热点 key，就要考虑过滤、拆分、加盐或 AQE skew join。真正有效的优化，往往来自先理解数据分布，再决定用哪种手段。</p>
+<p>参考：</p>
+<ul>
+<li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
+<li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html">Spark RDD Programming Guide</a></li>
+</ul>  </article>  </main> </div> </body></html>
