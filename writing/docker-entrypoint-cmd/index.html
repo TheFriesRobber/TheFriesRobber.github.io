@@ -1,0 +1,133 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="CMD and ENTRYPOINT serve similar purposes in a Dockerfile, but their behavior—especially when combined—requires careful attention."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="CMD or ENTRYPOINT in a Dockerfile? | Xiaoyuan"><meta property="og:description" content="CMD and ENTRYPOINT serve similar purposes in a Dockerfile, but their behavior—especially when combined—requires careful attention."><meta property="og:url" content="https://thefriesrobber.github.io/writing/docker-entrypoint-cmd/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/docker-entrypoint-cmd/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>CMD or ENTRYPOINT in a Dockerfile? | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/docker-entrypoint-cmd/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Docker</p> <h1 class="page-title">CMD or ENTRYPOINT in a Dockerfile?</h1> <div class="meta"> <time datetime="2020-01-17T12:23:41.000Z">01/17/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Docker/">Docker</a><a class="pill" href="/tags/TechNotes/">TechNotes</a> </div> </header>  <h2 id="the-question">The question</h2>
+<p>How should <code>CMD</code> and <code>ENTRYPOINT</code> be used in a Dockerfile, and how do they differ?</p>
+<h2 id="exec-form-and-shell-form">Exec form and shell form</h2>
+<p>These two forms determine which process becomes PID 1 inside the container.</p>
+<h3 id="exec-form">Exec form</h3>
+<p>With the exec form, the application itself becomes PID 1 in the container.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">]</span></span></code></pre>
+<p>The command is not executed through a shell, so shell expansion is unavailable. Environment variables such as <code>$HOME</code>, for example, will not be expanded. You can still invoke a shell explicitly when that behavior is required:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"sh"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-c"</span><span style="color:#24292E">, </span><span style="color:#032F62">"echo $HOME"</span><span style="color:#24292E">]</span></span></code></pre>
+<h3 id="shell-form">Shell form</h3>
+<p>The shell form runs the supplied command through a shell, which means the shell becomes PID 1.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> top</span></span></code></pre>
+<p>This is effectively equivalent to:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"sh"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-c"</span><span style="color:#24292E">, </span><span style="color:#032F62">"top"</span><span style="color:#24292E">]</span></span></code></pre>
+<h2 id="cmd-1">CMD <sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup></h2>
+<blockquote>
+<p>The CMD instruction has three forms:</p>
+<p><code>CMD ["executable","param1","param2"]</code> (exec form, this is the preferred form)</p>
+<p><code>CMD ["param1","param2"]</code> (as default parameters to ENTRYPOINT)</p>
+<p><code>CMD command param1 param2</code> (shell form)</p>
+<p>There can only be one CMD instruction in a Dockerfile. If you list more than one CMD then only the last CMD will take effect.</p>
+<p>The main purpose of a CMD is to provide defaults for an executing container. These defaults can include an executable, or they can omit the executable, in which case you must specify an ENTRYPOINT instruction as well.</p>
+<p>If CMD is used to provide default arguments for the ENTRYPOINT instruction, both the CMD and ENTRYPOINT instructions should be specified with the JSON array format.</p>
+</blockquote>
+<p>The official documentation describes three forms of <code>CMD</code>:</p>
+<ul>
+<li>Exec form</li>
+<li>Default arguments for <code>ENTRYPOINT</code></li>
+<li>Shell form</li>
+</ul>
+<p><strong>A Dockerfile can contain only one effective <code>CMD</code>. If multiple <code>CMD</code> instructions are present, only the last one takes effect.</strong></p>
+<p>In short, <code>CMD</code> provides the default command for a container. If it does not specify an executable, the Dockerfile must also declare an <code>ENTRYPOINT</code>; in that case, <code>CMD</code> supplies the default arguments to that entrypoint.</p>
+<blockquote>
+<p>If the user specifies arguments to docker run then they will override the default specified in CMD.</p>
+</blockquote>
+<p>Images normally provide a default command, but users do not always want to run it. Arguments supplied to <code>docker run</code> replace the default from <code>CMD</code>. <strong>Unlike <code>ENTRYPOINT</code>, this also applies when <code>CMD</code> uses the shell form.</strong></p>
+<h2 id="entrypoint-2">ENTRYPOINT <sup><a href="#user-content-fn-2" id="user-content-fnref-2" data-footnote-ref="" aria-describedby="footnote-label">2</a></sup></h2>
+<blockquote>
+<p>ENTRYPOINT has two forms:</p>
+<p>The exec form, which is the preferred form:</p>
+<p><code>ENTRYPOINT ["executable", "param1", "param2"]</code></p>
+<p>The shell form:</p>
+<p><code>ENTRYPOINT command param1 param2</code></p>
+<p>An ENTRYPOINT allows you to configure a container that will run as an executable.</p>
+</blockquote>
+<p>Like <code>CMD</code>, <code>ENTRYPOINT</code> defines the default task for a container and supports both exec and shell forms.</p>
+<p>Here are a few examples:</p>
+<ul>
+<li><strong>With an exec-form <code>ENTRYPOINT</code>, arguments supplied on the command line are appended to the entrypoint’s argument list.</strong> The following container runs <code>top -b -c</code>:</li>
+</ul>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-b"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span><span style="color:#005CC5"> -c</span></span></code></pre>
+<ul>
+<li><strong><code>CMD</code> can supply optional default arguments.</strong> The following container also runs <code>top -b -c</code>:</li>
+</ul>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-b"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"-c"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span></span></code></pre>
+<ul>
+<li>Arguments to <code>docker run</code> can replace the defaults from <code>CMD</code>. The final command here is <code>top -b -n 1</code>:</li>
+</ul>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-b"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"-c"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span><span style="color:#005CC5"> -n</span><span style="color:#005CC5"> 1</span></span></code></pre>
+<ul>
+<li><strong>When <code>ENTRYPOINT</code> uses the shell form, command-line arguments are ignored.</strong> In the following example, <code>ls</code> is ignored (and the <code>CMD</code> is overridden):</li>
+</ul>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> echo $HOME</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span><span style="color:#032F62"> ls</span></span></code></pre>
+<ul>
+<li>To replace the default <code>ENTRYPOINT</code>, use <code>--entrypoint</code>:</li>
+</ul>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#005CC5"> --entrypoint</span><span style="color:#032F62"> ls</span><span style="color:#032F62"> test1</span></span></code></pre>
+<h2 id="back-to-the-question">Back to the question</h2>
+<p>Both <code>CMD</code> and <code>ENTRYPOINT</code> can define a container’s default executable. If an image defines neither, starting the container results in an error. Most images today include at least one of them.</p>
+<p>In many cases, using one instruction on its own is sufficient. Their interaction becomes more involved when they are combined. Docker’s reference table<sup><a href="#user-content-fn-3" id="user-content-fnref-3" data-footnote-ref="" aria-describedby="footnote-label">3</a></sup> summarizes the resulting command for each combination:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th></th><th>No ENTRYPOINT</th><th>ENTRYPOINT exec_entry p1_entry</th><th>ENTRYPOINT [“exec_entry”, “p1_entry”]</th></tr></thead><tbody><tr><td>No CMD</td><td>error, not allowed</td><td>/bin/sh -c exec_entry p1_entry</td><td>exec_entry p1_entry</td></tr><tr><td>CMD [“exec_cmd”, “p1_cmd”]</td><td>exec_cmd p1_cmd</td><td>/bin/sh -c exec_entry p1_entry</td><td>exec_entry p1_entry exec_cmd p1_cmd</td></tr><tr><td>CMD [“p1_cmd”, “p2_cmd”]</td><td>p1_cmd p2_cmd</td><td>/bin/sh -c exec_entry p1_entry</td><td>exec_entry p1_entry p1_cmd p2_cmd</td></tr><tr><td>CMD exec_cmd p1_cmd</td><td>/bin/sh -c exec_cmd p1_cmd</td><td>/bin/sh -c exec_entry p1_entry</td><td>exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd</td></tr></tbody></table>
+<section data-footnotes="" class="footnotes"><h2 class="sr-only" id="footnote-label">Footnotes</h2>
+<ol>
+<li id="user-content-fn-1">
+<p><a href="https://docs.docker.com/engine/reference/builder/#run">https://docs.docker.com/engine/reference/builder/#run</a> <a href="#user-content-fnref-1" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a></p>
+</li>
+<li id="user-content-fn-2">
+<p><a href="https://docs.docker.com/engine/reference/builder/#entrypoint">https://docs.docker.com/engine/reference/builder/#entrypoint</a> <a href="#user-content-fnref-2" data-footnote-backref="" aria-label="Back to reference 2" class="data-footnote-backref">↩</a></p>
+</li>
+<li id="user-content-fn-3">
+<p><a href="https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact">https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact</a> <a href="#user-content-fnref-3" data-footnote-backref="" aria-label="Back to reference 3" class="data-footnote-backref">↩</a></p>
+</li>
+</ol>
+</section>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Adaptive Query Execution lets Spark SQL revise its physical plan using runtime statistics, including coalescing shuffle partitions, handling skewed joins, and changing join strategies."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Notes on Spark Adaptive Query Execution | Xiaoyuan"><meta property="og:description" content="Adaptive Query Execution lets Spark SQL revise its physical plan using runtime statistics, including coalescing shuffle partitions, handling skewed joins, and changing join strategies."><meta property="og:url" content="https://thefriesrobber.github.io/writing/spark-adaptive-query-execution/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/spark-adaptive-query-execution/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Notes on Spark Adaptive Query Execution | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-adaptive-query-execution/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Notes on Spark Adaptive Query Execution</h1> <div class="meta"> <time datetime="2022-02-17T17:23:10.000Z">02/17/2022</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a><a class="pill" href="/tags/SQL/">SQL</a><a class="pill" href="/tags/Performance/">Performance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Before execution, Spark SQL uses the Catalyst optimizer to produce logical and physical plans. Many optimizations depend on data volume and distribution, but that information may be inaccurate when a query is submitted.</p>
+<p>For example:</p>
+<ul>
+<li>The data left after filtering may be far smaller than the statistics predict.</li>
+<li>A few join keys may be heavily skewed, making a small number of partitions much larger than the rest.</li>
+<li><code>spark.sql.shuffle.partitions</code> may be set too high, producing many tiny tasks.</li>
+<li>The initial plan may choose a sort-merge join, only to discover at runtime that one side is small enough to broadcast.</li>
+</ul>
+<p>Adaptive Query Execution (AQE) addresses this uncertainty: <strong>while a query is running, Spark uses real statistics produced by shuffle stages to re-optimize the remaining physical plan.</strong></p>
+<h2 id="what-aqe-solves">What AQE solves</h2>
+<p>AQE focuses on the physical execution plans of Spark SQL and DataFrame workloads. It is not a general optimizer for the RDD API, nor is it a switch that automatically solves every performance problem.</p>
+<p>Its common capabilities include the following.</p>
+<h3 id="1-coalescing-shuffle-partitions">1. Coalescing shuffle partitions</h3>
+<p>Many jobs use a relatively high value for <code>spark.sql.shuffle.partitions</code> to avoid partitions that are too large under heavy workloads. When the actual data volume is small, however, excessive partitioning creates many tiny tasks and makes scheduling overhead significant.</p>
+<p>AQE can use shuffle output sizes to combine adjacent small partitions and reduce the number of downstream tasks.</p>
+<p>Relevant settings include:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
+<span class="line"><span>spark.sql.adaptive.coalescePartitions.enabled</span></span>
+<span class="line"><span>spark.sql.adaptive.advisoryPartitionSizeInBytes</span></span></code></pre>
+<p>This is usually a relatively safe optimization because it reduces the number of tasks after the shuffle has already completed.</p>
+<h3 id="2-changing-the-join-strategy-at-runtime">2. Changing the join strategy at runtime</h3>
+<p>When Spark creates a physical plan, it uses statistics to choose among strategies such as sort-merge join, broadcast hash join, and shuffle hash join.</p>
+<p>If AQE discovers that one side is small after the shuffle, it can replace a sort-merge join with a broadcast join, avoiding some subsequent shuffle and sort work.</p>
+<p>Relevant settings include:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
+<span class="line"><span>spark.sql.autoBroadcastJoinThreshold</span></span>
+<span class="line"><span>spark.sql.adaptive.localShuffleReader.enabled</span></span></code></pre>
+<p>A broadcast join still consumes executor memory. If the broadcast side is not actually small, or its statistics are misleading, this optimization can introduce new memory pressure.</p>
+<h3 id="3-handling-skewed-joins">3. Handling skewed joins</h3>
+<p>With skewed data, some shuffle partitions become much larger than others. AQE can identify partitions that are substantially larger than the rest and split them into smaller pieces.</p>
+<p>Relevant settings include:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.skewJoin.enabled</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionFactor</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes</span></span></code></pre>
+<p>This is useful for skew that only becomes visible at runtime. It still depends on SQL or DataFrame execution plans, however, and does not replace fixing abnormal keys, dirty data, or an inappropriate business-level join grain.</p>
+<h2 id="enabling-aqe">Enabling AQE</h2>
+<p>For a Spark SQL workload, start by enabling AQE:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">spark.conf.set(</span><span style="color:#032F62">"spark.sql.adaptive.enabled"</span><span style="color:#24292E">, </span><span style="color:#032F62">"true"</span><span style="color:#24292E">)</span></span></code></pre>
+<p>Then adjust individual behaviors according to the problem at hand. AQE is enabled by default in many Spark versions, but production environments should still verify the setting explicitly so that behavior does not depend on version- or platform-specific defaults.</p>
+<p>With <code>spark-submit</code>, the settings might look like this:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">spark-submit</span><span style="color:#005CC5"> \</span></span>
+<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
+<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.coalescePartitions.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
+<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.skewJoin.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
+<span class="line"><span style="color:#032F62">  ...</span></span></code></pre>
+<h2 id="confirming-that-aqe-is-working">Confirming that AQE is working</h2>
+<p>The most direct approach is to inspect the Spark UI and the execution plan.</p>
+<p>The SQL tab displays the adaptive plan. While the query runs, the initial plan may be replaced by a final plan. Look for:</p>
+<ul>
+<li>An <code>AdaptiveSparkPlan</code> node.</li>
+<li>A change in join type.</li>
+<li>Fewer shuffle partitions.</li>
+<li>Split skewed partitions.</li>
+<li>Stage and task counts that match your expectations.</li>
+</ul>
+<p>You can also inspect a plan in code:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">df.explain(</span><span style="color:#032F62">"formatted"</span><span style="color:#24292E">)</span></span></code></pre>
+<p>Keep in mind that AQE’s final plan depends on runtime statistics. An <code>explain</code> captured before execution may not reveal the final changes.</p>
+<h2 id="aqe-is-not-a-cure-all">AQE is not a cure-all</h2>
+<p>AQE is well suited to cases where runtime data volume or distribution differs from the optimizer’s estimate. It should not become an excuse to ignore data modeling and data quality.</p>
+<p>Some important boundaries:</p>
+<ul>
+<li>If the join-key design is wrong, AQE can mitigate the symptoms but cannot correct the business logic.</li>
+<li>If the data contains many <code>null</code> values, placeholders, or dirty keys, clean the data first.</li>
+<li>If UDFs hide filters and expressions from the optimizer, AQE has fewer opportunities to help.</li>
+<li>If input files are severely fragmented, AQE mostly operates after shuffle and does not solve the small-file problem.</li>
+<li>If resource allocation is too small, AQE cannot create executor memory out of thin air.</li>
+</ul>
+<h2 id="a-practical-sequence">A practical sequence</h2>
+<p>I usually approach AQE this way:</p>
+<ol>
+<li>Enable <code>spark.sql.adaptive.enabled</code>.</li>
+<li>Keep <code>spark.sql.shuffle.partitions</code> reasonably conservative so AQE has room to coalesce partitions.</li>
+<li>For SQL and DataFrame jobs, inspect the adaptive plan in the Spark UI.</li>
+<li>If tiny tasks are the main issue, focus on partition coalescing.</li>
+<li>If joins are slow, check whether the join strategy changes.</li>
+<li>If task stragglers dominate, examine key distribution together with the skew-join settings.</li>
+</ol>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>AQE lets Spark SQL revise the remaining plan with runtime shuffle statistics instead of relying entirely on estimates made before execution. That matters in production because data volume, filter selectivity, and key distribution are rarely static.</p>
+<p>It is best understood as a runtime optimization layer, not a master performance switch. After enabling it, you still need to inspect the Spark UI, understand the query plan, and examine the data distribution. Do not leave to configuration what can be fixed through data modeling, and do not hide optimizer-friendly logic inside a UDF too early.</p>
+<p>Reference:</p>
+<ul>
+<li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

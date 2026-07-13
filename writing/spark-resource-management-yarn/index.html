@@ -1,0 +1,93 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="An overview of Apache Spark resource management and the application model used when Spark runs on YARN."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Apache Spark Resource Management on YARN | Xiaoyuan"><meta property="og:description" content="An overview of Apache Spark resource management and the application model used when Spark runs on YARN."><meta property="og:url" content="https://thefriesrobber.github.io/writing/spark-resource-management-yarn/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/spark-resource-management-yarn/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/spark-resource-management-yarn/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/spark-resource-management-yarn/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/spark-resource-management-yarn/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Apache Spark Resource Management on YARN | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-resource-management-yarn/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark / Yarn</p> <h1 class="page-title">Apache Spark Resource Management on YARN</h1> <div class="meta"> <time datetime="2020-04-12T23:26:01.000Z">04/12/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a> </div> </header>  <h2 id="the-questions">The questions</h2>
+<p>What does the architecture of an Apache Spark application look like? How does it differ from MapReduce? How does a Spark application use YARN for resource management?</p>
+<h2 id="comparing-spark-with-mapreduce">Comparing Spark with MapReduce</h2>
+<h3 id="applications">Applications</h3>
+<p>The highest-level unit in MapReduce is a job. A job loads data, runs a map function, shuffles the data, runs a reduce function, and writes the result back to storage.</p>
+<p>In Spark, the highest-level unit is an application. One application can contain multiple jobs; a job can be divided into stages, and each stage contains multiple tasks.</p>
+<p>A Spark application corresponds to a <code>SparkContext</code> instance. In general, one JVM should have only one <code>SparkContext</code>. An application may execute a single batch job or run multiple jobs interactively. Unlike MapReduce, a Spark application owns a set of processes requested from the resource manager, known as <strong>executors</strong>. Those processes can remain alive in the cluster even when no job is currently running. <strong>This allows data to remain in memory for fast access and avoids repeatedly paying process startup costs.</strong></p>
+<h3 id="executors">Executors</h3>
+<p>Each executor can use multiple threads, represented as cores, to run tasks concurrently. Holding resources throughout an application’s lifetime can be unfriendly to a shared cluster. <strong>Dynamic allocation</strong><sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup> lets an application acquire and return executors according to demand, using the resource-management mechanisms provided by the cluster manager.</p>
+<h3 id="driver">Driver</h3>
+<p>The driver manages job flow and task scheduling for a Spark application. It commonly runs in the client process, but under YARN it can also run inside a YARN container, depending on <code>--deploy-mode client</code> or <code>--deploy-mode cluster</code>. The driver contains essential components for DAG construction, task orchestration, and execution-plan generation, which are beyond the scope of this article.</p>
+<h3 id="multiple-cluster-managers">Multiple cluster managers</h3>
+<p>Spark supports several cluster managers, including YARN, Mesos, standalone mode, and Kubernetes. Each provides two broad components:</p>
+<ol>
+<li>A central service that decides which applications may start executors, and where and when those executors run—for example, the YARN ResourceManager, Mesos master, Spark standalone master, or Kubernetes control plane.</li>
+<li>A per-node service that starts executor processes and monitors their health and resource consumption—for example, the YARN NodeManager, Mesos agent, Spark standalone worker, or Kubernetes node components.</li>
+</ol>
+<h2 id="running-on-yarn">Running on YARN</h2>
+<h3 id="cluster-mode">Cluster mode</h3>
+<ul>
+<li>The client submits a request to the ResourceManager to start an ApplicationMaster, then can exit once the application has been accepted.</li>
+<li>A NodeManager launches the ApplicationMaster. In cluster mode, the driver runs with the ApplicationMaster in a YARN container.</li>
+<li>The ApplicationMaster requests resources from the ResourceManager and starts Spark executors.</li>
+<li>The driver schedules work and communicates directly with executors to run tasks.</li>
+</ul>
+<figure>
+  <img src="/posts/spark-yarn-cluster-mode.png" alt="Spark YARN cluster mode">
+  <figcaption>Spark YARN cluster mode</figcaption>
+</figure>
+<h3 id="client-mode">Client mode</h3>
+<ul>
+<li>The client requests an ApplicationMaster from the ResourceManager while the driver remains in the client process.</li>
+<li>A NodeManager starts the ApplicationMaster, whose primary role in this mode is to request cluster resources.</li>
+<li>The ApplicationMaster requests resources from the ResourceManager and starts Spark executors.</li>
+<li>The driver schedules work and communicates directly with executors to run tasks.</li>
+</ul>
+<figure>
+  <img src="/posts/spark-yarn-client-mode.png" alt="Spark YARN client mode">
+  <figcaption>Spark YARN client mode</figcaption>
+</figure>
+<h3 id="key-differences">Key differences</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th></th><th>YARN Cluster</th><th>YARN Client</th><th>Spark Standalone</th></tr></thead><tbody><tr><td>Driver runs in</td><td>ApplicationMaster</td><td>Client</td><td>Client</td></tr><tr><td>Who requests resources?</td><td>ApplicationMaster</td><td>ApplicationMaster</td><td>Spark application client</td></tr><tr><td>Persistent services</td><td>ResourceManager and NodeManagers</td><td>ResourceManager and NodeManagers</td><td>Spark master and workers</td></tr><tr><td>Supports Spark shell?</td><td>No</td><td>Yes</td><td>Yes</td></tr></tbody></table>
+<h3 id="advantages-of-spark-on-yarn">Advantages of Spark on YARN</h3>
+<ul>
+<li>A YARN cluster can run Spark alongside other frameworks and workloads, including MapReduce, Impala queries, Tez, and Pig, without maintaining a separate cluster.</li>
+<li>YARN schedulers<sup><a href="#user-content-fn-2" id="user-content-fnref-2" data-footnote-ref="" aria-describedby="footnote-label">2</a></sup> support workload classification, isolation, and prioritization.</li>
+<li>Kerberos credentials can support secure authentication for executors and access to cluster services.</li>
+</ul>
+<section data-footnotes="" class="footnotes"><h2 class="sr-only" id="footnote-label">Footnotes</h2>
+<ol>
+<li id="user-content-fn-1">
+<p><a href="https://spark.apache.org/docs/latest/configuration.html#dynamic-allocation">https://spark.apache.org/docs/latest/configuration.html#dynamic-allocation</a> <a href="#user-content-fnref-1" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a></p>
+</li>
+<li id="user-content-fn-2">
+<p><a href="http://hadoop.apache.org/docs/r2.4.0/hadoop-yarn/hadoop-yarn-site/FairScheduler.html">http://hadoop.apache.org/docs/r2.4.0/hadoop-yarn/hadoop-yarn-site/FairScheduler.html</a> <a href="#user-content-fnref-2" data-footnote-backref="" aria-label="Back to reference 2" class="data-footnote-backref">↩</a></p>
+</li>
+</ol>
+</section>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

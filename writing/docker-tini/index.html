@@ -1,0 +1,126 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="What is tini, and why is it useful as the entrypoint of a container?"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Use tini as a Docker Container Entrypoint? | Xiaoyuan"><meta property="og:description" content="What is tini, and why is it useful as the entrypoint of a container?"><meta property="og:url" content="https://thefriesrobber.github.io/writing/docker-tini/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/docker-tini/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/docker-tini/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/docker-tini/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/docker-tini/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Use tini as a Docker Container Entrypoint? | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/docker-tini/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Docker</p> <h1 class="page-title">Why Use tini as a Docker Container Entrypoint?</h1> <div class="meta"> <time datetime="2020-01-16T07:33:21.000Z">01/16/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Docker/">Docker</a><a class="pill" href="/tags/Process/">Process</a><a class="pill" href="/tags/Linux/">Linux</a><a class="pill" href="/tags/TechNotes/">TechNotes</a> </div> </header>  <h2 id="the-question">The question</h2>
+<p>I often saw the following lines in Dockerfiles for Jupyter Notebook images:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"tini"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-g"</span><span style="color:#24292E">, </span><span style="color:#032F62">"--"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"start.sh"</span><span style="color:#24292E">]</span></span></code></pre>
+<p>Curious about their purpose, I read the tini documentation. It describes three benefits:</p>
+<blockquote>
+<ol>
+<li>It protects you from software that accidentally creates zombie processes, which can (over time!) starve your entire system for PIDs (and make it unusable).</li>
+<li>It ensures that the default signal handlers work for the software you run in your Docker image. For example, with Tini, SIGTERM properly terminates your process even if you didn’t explicitly install a signal handler for it.</li>
+<li>It does so completely transparently! Docker images that work without Tini will work with Tini without any changes.</li>
+</ol>
+</blockquote>
+<p>The first two points are the essential ones: reaping zombie processes and forwarding signals. To understand them, it helps to review Linux processes and signals first.</p>
+<h2 id="processes-in-linux">Processes in Linux</h2>
+<p>A process is a running program and the basic unit to which resources are allocated. A process consists of its program and data together with a Process Control Block, represented in Linux by the <code>task_struct</code> structure.</p>
+<p>The PCB includes:</p>
+<ul>
+<li>Process identity
+<ul>
+<li>PID</li>
+<li>UID</li>
+</ul>
+</li>
+<li>Control and management information
+<ul>
+<li>CPU, disk, and network usage</li>
+<li>Current process state</li>
+</ul>
+</li>
+<li>Allocated resources
+<ul>
+<li>Open files</li>
+<li>Memory regions</li>
+<li>I/O devices</li>
+</ul>
+</li>
+<li>Register values</li>
+</ul>
+<p>Process state is particularly important when discussing zombie processes.</p>
+<h3 id="process-states-1">Process states <sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup></h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="c"><code><span class="line"><span style="color:#6A737D">/*</span></span>
+<span class="line"><span style="color:#6A737D"> * The task state array is a strange "bitmap" of</span></span>
+<span class="line"><span style="color:#6A737D"> * reasons to sleep. Thus "running" is zero, and</span></span>
+<span class="line"><span style="color:#6A737D"> * you can test for combinations of others with</span></span>
+<span class="line"><span style="color:#6A737D"> * simple bit tests.</span></span>
+<span class="line"><span style="color:#6A737D"> */</span></span>
+<span class="line"><span style="color:#D73A49">static</span><span style="color:#D73A49"> const</span><span style="color:#D73A49"> char</span><span style="color:#D73A49"> *</span><span style="color:#D73A49"> const</span><span style="color:#24292E"> task_state_array</span><span style="color:#D73A49">[]</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> {</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">	/* states in TASK_REPORT: */</span></span>
+<span class="line"><span style="color:#032F62">	"R (running)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x00 */</span></span>
+<span class="line"><span style="color:#032F62">	"S (sleeping)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x01 */</span></span>
+<span class="line"><span style="color:#032F62">	"D (disk sleep)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">	/* 0x02 */</span></span>
+<span class="line"><span style="color:#032F62">	"T (stopped)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x04 */</span></span>
+<span class="line"><span style="color:#032F62">	"t (tracing stop)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">	/* 0x08 */</span></span>
+<span class="line"><span style="color:#032F62">	"X (dead)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x10 */</span></span>
+<span class="line"><span style="color:#032F62">	"Z (zombie)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x20 */</span></span>
+<span class="line"><span style="color:#032F62">	"P (parked)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x40 */</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">	/* states beyond TASK_REPORT: */</span></span>
+<span class="line"><span style="color:#032F62">	"I (idle)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x80 */</span></span>
+<span class="line"><span style="color:#24292E">};</span></span></code></pre>
+<h4 id="1-r--running-or-runnable-on-a-run-queue">1. R — running or runnable (on a run queue)</h4>
+<p>The process has all the resources it needs and is either running on a CPU or waiting for CPU time. Its <code>task_struct</code> is placed on the run queue of one CPU; a process can appear on at most one CPU’s run queue at a time.</p>
+<p>Some systems distinguish Running from Ready, but Linux represents both as <code>TASK_RUNNING</code>.</p>
+<h4 id="2-s--interruptible-sleep-waiting-for-an-event">2. S — interruptible sleep (waiting for an event)</h4>
+<p>The process is suspended while waiting for an event, such as a socket connection or a semaphore. Its <code>task_struct</code> is placed on the event’s wait queue. When the event occurs, an external interrupt or another process wakes one or more processes from that queue.</p>
+<p>Most processes in a typical process list are in this state.</p>
+<h4 id="3-d--uninterruptible-sleep-usually-io">3. D — uninterruptible sleep (usually I/O)</h4>
+<p>While a process is performing certain operations in kernel mode, particularly I/O, Linux may protect it with <code>TASK_UNINTERRUPTIBLE</code>. Interrupting an interaction with a device at the wrong moment could leave that device in an inconsistent state. This state is normally brief and can be difficult to catch with <code>ps</code>.</p>
+<h4 id="4-tt--stopped-or-traced">4. T/t — stopped or traced</h4>
+<ul>
+<li><code>T</code>: Sending <code>SIGSTOP</code> moves a process into <code>TASK_STOPPED</code>, unless it is currently in <code>TASK_UNINTERRUPTIBLE</code>. Like <code>SIGKILL</code>, <code>SIGSTOP</code> cannot be intercepted or replaced by a user-space signal handler. <code>SIGCONT</code> (<code>kill -18</code>) returns the process to <code>TASK_RUNNING</code>; <code>kill -9</code> attempts to terminate it immediately.</li>
+<li><code>t</code>: A traced process is in the special <code>TASK_TRACED</code> state while paused for its tracer. A process stopped at a breakpoint in GDB is one example. At other times, the traced process remains in one of the regular states described above.</li>
+</ul>
+<h4 id="5-x--dead-and-about-to-be-destroyed">5. X — dead and about to be destroyed</h4>
+<p>Some processes do not retain a <code>task_struct</code> after exiting and therefore never become zombies. Examples include a detached thread or a child whose parent explicitly ignores <code>SIGCHLD</code>. Such a process enters <code>EXIT_DEAD</code>, after which the kernel immediately releases it. The state is so brief that <code>ps</code> will rarely observe it.</p>
+<h4 id="6-z--zombie-terminated-but-not-reaped-by-its-parent">6. Z — zombie: terminated but not reaped by its parent</h4>
+<p>The process has exited, but its <code>task_struct</code> remains so that its exit code and accounting information are available to its parent. The parent can call one of the <code>wait</code> system calls, such as <code>wait4</code> or <code>waitid</code>, to retrieve that information. The same call then releases the remaining process descriptor.</p>
+<p>Two related situations arise when parents and children exit at different times:</p>
+<ol>
+<li><strong>Zombie process.</strong> A process creates a child with <code>fork</code>. If the child exits and the parent never calls <code>wait</code> or <code>waitpid</code>, the child’s descriptor remains in the process table. The kernel sends the parent a signal when the child exits so that it can reap the child. A short-lived zombie is normal when the parent has not yet handled the notification. A persistent zombie indicates that the parent failed to reap it; terminating the parent or restarting the service will resolve it.</li>
+<li><strong>Orphan process.</strong> If a parent exits while one or more children are still running, those children become orphans and are adopted by another process—often the next eligible subreaper or PID 1. Every process therefore has a parent at all times, except PID 1 itself, also known as the init process.</li>
+</ol>
+<p>The first user-space process created when Linux boots is the init process. It has two main responsibilities:</p>
+<ul>
+<li>Run system initialization and start other processes.</li>
+<li>Wait for child processes to exit and call <code>waitid</code> to reap them.</li>
+</ul>
+<p>The kernel protects the init process from normal suspension and termination. It waits for children in <code>TASK_INTERRUPTIBLE</code> and becomes <code>TASK_RUNNING</code> while reaping them.</p>
+<h2 id="signals">Signals</h2>
+<p>A signal is one form of inter-process communication.<sup><a href="#user-content-fn-2" id="user-content-fnref-2" data-footnote-ref="" aria-describedby="footnote-label">2</a></sup> One process asks the kernel to deliver a signal to another, and the recipient handles it at an appropriate point.</p>
+<p>Processes can register handlers for signals they care about. Applications commonly handle <code>SIGTERM</code> so they can release resources and shut down gracefully. <code>SIGKILL</code>, by contrast, terminates a process immediately and cannot be handled. A well-behaved application should catch and process <code>SIGTERM</code>; <code>SIGKILL</code> should be the last resort. Other signals, such as <code>SIGUSR1</code>, are available for application-defined behavior.</p>
+<h3 id="signals-inside-a-container-3">Signals inside a container <sup><a href="#user-content-fn-3" id="user-content-fnref-3" data-footnote-ref="" aria-describedby="footnote-label">3</a></sup></h3>
+<p>Docker’s <code>stop</code> and <code>kill</code> commands can both send signals to a container.</p>
+<p><strong>The behavior of PID 1 is critical because Docker sends the container’s signal to that process.</strong></p>
+<p><code>docker stop</code> first sends <code>SIGTERM</code> and waits for the application to shut down gracefully. If the application is still running after the timeout, Docker sends <code>SIGKILL</code>. <code>docker kill</code> sends <code>SIGKILL</code> by default, although its <code>-s</code> option can select another signal.</p>
+<p>If PID 1 does not handle and forward signals correctly, the application is much more likely to be killed forcibly than to shut down gracefully. Which process becomes PID 1 depends largely on how <code>ENTRYPOINT</code>, <code>CMD</code>, and related instructions are written, so the distinction between their forms matters.<sup><a href="#user-content-fn-4" id="user-content-fnref-4" data-footnote-ref="" aria-describedby="footnote-label">4</a></sup></p>
+<h2 id="back-to-the-question">Back to the question</h2>
+<p>With:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"tini"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-g"</span><span style="color:#24292E">, </span><span style="color:#032F62">"--"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"start.sh"</span><span style="color:#24292E">]</span></span></code></pre>
+<p>the container starts <code>tini</code> as PID 1. Acting as init, it reaps children left behind by parent processes that exit unexpectedly. We should avoid creating zombies in the first place, but we do not always control every program that runs inside a container.</p>
+<p>Tini also forwards signals sent to the container to the child process. This is one reason to prefer it over using a shell as init, even though a shell may be capable of reaping children in some situations.</p>
+<p>If a container runs multiple processes, or runs a process that creates many children, using tini is a simple and reliable safeguard against lingering zombie processes.</p>
+<blockquote>
+<p>NOTE: If you are using Docker 1.13 or greater, Tini is included in Docker itself. This includes all versions of Docker CE. To enable Tini, just pass the —init flag to docker run.<sup><a href="#user-content-fn-5" id="user-content-fnref-5" data-footnote-ref="" aria-describedby="footnote-label">5</a></sup></p>
+</blockquote>
+<section data-footnotes="" class="footnotes"><h2 class="sr-only" id="footnote-label">Footnotes</h2>
+<ol>
+<li id="user-content-fn-1">
+<p><a href="https://cloud.tencent.com/developer/article/1568077">https://cloud.tencent.com/developer/article/1568077</a> <a href="#user-content-fnref-1" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a></p>
+</li>
+<li id="user-content-fn-2">
+<p><a href="https://www.jianshu.com/p/c1015f5ffa74">https://www.jianshu.com/p/c1015f5ffa74</a> <a href="#user-content-fnref-2" data-footnote-backref="" aria-label="Back to reference 2" class="data-footnote-backref">↩</a></p>
+</li>
+<li id="user-content-fn-3">
+<p><a href="https://www.cnblogs.com/sparkdev/p/7598590.html">https://www.cnblogs.com/sparkdev/p/7598590.html</a> <a href="#user-content-fnref-3" data-footnote-backref="" aria-label="Back to reference 3" class="data-footnote-backref">↩</a></p>
+</li>
+<li id="user-content-fn-4">
+<p><a href="https://www.cnblogs.com/sparkdev/p/8461576.html">https://www.cnblogs.com/sparkdev/p/8461576.html</a> <a href="#user-content-fnref-4" data-footnote-backref="" aria-label="Back to reference 4" class="data-footnote-backref">↩</a></p>
+</li>
+<li id="user-content-fn-5">
+<p><a href="https://github.com/krallin/tini">https://github.com/krallin/tini</a> <a href="#user-content-fnref-5" data-footnote-backref="" aria-label="Back to reference 5" class="data-footnote-backref">↩</a></p>
+</li>
+</ol>
+</section>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

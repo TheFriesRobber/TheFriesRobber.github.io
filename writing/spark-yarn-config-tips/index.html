@@ -1,0 +1,75 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A practical example of Spark resource-request settings on YARN, followed by considerations for data representation in Spark."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Notes on Spark Resource Requests and Data Structures on YARN | Xiaoyuan"><meta property="og:description" content="A practical example of Spark resource-request settings on YARN, followed by considerations for data representation in Spark."><meta property="og:url" content="https://thefriesrobber.github.io/writing/spark-yarn-config-tips/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/spark-yarn-config-tips/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Notes on Spark Resource Requests and Data Structures on YARN | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-yarn-config-tips/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark / Yarn</p> <h1 class="page-title">Notes on Spark Resource Requests and Data Structures on YARN</h1> <div class="meta"> <time datetime="2020-04-15T08:56:31.000Z">04/15/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a> </div> </header>  <h2 id="the-questions">The questions</h2>
+<p>How should a Spark application request resources from a YARN cluster with six nodes, each providing 16 cores and 64 GB of memory, in order to use the cluster efficiently? How many partitions should it use, and how should records in an RDD be represented?</p>
+<h2 id="requesting-cluster-resources-from-yarn">Requesting cluster resources from YARN</h2>
+<p>This discussion considers only CPU and memory. Disk and network performance also matter greatly to Spark, but neither Spark nor YARN directly manages them as allocatable resources in the same way.</p>
+<p>A Spark application requests cluster resources by setting the number of executors and the cores and memory assigned to each executor.</p>
+<h3 id="number-of-executors">Number of executors</h3>
+<p>This setting determines how many executors a Spark application uses. Dynamic allocation can acquire and release executors at runtime through settings such as <code>spark.dynamicAllocation.enabled</code>.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
+<span class="line"><span>--num-executors</span></span>
+<span class="line"><span>// spark-defaults.conf or a SparkConf object</span></span>
+<span class="line"><span>spark.executor.instances</span></span></code></pre>
+<h3 id="cpu">CPU</h3>
+<p>The number of executor cores controls how many tasks one executor can run concurrently.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
+<span class="line"><span>--executor-cores</span></span>
+<span class="line"><span>// spark-defaults.conf or a SparkConf object</span></span>
+<span class="line"><span>spark.executor.cores</span></span></code></pre>
+<p>For example, <code>--executor-cores 5</code> allows each executor to run five tasks at the same time.</p>
+<h3 id="memory">Memory</h3>
+<p>Executor memory controls the heap-size limit of each executor. Too much can waste resources and increase garbage-collection pauses; too little restricts the amount of data processed in memory and pushes more work to external storage.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
+<span class="line"><span>--executor-memory</span></span>
+<span class="line"><span>// spark-defaults.conf or a SparkConf object</span></span>
+<span class="line"><span>spark.executor.memory</span></span></code></pre>
+<h3 id="mapping-spark-requests-to-yarn-resources">Mapping Spark requests to YARN resources</h3>
+<p>Spark cannot request more than YARN makes available. Two YARN settings define the per-node limits:</p>
+<blockquote>
+<ul>
+<li><code>yarn.nodemanager.resource.memory-mb</code> controls the maximum sum of memory used by the containers on each node.</li>
+<li><code>yarn.nodemanager.resource.cpu-vcores</code> controls the maximum sum of cores used by the containers on each node.</li>
+</ul>
+</blockquote>
+<p>For CPU, one Spark executor core maps to one YARN virtual core. Memory requires several additional considerations:</p>
+<ul>
+<li><code>--executor-memory</code> or <code>spark.executor.memory</code> controls the executor heap, but the JVM also uses off-heap memory, including <code>DirectByteBuffer</code>. YARN therefore includes <code>spark.yarn.executor.memoryOverhead</code> in the container’s total memory request. In the version considered here, its default is <code>max(384, .07 * spark.executor.memory)</code>.</li>
+<li>YARN rounds memory requests according to <code>yarn.scheduler.minimum-allocation-mb</code> and <code>yarn.scheduler.increment-allocation-mb</code>.</li>
+</ul>
+<figure>
+  <img src="/posts/spark-yarn-config-tips-memory.png" alt="Hierarchy of Spark and YARN memory properties">
+  <figcaption>Hierarchy of Spark and YARN memory properties</figcaption>
+</figure>
+<p>There are several more practical constraints:</p>
+<ul>
+<li>Reserve resources for the ApplicationMaster. In YARN client mode it commonly needs one virtual core and 1 GB of memory by default. In cluster mode it also runs the driver, so <code>--driver-memory</code> and <code>--driver-cores</code> often need to be larger.</li>
+<li>Very large executor heaps can lead to expensive garbage collection. <strong>64 GB</strong> is a reasonable upper bound for a single executor in this example, not a universal rule.</li>
+<li><strong>Five cores per executor</strong> is a commonly used upper bound when HDFS throughput is a concern.</li>
+<li>Avoid single-core executors when possible, because they lose some benefits of JVM multithreading and shared in-process state. A broadcast variable, for example, is copied to every executor; multiple cores in one executor can share that in-memory copy.</li>
+</ul>
+<h3 id="applying-this-to-the-example">Applying this to the example</h3>
+<blockquote>
+<p>How should an application request resources from a six-node YARN cluster where each node has 16 cores and 64 GB of memory?</p>
+</blockquote>
+<ul>
+<li>First, set <code>yarn.nodemanager.resource.memory-mb</code> and <code>yarn.nodemanager.resource.cpu-vcores</code> to approximately <code>63 * 1024 = 64512 MB</code> and <code>15</code>, respectively. This reserves one core and 1 GB per node for the operating system and Hadoop daemons.</li>
+<li>An obvious first answer is <code>--num-executors 6 --executor-cores 15 --executor-memory 63G</code>, but it has several problems:
+<ul>
+<li><code>--executor-memory</code> covers only the heap. Adding executor memory overhead would exceed the 63 GB allocatable limit.</li>
+<li>The ApplicationMaster also requires resources, so executors cannot consume every virtual core.</li>
+<li>Fifteen cores in one executor may reduce HDFS I/O throughput and increase contention.</li>
+</ul>
+</li>
+<li>A more balanced starting point is <code>--num-executors 17 --executor-cores 5 --executor-memory 19G</code>:
+<ul>
+<li><strong>CPU:</strong> Five nodes host three executors each. The sixth hosts two executors plus the ApplicationMaster, leaving five virtual cores available there.</li>
+<li><strong>Memory:</strong> With 63 GB available on a node, three executors can use at most about 21 GB each including overhead. Subtracting roughly 7% overhead leaves about 19 GB for the executor heap.</li>
+</ul>
+</li>
+</ul>
+<p>These numbers are a starting point for the stated cluster shape and the defaults assumed by the original calculation. Real workloads still require measurement because Spark and YARN defaults, storage behavior, and executor overhead vary by version and environment.</p>
+<h2 id="keep-the-data-lean">Keep the data lean</h2>
+<p>A Spark data flow consists primarily of records represented in two forms: deserialized Java objects in memory and serialized binary data on disk or over the network.</p>
+<p>The <code>spark.serializer</code> setting selects the serializer. Kryo—<code>org.apache.spark.serializer.KryoSerializer</code>—is generally a good choice when the application can register and handle its types correctly.</p>
+<p>Data formats such as Avro, Parquet, Thrift, and Protobuf can also reduce data size. Their format-specific features, such as columnar storage in Parquet, may accelerate processing as well.</p>
+<h2 id="back-to-the-questions">Back to the questions</h2>
+<p>Choosing appropriate CPU and memory requests is an important part of Spark application performance. At the same time, records move across the network and disk between stages, so serializer and data-format choices also deserve deliberate attention.</p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
