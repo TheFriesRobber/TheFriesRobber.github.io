@@ -23,6 +23,6 @@
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">pmap</span><span style="color:#005CC5"> -d</span><span style="color:#24292E"> [pid]</span></span></code></pre>
 <ul>
 <li><code>mapped</code> is the size of the process’s mapped virtual address space—the virtual memory allocated in advance, corresponding to <code>vsz</code> from <code>ps</code>.</li>
-<li><code>writeable/private</code> is the size of the process’s private address space, representing memory used only by that process.</li>
+<li><code>writeable/private</code> is the size of mappings that are writable and private to the process; it is not, by itself, a resident-memory measurement.</li>
 <li><code>shared</code> is memory shared with other processes.</li>
 </ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
