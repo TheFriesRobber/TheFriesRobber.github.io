@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="数据倾斜不是简单的“任务慢”，而是数据在 partition 间分布失衡。本文从 Spark UI、key 分布和执行计划出发，梳理 join 与聚合倾斜的处理方法。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Spark 数据倾斜：如何识别、定位和治理 | Xiaoyuan"><meta property="og:description" content="数据倾斜不是简单的“任务慢”，而是数据在 partition 间分布失衡。本文从 Spark UI、key 分布和执行计划出发，梳理 join 与聚合倾斜的处理方法。"><meta property="og:url" content="https://thefriesrobber.github.io/zh/writing/spark-data-skew/"><link rel="canonical" href="https://thefriesrobber.github.io/zh/writing/spark-data-skew/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/spark-data-skew/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/spark-data-skew/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/spark-data-skew/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Spark 数据倾斜：如何识别、定位和治理 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-data-skew/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 → ML Platform → Agent Infrastructure</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Spark 数据倾斜：如何识别、定位和治理</h1> <div class="meta"> <time datetime="2020-04-16T12:54:21.000Z">2020/04/16</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/Performance/">Performance</a><a class="pill" href="/zh/tags/Shuffle/">Shuffle</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>一个 Spark job 大部分 task 很快结束，最后几个 task 却运行很久；某个 executor 持续 spill、GC，甚至 OOM。增加 executor 数量、调大 memory 或提高 shuffle partition 数以后，问题仍然存在。</p>
+<p>这通常不是“集群资源不够”，而是数据倾斜：<strong>需要处理的数据没有均匀分布到各个 partition，少数 task 承担了远高于平均值的工作量。</strong></p>
+<p>数据倾斜常见于：</p>
+<ul>
+<li><code>join</code>、<code>groupBy</code>、<code>reduceByKey</code> 等按 key 重新分区的操作。</li>
+<li>大量 <code>null</code>、空字符串、默认值或异常 key 被归到同一个 partition。</li>
+<li>少数热门用户、商品或租户贡献了大部分数据。</li>
+<li>join 关系不是预期的一对一，而是局部多对多，产生数据膨胀。</li>
+</ul>
+<h2 id="先区分几个相似问题">先区分几个相似问题</h2>
+<p>不是所有 task 长尾都是数据倾斜。</p>
+<h3 id="partition-数量不足">Partition 数量不足</h3>
+<p>如果所有 task 都很大、运行时间接近，只是并行度不够，更像 partition 数量不足。增加合理的并行度可能有效。</p>
+<h3 id="输入文件不均匀">输入文件不均匀</h3>
+<p>如果倾斜发生在读取阶段，可能是少数文件特别大、文件不可切分，或数据源本身的 partition 不均匀。这与 shuffle 之后按 key 聚合产生的倾斜不同。</p>
+<h3 id="executor-或节点异常">Executor 或节点异常</h3>
+<p>如果相似大小的 task 只在特定节点上变慢，应先检查节点、磁盘、网络和 executor 状态。数据倾斜通常表现为某些 task 的输入记录数或 shuffle read 明显更高，而不只是运行位置不同。</p>
+<h3 id="数据倾斜">数据倾斜</h3>
+<p>如果同一 stage 中大多数 task 很快完成，少数 task 的 input、shuffle read、spill 或 records 数量高出一个数量级，才应该优先怀疑数据倾斜。</p>
+<h2 id="如何定位">如何定位</h2>
+<h3 id="1-从-spark-ui-找到倾斜的-stage">1. 从 Spark UI 找到倾斜的 stage</h3>
+<p>先看 stage 的 task 指标分布，而不是只看平均值。重点关注：</p>
+<ul>
+<li>Duration 的中位数、最大值和长尾。</li>
+<li>Input Size / Records。</li>
+<li>Shuffle Read Size / Records。</li>
+<li>Shuffle Write Size / Records。</li>
+<li>Memory Bytes Spilled 和 Disk Bytes Spilled。</li>
+<li>GC Time、Peak Execution Memory 和失败重试次数。</li>
+</ul>
+<p>如果最大值远高于中位数，继续查看最慢 task 的 partition id、executor 和输入规模。倾斜的核心证据是<strong>工作量不均匀</strong>，而不只是 task 时间不同。</p>
+<h3 id="2-找到产生-shuffle-的算子">2. 找到产生 shuffle 的算子</h3>
+<p>在 SQL/DataFrame 作业中，可以查看执行计划：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">df.explain(</span><span style="color:#032F62">"formatted"</span><span style="color:#24292E">)</span></span></code></pre>
+<p>重点看 <code>Exchange</code> 前后的 join、aggregation、distinct、window 等节点。对于 RDD，可以通过 <code>toDebugString</code> 查看依赖关系，并关注 <code>join</code>、<code>groupByKey</code>、<code>reduceByKey</code>、<code>repartition</code> 等会产生 shuffle 的 transformation。</p>
+<h3 id="3-检查-key-分布">3. 检查 key 分布</h3>
+<p>对可疑 key 做频次统计，并查看头部 key 占总量的比例：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">_</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">df.groupBy($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .count()</span></span>
+<span class="line"><span style="color:#24292E">  .orderBy(desc(</span><span style="color:#032F62">"count"</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#24292E">  .limit(</span><span style="color:#005CC5">20</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .show(</span><span style="color:#005CC5">false</span><span style="color:#24292E">)</span></span></code></pre>
+<p>这段诊断本身也会触发 shuffle，大表上可以先采样或限制输入范围。除了 top key，还要单独检查：</p>
+<ul>
+<li><code>null</code>、空字符串和默认值。</li>
+<li>不符合业务约束的 key。</li>
+<li>join 两侧同一 key 的记录数。</li>
+<li>hot key 是否随日期、租户或流量事件变化。</li>
+</ul>
+<p>如果 join 两侧某个 key 分别有 <code>m</code> 和 <code>n</code> 条记录，结果可能产生 <code>m × n</code> 条。很多所谓“join 倾斜”其实首先是 join grain 或数据唯一性出了问题。</p>
+<h2 id="治理顺序">治理顺序</h2>
+<h3 id="1-先修复数据语义">1. 先修复数据语义</h3>
+<p>不要一开始就加盐。先回答：这个 hot key 是否应该存在？</p>
+<ul>
+<li><code>null</code> 或默认值不需要参与 join 时，提前过滤。</li>
+<li>不同业务含义被压成同一个默认 key 时，恢复正确的数据模型。</li>
+<li>维表 key 本应唯一时，先去重或修复上游约束。</li>
+<li>join 前只保留必要的列和行，降低 shuffle 数据量。</li>
+</ul>
+<p>这类修复同时改善正确性和性能，通常比参数调优更根本。</p>
+<h3 id="2-小表使用-broadcast-join">2. 小表使用 broadcast join</h3>
+<p>如果 join 的一侧足够小，可以把它广播到 executor，避免大表按 join key shuffle：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">broadcast</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> facts.join(broadcast(dim), </span><span style="color:#6F42C1">Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"key"</span><span style="color:#24292E">), </span><span style="color:#032F62">"left"</span><span style="color:#24292E">)</span></span></code></pre>
+<p>Broadcast 的前提是小表能安全放入每个 executor 的内存。不要因为统计信息错误而强制广播一个实际很大的数据集。</p>
+<h3 id="3-join-前先聚合或裁剪">3. Join 前先聚合或裁剪</h3>
+<p>如果下游只需要某个 key 的汇总结果，应在 join 前完成可下推的过滤和聚合。把十亿条明细先 join，再聚合成一百万行，通常不如先聚合再 join。</p>
+<p>这一步需要确认语义等价，特别是去重、非等值 join 和多对多关系。</p>
+<h3 id="4-单独处理-hot-key">4. 单独处理 hot key</h3>
+<p>当只有少数已知 key 倾斜时，可以把它们拆成单独分支：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> hotKeys</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"unknown"</span><span style="color:#24292E">, </span><span style="color:#032F62">"anonymous"</span><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> isHot</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> coalesce($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">.isin(</span><span style="color:#E36209">hotKeys</span><span style="color:#24292E">: </span><span style="color:#D73A49">_*</span><span style="color:#24292E">), lit(</span><span style="color:#005CC5">false</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> hot</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> df.filter(isHot)</span></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normal</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> df.filter(not(isHot))</span></span></code></pre>
+<p>普通数据继续走原计划，hot key 根据业务语义选择过滤、单独聚合、广播或专门的 join 方案。相比给全量数据加盐，这种方式影响范围更小，也更容易验证。</p>
+<h3 id="5-对-skewed-join-加盐">5. 对 skewed join 加盐</h3>
+<p>当大表中的 hot key 必须参与 join，且另一侧不能直接整体 broadcast 时，可以把一个 hot key 拆到多个 salt bucket。大表按稳定字段分配 salt，小表对应记录复制到所有 bucket。下面的 <code>hotFacts</code> 和 <code>hotDim</code> 分别表示事实表与维表中已经筛出的热点 key 分支：</p>
+<figure>
+  <img src="/posts/zh/spark-data-skew/salting.svg" alt="未加盐时相同的 hot key A 全部进入一个 physical partition；加盐后，五条 A 被分到四个 salt bucket，形成多个 partitioning key，同时小表中的 A 被复制到对应 bucket。" loading="lazy">
+  <figcaption>Salting 把一个 hot key 变成多个 partitioning key；salt bucket 与 physical partition 不保证一一对应。</figcaption>
+</figure>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">_</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> buckets</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 16</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> saltedFacts</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> hotFacts.withColumn(</span></span>
+<span class="line"><span style="color:#032F62">  "salt"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">  pmod(xxhash64($</span><span style="color:#032F62">"event_id"</span><span style="color:#24292E">), lit(buckets)).cast(</span><span style="color:#032F62">"int"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> expandedDim</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> hotDim.withColumn(</span></span>
+<span class="line"><span style="color:#032F62">  "salt"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">  explode(sequence(lit(</span><span style="color:#005CC5">0</span><span style="color:#24292E">), lit(buckets </span><span style="color:#D73A49">-</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">)))</span></span>
+<span class="line"><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> saltedFacts.join(expandedDim, </span><span style="color:#6F42C1">Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"key"</span><span style="color:#24292E">, </span><span style="color:#032F62">"salt"</span><span style="color:#24292E">))</span></span></code></pre>
+<p>Salt bucket 不是越多越好。它会复制另一侧数据、增加记录数和调度开销。应根据 hot key 的数据量、目标 partition 大小和 executor 并行度选择，并只对确实倾斜的 key 使用。</p>
+<h3 id="6-对聚合做两阶段聚合">6. 对聚合做两阶段聚合</h3>
+<p>对于满足结合律和交换律的聚合，可以先按 <code>(key, salt)</code> 局部聚合，再去掉 salt 做第二次聚合：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> partial</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
+<span class="line"><span style="color:#24292E">  .withColumn(</span><span style="color:#032F62">"salt"</span><span style="color:#24292E">, pmod(xxhash64($</span><span style="color:#032F62">"event_id"</span><span style="color:#24292E">), lit(</span><span style="color:#005CC5">16</span><span style="color:#24292E">)))</span></span>
+<span class="line"><span style="color:#24292E">  .groupBy($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">, $</span><span style="color:#032F62">"salt"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .agg(sum($</span><span style="color:#032F62">"amount"</span><span style="color:#24292E">).as(</span><span style="color:#032F62">"partial_amount"</span><span style="color:#24292E">))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> partial</span></span>
+<span class="line"><span style="color:#24292E">  .groupBy($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .agg(sum($</span><span style="color:#032F62">"partial_amount"</span><span style="color:#24292E">).as(</span><span style="color:#032F62">"amount"</span><span style="color:#24292E">))</span></span></code></pre>
+<p><code>sum</code>、<code>count</code>、<code>min</code>、<code>max</code> 比较容易拆分。<code>avg</code> 需要分别保存 <code>sum</code> 和 <code>count</code>；精确 distinct、分位数和顺序相关计算不能简单套用同样方法。</p>
+<h3 id="7-使用-aqe-处理运行时-skew-join">7. 使用 AQE 处理运行时 skew join</h3>
+<p>在支持 Adaptive Query Execution 的 Spark SQL/DataFrame 作业中，可以让 Spark 根据运行时 shuffle 统计识别并拆分 skewed partition：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled=true</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.enabled=true</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionFactor</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes</span></span></code></pre>
+<p>不同版本的默认值和适用 join 策略可能变化，应以当前部署版本为准。AQE 能缓解运行时 partition 倾斜，但不能修复错误的 join grain、异常 key 或数据膨胀。更完整的说明见 <a href="/zh/writing/spark-adaptive-query-execution/">Spark Adaptive Query Execution 简记</a>。</p>
+<h2 id="为什么只增加-partition-往往没用">为什么只增加 partition 往往没用</h2>
+<p>在典型的按 key 进行 hash shuffle 的场景里，同一个 key 的记录会进入同一个 partition。即使把 partition 数从 200 调到 2000，一个占据 30% 数据量的 hot key 仍然只能落入其中一个 partition。</p>
+<p>增加 partition 可以减小普通 partition，却不会拆开单个 hot key。它可能让中位数 task 更快，但最慢 task 几乎不变，反而增加调度和小文件开销。</p>
+<h2 id="如何验证治理有效">如何验证治理有效</h2>
+<p>不要只比较 job 总耗时。至少检查：</p>
+<ol>
+<li>同一 stage 的 task duration、shuffle read 和 spill 的最大值与中位数差距是否缩小。</li>
+<li>最慢 task 是否不再长期拖住整个 stage。</li>
+<li>加盐或拆分后是否引入额外数据膨胀。</li>
+<li>结果行数、聚合值和 join 语义是否与基线一致。</li>
+<li>方案在不同日期、租户和流量峰值下是否仍然稳定。</li>
+</ol>
+<p>性能优化不能以结果正确性为代价。特别是加盐、预聚合和 hot key 分支，都应该用可重复的数据集做结果对账。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>处理 Spark 数据倾斜的关键不是先调参数，而是先找出<strong>哪个 stage、哪个 shuffle 边界、哪些 key</strong>造成了不均匀。</p>
+<p>一个比较稳妥的顺序是：</p>
+<ol>
+<li>用 Spark UI 证明存在 partition 级别的工作量差异。</li>
+<li>通过执行计划找到产生倾斜的 join 或 aggregation。</li>
+<li>检查 key 分布和业务 grain，优先修复数据问题。</li>
+<li>再选择 broadcast、预聚合、hot key 分流、加盐或 AQE。</li>
+<li>同时验证性能和结果正确性。</li>
+</ol>
+<p>数据倾斜本质上是数据分布和计算边界共同造成的问题。只有理解数据为什么集中到少数 partition，才能选择不会把复杂度转移到别处的方案。</p>
+<p>参考：</p>
+<ul>
+<li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
+<li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html#shuffle-operations">Spark RDD Programming Guide: Shuffle Operations</a></li>
+<li><a href="https://spark.apache.org/docs/latest/tuning.html">Spark Tuning Guide</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>留痕，积跬步至千里。</span> </footer> </main> </div> </body></html>

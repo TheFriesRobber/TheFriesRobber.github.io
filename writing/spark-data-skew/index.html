@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Data skew is not simply a slow job. It is an imbalance in how data is distributed across partitions. This article uses the Spark UI, key distributions, and execution plans to diagnose and address skew in joins and aggregations."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Spark Data Skew — How to Identify, Diagnose, and Fix It | Xiaoyuan"><meta property="og:description" content="Data skew is not simply a slow job. It is an imbalance in how data is distributed across partitions. This article uses the Spark UI, key distributions, and execution plans to diagnose and address skew in joins and aggregations."><meta property="og:url" content="https://thefriesrobber.github.io/writing/spark-data-skew/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/spark-data-skew/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/spark-data-skew/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/spark-data-skew/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/spark-data-skew/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Spark Data Skew — How to Identify, Diagnose, and Fix It | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-data-skew/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Spark Data Skew — How to Identify, Diagnose, and Fix It</h1> <div class="meta"> <time datetime="2020-04-16T12:54:21.000Z">04/16/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a><a class="pill" href="/tags/Performance/">Performance</a><a class="pill" href="/tags/Shuffle/">Shuffle</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Most tasks in a Spark job finish quickly, but the final few keep running. One executor continues to spill, spend time in GC, or even run out of memory. Adding executors, increasing memory, or raising the number of shuffle partitions does not solve the problem.</p>
+<p>This is often data skew rather than a simple lack of cluster resources: <strong>the work is not distributed evenly across partitions, so a few tasks process far more data than the rest.</strong></p>
+<p>Data skew commonly appears when:</p>
+<ul>
+<li>Operations such as <code>join</code>, <code>groupBy</code>, and <code>reduceByKey</code> repartition data by key.</li>
+<li>Many <code>null</code> values, empty strings, placeholders, or abnormal keys land in the same partition.</li>
+<li>A small number of popular users, products, or tenants account for most records.</li>
+<li>A join that should be one-to-one becomes locally many-to-many and expands the data.</li>
+</ul>
+<h2 id="distinguish-skew-from-similar-problems">Distinguish skew from similar problems</h2>
+<p>Not every task straggler is caused by data skew.</p>
+<h3 id="too-few-partitions">Too few partitions</h3>
+<p>If all tasks are large and take a similar amount of time, the job may simply lack parallelism. Increasing the partition count to a reasonable level can help.</p>
+<h3 id="uneven-input-files">Uneven input files</h3>
+<p>If the imbalance appears during the input stage, a few files may be unusually large, unsplittable, or unevenly distributed in the source. This differs from skew created after a shuffle by key-based joins or aggregations.</p>
+<h3 id="a-slow-executor-or-node">A slow executor or node</h3>
+<p>If tasks with similar input sizes become slow only on a particular node, inspect the node, disk, network, and executor first. Data skew normally shows up as a large difference in input records or shuffle read volume, not merely as a difference in task placement.</p>
+<h3 id="data-skew">Data skew</h3>
+<p>Suspect skew when most tasks in a stage finish quickly while a few tasks have an order of magnitude more input, shuffle read, spill, or records.</p>
+<h2 id="how-to-diagnose-it">How to diagnose it</h2>
+<h3 id="1-find-the-skewed-stage-in-the-spark-ui">1. Find the skewed stage in the Spark UI</h3>
+<p>Look at the distribution of task metrics, not only their averages. Useful signals include:</p>
+<ul>
+<li>Median and maximum task duration, together with the long tail.</li>
+<li>Input Size / Records.</li>
+<li>Shuffle Read Size / Records.</li>
+<li>Shuffle Write Size / Records.</li>
+<li>Memory Bytes Spilled and Disk Bytes Spilled.</li>
+<li>GC Time, Peak Execution Memory, and retry counts.</li>
+</ul>
+<p>If the maximum is far above the median, inspect the partition ID, executor, and input size of the slowest tasks. The important evidence is <strong>uneven work</strong>, not task duration alone.</p>
+<h3 id="2-find-the-operator-that-creates-the-shuffle">2. Find the operator that creates the shuffle</h3>
+<p>For SQL and DataFrame jobs, inspect the execution plan:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">df.explain(</span><span style="color:#032F62">"formatted"</span><span style="color:#24292E">)</span></span></code></pre>
+<p>Look for joins, aggregations, distinct operations, and windows around <code>Exchange</code> nodes. For RDD jobs, use <code>toDebugString</code> to inspect dependencies and focus on transformations such as <code>join</code>, <code>groupByKey</code>, <code>reduceByKey</code>, and <code>repartition</code> that may produce a shuffle.</p>
+<h3 id="3-inspect-the-key-distribution">3. Inspect the key distribution</h3>
+<p>Count suspicious keys and examine how much of the total volume belongs to the most frequent values:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">_</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">df.groupBy($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .count()</span></span>
+<span class="line"><span style="color:#24292E">  .orderBy(desc(</span><span style="color:#032F62">"count"</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#24292E">  .limit(</span><span style="color:#005CC5">20</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .show(</span><span style="color:#005CC5">false</span><span style="color:#24292E">)</span></span></code></pre>
+<p>This diagnostic query also causes a shuffle. On a large dataset, begin with a sample or a limited time range. In addition to the top keys, inspect:</p>
+<ul>
+<li><code>null</code>, empty strings, and placeholder values.</li>
+<li>Keys that violate business constraints.</li>
+<li>The number of rows for the same key on both sides of a join.</li>
+<li>Whether hot keys change with date, tenant, or traffic events.</li>
+</ul>
+<p>If one key has <code>m</code> rows on one side of a join and <code>n</code> rows on the other, the result may contain <code>m × n</code> rows. Many cases described as join skew begin with an incorrect join grain or a violated uniqueness constraint.</p>
+<h2 id="a-practical-order-for-fixing-skew">A practical order for fixing skew</h2>
+<h3 id="1-correct-the-data-semantics-first">1. Correct the data semantics first</h3>
+<p>Do not begin with salting. First ask whether the hot key should exist at all.</p>
+<ul>
+<li>Filter <code>null</code> or placeholder values if they should not participate in the join.</li>
+<li>Restore the correct data model when different meanings have been collapsed into one default key.</li>
+<li>Deduplicate or repair the upstream constraint when a dimension key should be unique.</li>
+<li>Keep only the required rows and columns before the join to reduce shuffle volume.</li>
+</ul>
+<p>These changes improve correctness as well as performance and are usually more fundamental than configuration tuning.</p>
+<h3 id="2-broadcast-a-small-join-side">2. Broadcast a small join side</h3>
+<p>If one side of the join is small enough, broadcast it to the executors and avoid shuffling the large side by join key:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">broadcast</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> facts.join(broadcast(dim), </span><span style="color:#6F42C1">Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"key"</span><span style="color:#24292E">), </span><span style="color:#032F62">"left"</span><span style="color:#24292E">)</span></span></code></pre>
+<p>The broadcast side must fit safely in executor memory. Do not force a broadcast of a dataset that is large in reality merely because its statistics are wrong.</p>
+<h3 id="3-aggregate-or-prune-before-the-join">3. Aggregate or prune before the join</h3>
+<p>If downstream logic only needs a summary by key, push eligible filters and aggregations before the join. Joining a billion detail rows and then reducing them to one million rows is often worse than aggregating first.</p>
+<p>Confirm that the rewrite preserves semantics, especially for deduplication, non-equi joins, and many-to-many relationships.</p>
+<h3 id="4-handle-hot-keys-separately">4. Handle hot keys separately</h3>
+<p>When only a few known keys are skewed, split them into a separate branch:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> hotKeys</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"unknown"</span><span style="color:#24292E">, </span><span style="color:#032F62">"anonymous"</span><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> isHot</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> coalesce($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">.isin(</span><span style="color:#E36209">hotKeys</span><span style="color:#24292E">: </span><span style="color:#D73A49">_*</span><span style="color:#24292E">), lit(</span><span style="color:#005CC5">false</span><span style="color:#24292E">))</span></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> hot</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> df.filter(isHot)</span></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normal</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> df.filter(not(isHot))</span></span></code></pre>
+<p>The normal data can keep the original plan. The hot-key branch can be filtered, aggregated separately, broadcast, or processed with a specialized join strategy according to its meaning. Compared with salting the entire dataset, this limits the scope of the change and makes validation easier.</p>
+<h3 id="5-salt-a-skewed-join">5. Salt a skewed join</h3>
+<p>If hot keys on the large side must participate in the join and the other side is too large to broadcast in full, split each hot key into several salt buckets. Assign the large-side records to buckets using a stable field, and copy the corresponding small-side rows to every bucket. In the following example, <code>hotFacts</code> and <code>hotDim</code> are the hot-key branches already isolated from the fact and dimension tables:</p>
+<figure>
+  <img src="/posts/en/spark-data-skew/salting.svg" alt="Without salting, all five records for hot key A enter one physical partition. With salting, the same five records are assigned to four salt buckets, creating several partitioning keys while the small-side row is copied to the matching buckets." loading="lazy">
+  <figcaption>Salting turns one hot key into several partitioning keys; salt buckets and physical partitions are not guaranteed to have a one-to-one mapping.</figcaption>
+</figure>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">sql</span><span style="color:#24292E">.</span><span style="color:#6F42C1">functions</span><span style="color:#24292E">.</span><span style="color:#6F42C1">_</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> buckets</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 16</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> saltedFacts</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> hotFacts.withColumn(</span></span>
+<span class="line"><span style="color:#032F62">  "salt"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">  pmod(xxhash64($</span><span style="color:#032F62">"event_id"</span><span style="color:#24292E">), lit(buckets)).cast(</span><span style="color:#032F62">"int"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> expandedDim</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> hotDim.withColumn(</span></span>
+<span class="line"><span style="color:#032F62">  "salt"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">  explode(sequence(lit(</span><span style="color:#005CC5">0</span><span style="color:#24292E">), lit(buckets </span><span style="color:#D73A49">-</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">)))</span></span>
+<span class="line"><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> saltedFacts.join(expandedDim, </span><span style="color:#6F42C1">Seq</span><span style="color:#24292E">(</span><span style="color:#032F62">"key"</span><span style="color:#24292E">, </span><span style="color:#032F62">"salt"</span><span style="color:#24292E">))</span></span></code></pre>
+<p>More buckets are not always better. Salting duplicates the other join side and increases record count and scheduling overhead. Choose a bucket count based on the hot-key volume, target partition size, and executor parallelism, and apply it only to keys that are actually skewed.</p>
+<h3 id="6-use-two-stage-aggregation">6. Use two-stage aggregation</h3>
+<p>For aggregations that are associative and commutative, first aggregate by <code>(key, salt)</code>, then remove the salt and aggregate again:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> partial</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
+<span class="line"><span style="color:#24292E">  .withColumn(</span><span style="color:#032F62">"salt"</span><span style="color:#24292E">, pmod(xxhash64($</span><span style="color:#032F62">"event_id"</span><span style="color:#24292E">), lit(</span><span style="color:#005CC5">16</span><span style="color:#24292E">)))</span></span>
+<span class="line"><span style="color:#24292E">  .groupBy($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">, $</span><span style="color:#032F62">"salt"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .agg(sum($</span><span style="color:#032F62">"amount"</span><span style="color:#24292E">).as(</span><span style="color:#032F62">"partial_amount"</span><span style="color:#24292E">))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> partial</span></span>
+<span class="line"><span style="color:#24292E">  .groupBy($</span><span style="color:#032F62">"key"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">  .agg(sum($</span><span style="color:#032F62">"partial_amount"</span><span style="color:#24292E">).as(</span><span style="color:#032F62">"amount"</span><span style="color:#24292E">))</span></span></code></pre>
+<p>Operations such as <code>sum</code>, <code>count</code>, <code>min</code>, and <code>max</code> are straightforward to split. An <code>avg</code> requires carrying both <code>sum</code> and <code>count</code>. Exact distinct counts, quantiles, and order-dependent calculations cannot use the same rewrite without additional work.</p>
+<h3 id="7-let-aqe-handle-runtime-skewed-joins">7. Let AQE handle runtime skewed joins</h3>
+<p>For Spark SQL and DataFrame workloads that support Adaptive Query Execution, Spark can use runtime shuffle statistics to identify and split skewed partitions:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled=true</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.enabled=true</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionFactor</span></span>
+<span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes</span></span></code></pre>
+<p>Defaults and applicable join strategies can change by version, so verify them against the deployed Spark version. AQE can mitigate runtime partition skew, but it cannot correct a bad join grain, abnormal keys, or data expansion. See <a href="/writing/spark-adaptive-query-execution/">Notes on Spark Adaptive Query Execution</a> for more detail.</p>
+<h2 id="why-adding-partitions-is-often-insufficient">Why adding partitions is often insufficient</h2>
+<p>In a typical key-based hash shuffle, records with the same key enter the same partition. Even if the partition count grows from 200 to 2,000, a hot key that represents 30% of the data still lands in one partition.</p>
+<p>Additional partitions make ordinary partitions smaller, but they do not split a single hot key. The median task may become faster while the slowest task barely changes, and the job may gain extra scheduling and small-file overhead.</p>
+<h2 id="how-to-validate-the-fix">How to validate the fix</h2>
+<p>Do not compare total job duration alone. At minimum, check whether:</p>
+<ol>
+<li>The gap between the maximum and median task duration, shuffle read, and spill has narrowed within the stage.</li>
+<li>The slowest task no longer holds the stage open for a long time.</li>
+<li>Salting or branch splitting has introduced unexpected data expansion.</li>
+<li>Row counts, aggregate values, and join semantics match the baseline.</li>
+<li>The approach remains stable across dates, tenants, and traffic peaks.</li>
+</ol>
+<p>Performance work must not compromise correctness. Salting, pre-aggregation, and hot-key branches should all be reconciled against a repeatable dataset.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The first step in fixing Spark data skew is not tuning a setting. It is identifying <strong>which stage, which shuffle boundary, and which keys</strong> create the imbalance.</p>
+<p>A reliable sequence is:</p>
+<ol>
+<li>Use the Spark UI to establish that task workload is uneven at the partition level.</li>
+<li>Use the execution plan to find the join or aggregation that creates the skew.</li>
+<li>Inspect key distribution and business grain, correcting data problems first.</li>
+<li>Then choose among broadcast, pre-aggregation, hot-key branching, salting, and AQE.</li>
+<li>Validate both performance and result correctness.</li>
+</ol>
+<p>Data skew is produced by the interaction between data distribution and computation boundaries. Once you understand why the data concentrates in a few partitions, you can choose a fix that does not merely move the complexity elsewhere.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
+<li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html#shuffle-operations">Spark RDD Programming Guide: Shuffle Operations</a></li>
+<li><a href="https://spark.apache.org/docs/latest/tuning.html">Spark Tuning Guide</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

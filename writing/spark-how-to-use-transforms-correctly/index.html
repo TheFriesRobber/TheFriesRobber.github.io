@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A Spark transformation describes lazy, distributed, recomputable work. Using transformations correctly requires understanding actions, closures, side effects, shuffles, partitions, and persistence."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="How to Use Spark Transformations Correctly | Xiaoyuan"><meta property="og:description" content="A Spark transformation describes lazy, distributed, recomputable work. Using transformations correctly requires understanding actions, closures, side effects, shuffles, partitions, and persistence."><meta property="og:url" content="https://thefriesrobber.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>How to Use Spark Transformations Correctly | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-how-to-use-transforms-correctly/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">How to Use Spark Transformations Correctly</h1> <div class="meta"> <time datetime="2020-04-18T14:22:35.000Z">04/18/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a><a class="pill" href="/tags/RDD/">RDD</a><a class="pill" href="/tags/Performance/">Performance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>These behaviors are common when first working with Spark:</p>
+<ul>
+<li>Calling <code>map</code> does not immediately print the expected log messages.</li>
+<li>The same transformation appears to run twice.</li>
+<li>A variable modified inside <code>map</code> remains unchanged on the driver after the action finishes.</li>
+<li>Writing to a database or calling an external API inside a transformation occasionally creates duplicates.</li>
+<li>A sequence of simple-looking operators produces substantial shuffle and spill at runtime.</li>
+</ul>
+<p>The individual APIs are not the difficult part. A Spark transformation is not an ordinary local collection operation. It describes computation that is <strong>lazy, partitioned across workers, and recomputable after failure</strong>.</p>
+<h2 id="transformations-and-actions">Transformations and actions</h2>
+<p>RDD operations fall into two groups:</p>
+<ul>
+<li><strong>Transformations</strong> create a new RDD from an existing one, including <code>map</code>, <code>filter</code>, <code>flatMap</code>, <code>reduceByKey</code>, and <code>join</code>.</li>
+<li><strong>Actions</strong> request a result or produce output, including <code>count</code>, <code>collect</code>, <code>reduce</code>, <code>saveAsTextFile</code>, and <code>foreach</code>.</li>
+</ul>
+<p>Transformations are lazy by default. Calling one records a dependency without processing the data immediately. When an action requests a result, Spark uses the lineage to build jobs and stages.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> cleaned</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
+<span class="line"><span style="color:#24292E">  .filter(_.nonEmpty)</span></span>
+<span class="line"><span style="color:#24292E">  .map(_.trim)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// No cluster computation has normally happened yet</span></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> cleaned.count()</span></span></code></pre>
+<p>Lazy evaluation lets Spark pipeline steps and avoid unnecessary intermediate results. It also leads to an important conclusion: <strong>code inside a transformation may not run at all, may run once, or may run repeatedly because of multiple actions, failure recovery, or speculative execution.</strong></p>
+<figure>
+  <img src="/posts/en/spark-how-to-use-transforms-correctly/execution-model.svg" alt="The driver first builds a lineage with map, filter, and reduceByKey. When count submits the job, Spark executes Stage 1, crosses a shuffle boundary, continues with Stage 2, and returns the result." loading="lazy">
+  <figcaption>Transformations describe the lineage. An action triggers execution, and a shuffle separates the work into stages.</figcaption>
+</figure>
+<h2 id="keep-transformation-functions-as-pure-as-possible">Keep transformation functions as pure as possible</h2>
+<p>An ideal transformation function has the following properties:</p>
+<ul>
+<li>The same input produces the same output.</li>
+<li>It does not depend on mutable external state.</li>
+<li>It does not attempt to update an ordinary driver variable.</li>
+<li>It does not treat an external side effect as an exactly-once operation.</li>
+</ul>
+<h3 id="driver-variables-do-not-update-like-local-variables">Driver variables do not update like local variables</h3>
+<p>The following code looks as though it counts records:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">var</span><span style="color:#E36209"> records</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 0L</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { value </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#24292E">  records </span><span style="color:#D73A49">+=</span><span style="color:#005CC5"> 1</span></span>
+<span class="line"><span style="color:#24292E">  value.trim</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">normalized.count()</span></span>
+<span class="line"><span style="color:#24292E">println(records)</span></span></code></pre>
+<p>The closure that runs on an executor is a serialized copy. Each task updates its own copy, not the driver’s <code>records</code> variable. Code that happens to appear correct in local mode does not gain valid cluster semantics from that observation.</p>
+<p>When a count is part of the result, use an action or an explicit aggregation. Accumulators are useful for monitoring and diagnostics, but their update timing is still affected by task execution and lazy evaluation. They should not be the sole source of a business result.</p>
+<h3 id="external-writes-may-happen-more-than-once">External writes may happen more than once</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { record </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#24292E">  externalClient.write(record)</span></span>
+<span class="line"><span style="color:#24292E">  transform(record)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The call to <code>write</code> may be repeated because:</p>
+<ul>
+<li>Multiple actions recompute the same lineage.</li>
+<li>A failed task is retried.</li>
+<li>A cached partition is lost and recomputed.</li>
+<li>Speculative execution runs more than one attempt of the same task.</li>
+</ul>
+<p>If an external side effect is unavoidable, the destination needs an idempotency key, deduplication, or a transaction boundary designed around task-attempt semantics. More often, the transformation should produce data to be written, leaving delivery to an output stage with explicit guarantees.</p>
+<h2 id="multiple-actions-can-repeat-computation">Multiple actions can repeat computation</h2>
+<p>When several actions consume the same RDD without persistence, Spark can recompute it from its lineage:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map(expensiveNormalize)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> normalized.count()</span></span>
+<span class="line"><span style="color:#24292E">normalized.saveAsTextFile(outputPath)</span></span></code></pre>
+<p>Here, <code>expensiveNormalize</code> may run twice. If the intermediate result is expensive, reused, and suitable for the available memory and disk, persist it explicitly:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">storage</span><span style="color:#24292E">.</span><span style="color:#6F42C1">StorageLevel</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
+<span class="line"><span style="color:#24292E">  .map(expensiveNormalize)</span></span>
+<span class="line"><span style="color:#24292E">  .persist(</span><span style="color:#6F42C1">StorageLevel</span><span style="color:#24292E">.</span><span style="color:#6F42C1">MEMORY_AND_DISK</span><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> normalized.count() </span><span style="color:#6A737D">// Also materializes the persisted data</span></span>
+<span class="line"><span style="color:#24292E">normalized.saveAsTextFile(outputPath)</span></span>
+<span class="line"><span style="color:#24292E">normalized.unpersist()</span></span></code></pre>
+<p>Do not call <code>cache()</code> mechanically on every intermediate result:</p>
+<ul>
+<li>Data used only once has no reuse benefit.</li>
+<li>Cached data consumes executor memory and may compete with execution memory.</li>
+<li>Cached blocks may be evicted, written to disk, or recomputed later, making persistence more expensive than recomputation.</li>
+<li>The persistence level should reflect object size, serialization cost, and recomputation cost.</li>
+</ul>
+<h2 id="closures-are-sent-to-executors">Closures are sent to executors</h2>
+<p>Spark serializes the function used by a transformation together with captured variables and sends them to executors. Common problems include:</p>
+<ul>
+<li>Capturing the entire enclosing <code>this</code> object by accident.</li>
+<li>Capturing a connection, thread pool, or client that cannot be serialized.</li>
+<li>Sending a large lookup map with every task.</li>
+<li>Depending on a file or environment that exists only on the driver.</li>
+</ul>
+<p>Copying only the required fields into local variables can reduce closure size. Larger read-only lookup data is often better distributed through a broadcast variable:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> lookupBroadcast</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> sc.broadcast(lookup)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> enriched</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { record </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#D73A49">  val</span><span style="color:#E36209"> lookup</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> lookupBroadcast.value</span></span>
+<span class="line"><span style="color:#24292E">  enrich(record, lookup)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>Treat broadcast values as read-only. Updating the original object on the driver does not update a broadcast value that has already been distributed. Destroy it explicitly when it is no longer needed.</p>
+<h2 id="narrow-and-wide-dependencies">Narrow and wide dependencies</h2>
+<p>A transformation does more than apply a function. It also determines whether data must move across partitions.</p>
+<h3 id="narrow-dependencies">Narrow dependencies</h3>
+<p>With a narrow dependency, one output partition depends on a small, known set of parent partitions. Spark can normally pipeline the work within the same stage. Examples include:</p>
+<ul>
+<li><code>map</code></li>
+<li><code>filter</code></li>
+<li><code>flatMap</code></li>
+<li><code>mapPartitions</code></li>
+<li><code>coalesce</code> when it does not shuffle</li>
+</ul>
+<h3 id="wide-dependencies">Wide dependencies</h3>
+<p>With a wide dependency, one output partition depends on several parent partitions. This normally requires a shuffle and creates a stage boundary. Examples include:</p>
+<ul>
+<li><code>groupByKey</code></li>
+<li><code>reduceByKey</code></li>
+<li><code>join</code></li>
+<li><code>distinct</code></li>
+<li><code>repartition</code></li>
+<li><code>sortByKey</code></li>
+</ul>
+<p>A shuffle involves network transfer, serialization, sorting, and disk files. Using transformations correctly does not mean avoiding every wide dependency. It means understanding why the shuffle exists and eliminating unnecessary data movement.</p>
+<p>For example, when aggregating by key, prefer <code>reduceByKey</code> or <code>aggregateByKey</code> when their semantics fit instead of collecting every value with <code>groupByKey</code> and summing afterward:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> totals</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> pairs.reduceByKey(_ </span><span style="color:#D73A49">+</span><span style="color:#24292E"> _)</span></span></code></pre>
+<p>These operators can combine values before the shuffle and reduce network traffic. The aggregation function still needs the required associative behavior and correct type semantics.</p>
+<h2 id="choices-related-to-partitions">Choices related to partitions</h2>
+<h3 id="map-and-mappartitions"><code>map</code> and <code>mapPartitions</code></h3>
+<p><code>map</code> invokes a function for every record. <code>mapPartitions</code> invokes a function once per partition and passes it an iterator.</p>
+<p>When initializing a parser or read-only helper is expensive, <code>mapPartitions</code> can create it once for each partition:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> parsed</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.mapPartitions { rows </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#D73A49">  val</span><span style="color:#E36209"> parser</span><span style="color:#D73A49"> =</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> ExpensiveParser</span><span style="color:#24292E">()</span></span>
+<span class="line"><span style="color:#24292E">  rows.map(parser.parse)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>This reduces initialization overhead but also gives the function more responsibility. Do not use it to keep uncontrolled global state on executors. Connections and external writes still require explicit cleanup, retry, and idempotency behavior.</p>
+<h3 id="preserve-an-existing-partitioner-when-appropriate">Preserve an existing partitioner when appropriate</h3>
+<p>For a pair RDD, <code>mapValues</code> can preserve the partitioner when only values change. A general <code>map</code> normally provides no such guarantee. Preserving a valid partitioner can avoid a later shuffle.</p>
+<p>The key must genuinely remain unchanged. If a transformation modifies keys, Spark needs to establish a partition distribution that matches the new keys.</p>
+<h3 id="coalesce-and-repartition"><code>coalesce</code> and <code>repartition</code></h3>
+<ul>
+<li><code>coalesce(n)</code> is commonly used to reduce the number of partitions. Without a shuffle, it may leave partitions uneven.</li>
+<li><code>repartition(n)</code> causes a shuffle. It costs more, but can rebalance data and can also increase the partition count.</li>
+</ul>
+<p>Choose between them according to the goal. Reducing tiny tasks, rebalancing data, and controlling output file count are different problems.</p>
+<h2 id="choosing-a-transformation">Choosing a transformation</h2>
+<ul>
+<li>One input produces one output: <code>map</code>.</li>
+<li>One input produces zero or more outputs: <code>flatMap</code>.</li>
+<li>Keep only selected inputs: <code>filter</code>.</li>
+<li>Aggregate by key: prefer an aggregation that can combine values before the shuffle when its semantics fit.</li>
+<li>Change only the value of a pair RDD: consider <code>mapValues</code>.</li>
+<li>Share expensive initialization within a partition: consider <code>mapPartitions</code>.</li>
+</ul>
+<p>For DataFrame and Dataset workloads, prefer built-in expressions that Spark can understand. Hiding logic inside an ordinary UDF too early can prevent Catalyst from applying predicate pushdown, constant folding, or other plan optimizations.</p>
+<h2 id="lineage-persistence-and-checkpointing">Lineage, persistence, and checkpointing</h2>
+<p>RDD lineage lets Spark recompute lost partitions, which is why transformation functions need retry-safe semantics. A very long lineage can increase scheduling complexity and recomputation cost.</p>
+<p>Persistence addresses reuse and recomputation cost. Checkpointing truncates lineage. They solve different problems. A checkpoint requires reliable storage and an action that materializes it. Do not treat a checkpoint as an ordinary cache, or a cache as permanent storage.</p>
+<h2 id="how-to-verify-transformation-behavior">How to verify transformation behavior</h2>
+<h3 id="inspect-the-execution-structure">Inspect the execution structure</h3>
+<ul>
+<li>For an RDD, use <code>toDebugString</code> to inspect lineage and shuffle dependencies.</li>
+<li>For a DataFrame or Dataset, use <code>explain("formatted")</code> to inspect logical and physical plans.</li>
+<li>In the Spark UI, inspect jobs, stages, tasks, shuffle, spill, and repeated computation.</li>
+</ul>
+<h3 id="test-an-action-not-only-the-transformation-definition">Test an action, not only the transformation definition</h3>
+<p>Because transformations are lazy, merely constructing an RDD does not prove that a function can be serialized or run on an executor. A test should trigger at least one action:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> transform(sc.parallelize(input, </span><span style="color:#005CC5">2</span><span style="color:#24292E">)).collect().toSeq</span></span></code></pre>
+<p><code>local[2]</code> exposes more concurrency and partition assumptions than <code>local[1]</code>, but local testing still cannot reproduce executor loss, task retries, or production data distributions completely. Test idempotency and retry behavior separately for external side effects.</p>
+<h3 id="signals-to-check">Signals to check</h3>
+<ul>
+<li>Whether several actions recompute the same expensive lineage.</li>
+<li>Whether an unexpected shuffle or a sudden partition-count change appears.</li>
+<li>Whether the task closure is too large or cannot be serialized.</li>
+<li>Whether a transformation depends on mutable driver state.</li>
+<li>Whether persisted data is reused or repeatedly evicted and recomputed.</li>
+<li>Whether the output system can tolerate repeated task attempts.</li>
+</ul>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Using Spark transformations correctly is less about memorizing APIs and more about accepting their execution model:</p>
+<ol>
+<li>A transformation describes computation; an action triggers it.</li>
+<li>A transformation may be recomputed, so its function should be as pure and deterministic as possible.</li>
+<li>A closure is serialized to executors and should not capture large objects or local-only resources unintentionally.</li>
+<li>A wide dependency causes a shuffle, so understand how data moves across partitions.</li>
+<li>Persistence, partitioners, and checkpointing each have a specific purpose; none is a universal optimization switch.</li>
+<li>A transformation alone cannot guarantee exactly-once external side effects.</li>
+</ol>
+<p>Once you treat a transformation as part of a distributed execution plan rather than a remote version of a Scala collection operation, many problems that appear only in a cluster become easier to explain.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html">Spark RDD Programming Guide</a></li>
+<li><a href="https://spark.apache.org/docs/latest/tuning.html">Spark Tuning Guide</a></li>
+<li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

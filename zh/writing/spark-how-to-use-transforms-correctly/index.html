@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Spark transformation 是延迟执行、可重算的分布式计算描述。正确使用它，需要理解 action、closure、副作用、shuffle、partition 和 cache 的边界。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="如何正确使用 Spark Transformation | Xiaoyuan"><meta property="og:description" content="Spark transformation 是延迟执行、可重算的分布式计算描述。正确使用它，需要理解 action、closure、副作用、shuffle、partition 和 cache 的边界。"><meta property="og:url" content="https://thefriesrobber.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="canonical" href="https://thefriesrobber.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>如何正确使用 Spark Transformation | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-how-to-use-transforms-correctly/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 → ML Platform → Agent Infrastructure</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">如何正确使用 Spark Transformation</h1> <div class="meta"> <time datetime="2020-04-18T14:22:35.000Z">2020/04/18</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/RDD/">RDD</a><a class="pill" href="/zh/tags/Performance/">Performance</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>下面这些现象在刚开始使用 Spark 时很常见：</p>
+<ul>
+<li>调用了 <code>map</code>，日志却没有立即输出。</li>
+<li>同一个 transformation 看起来执行了两次。</li>
+<li>在 <code>map</code> 里修改 driver 变量，action 完成后变量仍然没变。</li>
+<li>在 transformation 中写数据库或调用外部 API，偶尔出现重复写入。</li>
+<li>连续几个很简单的算子，运行时却产生了大量 shuffle 和 spill。</li>
+</ul>
+<p>这些问题并不是 <code>map</code> 或 <code>filter</code> 的 API 难以理解，而是 Spark 的 transformation 不是普通的本地集合操作。它描述的是一段<strong>延迟执行、分区并行、失败后可以重算</strong>的计算。</p>
+<h2 id="transformation-和-action">Transformation 和 Action</h2>
+<p>RDD 操作可以分成两类：</p>
+<ul>
+<li><strong>Transformation</strong>：从一个 RDD 生成新的 RDD，例如 <code>map</code>、<code>filter</code>、<code>flatMap</code>、<code>reduceByKey</code> 和 <code>join</code>。</li>
+<li><strong>Action</strong>：真正请求结果或输出，例如 <code>count</code>、<code>collect</code>、<code>reduce</code>、<code>saveAsTextFile</code> 和 <code>foreach</code>。</li>
+</ul>
+<p>Transformation 默认是 lazy 的：调用时只记录依赖关系，不立即处理数据。直到 action 需要结果，Spark 才根据 lineage 构建 job 和 stage。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> cleaned</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
+<span class="line"><span style="color:#24292E">  .filter(_.nonEmpty)</span></span>
+<span class="line"><span style="color:#24292E">  .map(_.trim)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// 到这里通常还没有执行集群计算</span></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> cleaned.count()</span></span></code></pre>
+<p>Lazy evaluation 让 Spark 可以把多个步骤组合起来，并且避免生成不必要的中间结果。但它也带来一个重要结论：<strong>transformation 中的代码可能不执行、执行一次，也可能因为多个 action、失败恢复或推测执行而重复执行。</strong></p>
+<figure>
+  <img src="/posts/zh/spark-how-to-use-transforms-correctly/execution-model.svg" alt="Driver 先用 map、filter 和 reduceByKey 建立 lineage；count action 提交 job 后，Spark 才执行 Stage 1，在 shuffle 边界后继续执行 Stage 2 并返回结果。" loading="lazy">
+  <figcaption>Transformation 描述 lineage；Action 触发执行，shuffle 把执行过程分成不同 stage。</figcaption>
+</figure>
+<h2 id="transformation-中的函数应该尽量纯净">Transformation 中的函数应该尽量纯净</h2>
+<p>理想的 transformation 函数应该满足：</p>
+<ul>
+<li>相同输入得到相同输出。</li>
+<li>不依赖可变的外部状态。</li>
+<li>不修改 driver 中的普通变量。</li>
+<li>不把外部副作用当作 exactly-once 操作。</li>
+</ul>
+<h3 id="driver-变量不会按本地代码的方式更新">Driver 变量不会按本地代码的方式更新</h3>
+<p>下面的写法看起来像是在统计记录数：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">var</span><span style="color:#E36209"> records</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 0L</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { value </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#24292E">  records </span><span style="color:#D73A49">+=</span><span style="color:#005CC5"> 1</span></span>
+<span class="line"><span style="color:#24292E">  value.trim</span></span>
+<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">normalized.count()</span></span>
+<span class="line"><span style="color:#24292E">println(records)</span></span></code></pre>
+<p>运行在 executor 上的是 closure 的序列化副本。每个 task 修改的是自己的副本，不是 driver 中的 <code>records</code>。local mode 下偶尔表现得“可以工作”，也不能说明 cluster mode 下语义正确。</p>
+<p>需要计数时，优先使用 action 或明确的 aggregation。Accumulator 适合监控和诊断，但也要理解 task 重试与 lazy evaluation 对更新时机的影响，不应把它作为业务结果的唯一来源。</p>
+<h3 id="外部写入可能发生多次">外部写入可能发生多次</h3>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { record </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#24292E">  externalClient.write(record)</span></span>
+<span class="line"><span style="color:#24292E">  transform(record)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>这段代码可能因为以下原因重复调用 <code>write</code>：</p>
+<ul>
+<li>同一 lineage 被多个 action 重新计算。</li>
+<li>task 失败后重试。</li>
+<li>executor 丢失缓存 partition 后重算。</li>
+<li>集群启用 speculative execution，同时运行同一个 task 的多个 attempt。</li>
+</ul>
+<p>如果必须产生外部副作用，需要在输出系统中设计幂等 key、去重或事务边界，并根据 task attempt 语义处理重试。更常见的做法是让 transformation 只生成待写数据，再交给具有明确交付语义的输出阶段。</p>
+<h2 id="多个-action-可能造成重复计算">多个 Action 可能造成重复计算</h2>
+<p>同一个未持久化 RDD 被多个 action 使用时，Spark 可以沿 lineage 重新计算它：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map(expensiveNormalize)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> normalized.count()</span></span>
+<span class="line"><span style="color:#24292E">normalized.saveAsTextFile(outputPath)</span></span></code></pre>
+<p><code>expensiveNormalize</code> 可能执行两遍。如果中间结果计算昂贵、会被重复使用，并且适合当前内存与磁盘条件，可以显式持久化：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">storage</span><span style="color:#24292E">.</span><span style="color:#6F42C1">StorageLevel</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
+<span class="line"><span style="color:#24292E">  .map(expensiveNormalize)</span></span>
+<span class="line"><span style="color:#24292E">  .persist(</span><span style="color:#6F42C1">StorageLevel</span><span style="color:#24292E">.</span><span style="color:#6F42C1">MEMORY_AND_DISK</span><span style="color:#24292E">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> normalized.count() </span><span style="color:#6A737D">// 同时物化 cache</span></span>
+<span class="line"><span style="color:#24292E">normalized.saveAsTextFile(outputPath)</span></span>
+<span class="line"><span style="color:#24292E">normalized.unpersist()</span></span></code></pre>
+<p>不要机械地对所有中间结果调用 <code>cache()</code>：</p>
+<ul>
+<li>只使用一次的数据没有复用收益。</li>
+<li>缓存会占用 executor memory，并可能挤压 execution memory。</li>
+<li>缓存块可能被淘汰、落盘或在之后重新计算，收益可能低于重算成本。</li>
+<li>持久化级别应根据对象大小、序列化开销和重算成本选择。</li>
+</ul>
+<h2 id="closure-会被发送到-executor">Closure 会被发送到 Executor</h2>
+<p>Spark 会把 transformation 使用的函数和它捕获的变量序列化并发送给 executor。常见问题包括：</p>
+<ul>
+<li>无意中捕获整个外部对象 <code>this</code>。</li>
+<li>捕获不能序列化的连接、线程池或 client。</li>
+<li>把很大的 lookup map 随每个 task 重复发送。</li>
+<li>closure 依赖只存在于 driver 本地的文件或环境。</li>
+</ul>
+<p>把需要的字段复制到局部变量，可以缩小 closure。较大的只读 lookup 数据适合 broadcast：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> lookupBroadcast</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> sc.broadcast(lookup)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> enriched</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { record </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#D73A49">  val</span><span style="color:#E36209"> lookup</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> lookupBroadcast.value</span></span>
+<span class="line"><span style="color:#24292E">  enrich(record, lookup)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>Broadcast 变量应视为只读数据。更新 driver 上的原始对象不会自动更新已经分发的 broadcast；不再使用时可以显式销毁。</p>
+<h2 id="窄依赖和宽依赖">窄依赖和宽依赖</h2>
+<p>Transformation 不只是数据处理函数，它还决定数据是否需要跨 partition 移动。</p>
+<h3 id="窄依赖">窄依赖</h3>
+<p>一个输出 partition 只依赖少量确定的父 partition，通常可以在同一个 stage 中 pipeline：</p>
+<ul>
+<li><code>map</code></li>
+<li><code>filter</code></li>
+<li><code>flatMap</code></li>
+<li><code>mapPartitions</code></li>
+<li>不触发 shuffle 的 <code>coalesce</code></li>
+</ul>
+<h3 id="宽依赖">宽依赖</h3>
+<p>一个输出 partition 依赖多个父 partition，通常需要 shuffle，并形成 stage 边界：</p>
+<ul>
+<li><code>groupByKey</code></li>
+<li><code>reduceByKey</code></li>
+<li><code>join</code></li>
+<li><code>distinct</code></li>
+<li><code>repartition</code></li>
+<li><code>sortByKey</code></li>
+</ul>
+<p>Shuffle 需要网络传输、序列化、排序和磁盘文件。正确使用 transformation，不是完全避免宽依赖，而是知道它为什么存在，并减少不必要的数据移动。</p>
+<p>例如，对 key 做聚合时，通常优先考虑 <code>reduceByKey</code> 或 <code>aggregateByKey</code>，而不是先把所有 value 通过 <code>groupByKey</code> 拉到同一个 reducer 再求和：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> totals</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> pairs.reduceByKey(_ </span><span style="color:#D73A49">+</span><span style="color:#24292E"> _)</span></span></code></pre>
+<p>这类算子可以在 shuffle 前做局部 combine，降低网络数据量。但选择聚合函数时必须满足相应的结合律和类型语义。</p>
+<h2 id="和-partition-相关的几个选择">和 Partition 相关的几个选择</h2>
+<h3 id="map-和-mappartitions"><code>map</code> 和 <code>mapPartitions</code></h3>
+<p><code>map</code> 对每条记录调用一次函数；<code>mapPartitions</code> 对每个 partition 调用一次函数并接收 iterator。</p>
+<p>当初始化解析器或只读辅助对象的成本很高时，可以在 <code>mapPartitions</code> 中每个 partition 初始化一次：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> parsed</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.mapPartitions { rows </span><span style="color:#D73A49">=></span></span>
+<span class="line"><span style="color:#D73A49">  val</span><span style="color:#E36209"> parser</span><span style="color:#D73A49"> =</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> ExpensiveParser</span><span style="color:#24292E">()</span></span>
+<span class="line"><span style="color:#24292E">  rows.map(parser.parse)</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>它可以减少初始化开销，但也会扩大单次函数的责任范围。不要借此在 executor 中长期保存不可控的全局状态；涉及连接和外部写入时，还需要明确资源关闭、重试和幂等语义。</p>
+<h3 id="保留已有-partitioner">保留已有 partitioner</h3>
+<p>对 pair RDD 只转换 value 时，<code>mapValues</code> 可以保留 partitioner；普通 <code>map</code> 通常不能保证这一点。保留正确的 partitioner 有机会避免后续不必要的 shuffle。</p>
+<p>不过，“保留 partitioner”必须与 key 未变化这个前提一致。如果 transformation 改变了 key，就应该让 Spark 重新建立正确的 partition 分布。</p>
+<h3 id="coalesce-和-repartition"><code>coalesce</code> 和 <code>repartition</code></h3>
+<ul>
+<li><code>coalesce(n)</code> 常用于减少 partition；默认不 shuffle，可能造成 partition 大小不均。</li>
+<li><code>repartition(n)</code> 会 shuffle，成本更高，但能重新平衡数据，也可以增加 partition。</li>
+</ul>
+<p>选择它们时要看目标：减少小 task、重新平衡数据和控制输出文件数是不同问题。</p>
+<h2 id="如何选择-transformation">如何选择 Transformation</h2>
+<ul>
+<li>一条输入对应一条输出：<code>map</code>。</li>
+<li>一条输入对应零到多条输出：<code>flatMap</code>。</li>
+<li>只保留部分输入：<code>filter</code>。</li>
+<li>按 key 聚合：优先考虑带 combine 能力的 aggregation。</li>
+<li>只修改 pair RDD 的 value：考虑 <code>mapValues</code>。</li>
+<li>每个 partition 共享昂贵初始化：考虑 <code>mapPartitions</code>。</li>
+</ul>
+<p>在 DataFrame/Dataset 场景中，优先使用 Spark 能理解的内置表达式。过早把逻辑封装进普通 UDF，可能让 Catalyst 无法进行 predicate pushdown、常量折叠或其他计划优化。</p>
+<h2 id="lineagepersist-和-checkpoint">Lineage、Persist 和 Checkpoint</h2>
+<p>RDD 通过 lineage 重算丢失的 partition，这是 transformation 可以安全重试的重要原因。长 lineage 会增加调度复杂度和重算成本。</p>
+<p><code>persist</code> 解决的是复用与重算成本；checkpoint 解决的是截断 lineage，两者目的不同。使用 checkpoint 时需要配置可靠存储，并通过 action 触发实际计算。不要把 checkpoint 当成普通 cache，也不要认为 cache 能提供永久存储。</p>
+<h2 id="如何验证-transformation-用得是否正确">如何验证 transformation 用得是否正确</h2>
+<h3 id="看执行结构">看执行结构</h3>
+<ul>
+<li>RDD 使用 <code>toDebugString</code> 查看 lineage 和 shuffle dependency。</li>
+<li>DataFrame/Dataset 使用 <code>explain("formatted")</code> 查看逻辑与物理计划。</li>
+<li>Spark UI 查看 job、stage、task、shuffle、spill 和重复计算情况。</li>
+</ul>
+<h3 id="测试-action而不只是定义-transformation">测试 action，而不只是定义 transformation</h3>
+<p>因为 transformation 是 lazy 的，只构造 RDD 并不能证明函数真的可序列化或能在 executor 上运行。测试至少要触发一个 action：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> transform(sc.parallelize(input, </span><span style="color:#005CC5">2</span><span style="color:#24292E">)).collect().toSeq</span></span></code></pre>
+<p><code>local[2]</code> 比 <code>local[1]</code> 更容易暴露并发和 partition 假设，但本地测试仍不能完整模拟 executor 丢失、task 重试和生产数据分布。对于外部副作用，还应单独验证幂等与重试行为。</p>
+<h3 id="检查这些信号">检查这些信号</h3>
+<ul>
+<li>同一段昂贵 lineage 是否因多个 action 重复执行。</li>
+<li>是否存在意外 shuffle 或 partition 数量突变。</li>
+<li>task closure 是否过大或无法序列化。</li>
+<li>transformation 是否依赖 driver 可变状态。</li>
+<li>cache 是否真正复用，还是不断 eviction 和重算。</li>
+<li>输出系统是否能承受 task retry 带来的重复尝试。</li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>正确使用 Spark transformation，核心不是记住更多 API，而是接受它的执行模型：</p>
+<ol>
+<li>Transformation 只描述计算，action 才触发执行。</li>
+<li>Transformation 可能被重算，所以函数应尽量纯净、确定。</li>
+<li>Closure 会被序列化到 executor，不应无意捕获大对象或本地资源。</li>
+<li>宽依赖会产生 shuffle，需要理解数据如何跨 partition 移动。</li>
+<li>Cache、partitioner 和 checkpoint 都有明确用途，不是通用优化开关。</li>
+<li>任何依赖 exactly-once 的外部副作用，都不能只靠 transformation 本身保证。</li>
+</ol>
+<p>把 transformation 看成分布式执行计划的一部分，而不是 Scala collection 的远程版本，很多“本地能跑、集群出错”的问题就会更容易解释。</p>
+<p>参考：</p>
+<ul>
+<li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html">Spark RDD Programming Guide</a></li>
+<li><a href="https://spark.apache.org/docs/latest/tuning.html">Spark Tuning Guide</a></li>
+<li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>留痕，积跬步至千里。</span> </footer> </main> </div> </body></html>

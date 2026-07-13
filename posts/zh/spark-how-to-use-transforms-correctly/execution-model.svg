@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">Spark transformation execution model</title>
+  <desc id="desc">The driver builds a lazy lineage. An action submits the job, which executes narrow transformations in Stage 1, crosses a shuffle boundary, and continues in Stage 2.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#737a76"/>
+    </marker>
+    <marker id="blue-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2457d6"/>
+    </marker>
+    <style>
+      .label { font: 600 25px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171918; }
+      .small { font: 500 18px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #4d5350; }
+      .tiny { font: 500 16px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #737a76; }
+      .mono { font: 600 18px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #171918; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="680" rx="18" fill="#fafaf9"/>
+  <rect x="1" y="1" width="1198" height="678" rx="17" fill="none" stroke="#dedfdb" stroke-width="2"/>
+  <text x="50" y="58" class="label">Transformation 描述计算，Action 触发执行</text>
+
+  <rect x="50" y="95" width="1100" height="190" rx="14" fill="#ffffff" stroke="#dedfdb" stroke-width="2"/>
+  <text x="78" y="130" class="small">Driver：构建 lazy lineage</text>
+  <g transform="translate(78 162)">
+    <g fill="#f0f1ef" stroke="#c9cbc6" stroke-width="2">
+      <rect x="0" y="0" width="132" height="62" rx="9"/><rect x="177" y="0" width="132" height="62" rx="9"/>
+      <rect x="354" y="0" width="132" height="62" rx="9"/><rect x="531" y="0" width="164" height="62" rx="9"/>
+    </g>
+    <rect x="764" y="0" width="174" height="62" rx="9" fill="#edf2ff" stroke="#2457d6" stroke-width="2"/>
+    <g class="mono" text-anchor="middle">
+      <text x="66" y="38">input</text><text x="243" y="38">map</text><text x="420" y="38">filter</text>
+      <text x="613" y="38">reduceByKey</text><text x="851" y="38">count()</text>
+    </g>
+    <g stroke="#737a76" stroke-width="2" marker-end="url(#arrow)">
+      <path d="M 132 31 L 170 31"/><path d="M 309 31 L 347 31"/><path d="M 486 31 L 524 31"/><path d="M 695 31 L 757 31"/>
+    </g>
+    <text x="851" y="91" class="small" text-anchor="middle" fill="#2457d6">Action</text>
+  </g>
+  <text x="78" y="260" class="tiny">调用 map、filter、reduceByKey 时只记录依赖关系，不立即执行集群计算。</text>
+
+  <path d="M 930 286 L 930 342" stroke="#2457d6" stroke-width="3" marker-end="url(#blue-arrow)"/>
+  <text x="950" y="321" class="small" fill="#2457d6">提交 Job</text>
+
+  <rect x="50" y="355" width="500" height="245" rx="14" fill="#ffffff" stroke="#b9caf6" stroke-width="2"/>
+  <text x="78" y="395" class="label">Stage 1</text>
+  <text x="78" y="425" class="tiny">窄依赖可以在同一个 stage 中 pipeline</text>
+  <g transform="translate(78 467)">
+    <g fill="#edf2ff" stroke="#2457d6" stroke-width="2">
+      <rect x="0" y="0" width="120" height="58" rx="9"/><rect x="160" y="0" width="120" height="58" rx="9"/><rect x="320" y="0" width="120" height="58" rx="9"/>
+    </g>
+    <g class="mono" text-anchor="middle"><text x="60" y="36">input</text><text x="220" y="36">map</text><text x="380" y="36">filter</text></g>
+    <g stroke="#737a76" stroke-width="2" marker-end="url(#arrow)"><path d="M 120 29 L 153 29"/><path d="M 280 29 L 313 29"/></g>
+  </g>
+  <text x="78" y="565" class="small">读取、转换并写出 shuffle data</text>
+
+  <rect x="578" y="355" width="126" height="245" rx="14" fill="#fff3ef" stroke="#d46b45" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="641" y="455" class="label" text-anchor="middle" transform="rotate(-90 641 455)">Shuffle</text>
+  <text x="641" y="550" class="tiny" text-anchor="middle">Stage 边界</text>
+  <path d="M 550 477 L 570 477" stroke="#d46b45" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M 704 477 L 724 477" stroke="#d46b45" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="732" y="355" width="418" height="245" rx="14" fill="#ffffff" stroke="#b9caf6" stroke-width="2"/>
+  <text x="760" y="395" class="label">Stage 2</text>
+  <text x="760" y="425" class="tiny">读取 shuffle data，继续后续计算</text>
+  <g transform="translate(760 467)">
+    <rect x="0" y="0" width="170" height="58" rx="9" fill="#edf2ff" stroke="#2457d6" stroke-width="2"/>
+    <rect x="218" y="0" width="140" height="58" rx="9" fill="#edf2ff" stroke="#2457d6" stroke-width="2"/>
+    <text x="85" y="36" class="mono" text-anchor="middle">reduceByKey</text>
+    <text x="288" y="36" class="mono" text-anchor="middle">result</text>
+    <path d="M 170 29 L 211 29" stroke="#737a76" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+  <text x="760" y="565" class="small">完成 Action 并把结果返回给 Driver</text>
+
+  <text x="50" y="642" class="tiny">没有 Action，lineage 不会因为定义了 Transformation 就自动运行。</text>
+</svg>
