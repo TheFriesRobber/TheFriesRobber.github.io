@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Lease 接管与 fencing token</title>
+  <desc id="desc">Worker A 获取 token 41 后暂停，其 lease 过期。Worker B 获取 token 42 并写入资源，资源接受新 token。Worker A 恢复后携带旧 token 41 写入，资源因已经见过 token 42 而拒绝迟到写入。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#737a76"/>
+    </marker>
+    <style>
+      .title { font: 650 28px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171918; }
+      .label { font: 600 18px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171918; }
+      .small { font: 500 16px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #5c625f; }
+      .mono { font: 650 17px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #171918; }
+      .lane { stroke: #c9cbc6; stroke-width: 2; stroke-dasharray: 7 7; }
+      .message { stroke: #737a76; stroke-width: 2.2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" rx="18" fill="#fafaf9"/>
+  <rect x="1" y="1" width="1198" height="758" rx="17" fill="none" stroke="#dedfdb" stroke-width="2"/>
+  <text x="50" y="58" class="title">Lease 允许接管，资源端用 fencing token 判断新旧</text>
+
+  <g>
+    <rect x="65" y="92" width="210" height="56" rx="12" fill="#edf2ff" stroke="#2457d6" stroke-width="2"/>
+    <text x="170" y="127" class="label" text-anchor="middle">Worker A</text>
+    <rect x="365" y="92" width="210" height="56" rx="12" fill="#ffffff" stroke="#c9cbc6" stroke-width="2"/>
+    <text x="470" y="127" class="label" text-anchor="middle">Lease store</text>
+    <rect x="665" y="92" width="210" height="56" rx="12" fill="#ffffff" stroke="#c9cbc6" stroke-width="2"/>
+    <text x="770" y="127" class="label" text-anchor="middle">受保护资源</text>
+    <rect x="965" y="92" width="170" height="56" rx="12" fill="#eef8f1" stroke="#3b8b57" stroke-width="2"/>
+    <text x="1050" y="127" class="label" text-anchor="middle">Worker B</text>
+  </g>
+
+  <line class="lane" x1="170" y1="148" x2="170" y2="680"/>
+  <line class="lane" x1="470" y1="148" x2="470" y2="680"/>
+  <line class="lane" x1="770" y1="148" x2="770" y2="680"/>
+  <line class="lane" x1="1050" y1="148" x2="1050" y2="680"/>
+
+  <line class="message" x1="170" y1="205" x2="460" y2="205"/>
+  <text x="230" y="192" class="mono">acquire()</text>
+  <line class="message" x1="470" y1="250" x2="180" y2="250"/>
+  <text x="235" y="237" class="mono">grant token=41</text>
+
+  <rect x="85" y="282" width="170" height="72" rx="10" fill="#fff7e8" stroke="#c58a22" stroke-width="2"/>
+  <text x="170" y="311" class="label" text-anchor="middle">长时间 pause</text>
+  <text x="170" y="337" class="small" text-anchor="middle">无法续租，也未停止</text>
+
+  <line x1="50" y1="386" x2="1150" y2="386" stroke="#c75a4a" stroke-width="2" stroke-dasharray="9 7"/>
+  <rect x="390" y="368" width="160" height="36" rx="8" fill="#fff1ef"/>
+  <text x="470" y="392" class="label" text-anchor="middle" fill="#a63e32">token 41 过期</text>
+
+  <line class="message" x1="1050" y1="435" x2="480" y2="435"/>
+  <text x="830" y="422" class="mono">acquire()</text>
+  <line class="message" x1="470" y1="480" x2="1040" y2="480"/>
+  <text x="760" y="467" class="mono">grant token=42</text>
+
+  <line class="message" x1="1050" y1="535" x2="780" y2="535"/>
+  <text x="820" y="522" class="mono">write(token=42)</text>
+  <rect x="665" y="552" width="210" height="52" rx="10" fill="#eef8f1" stroke="#3b8b57" stroke-width="2"/>
+  <text x="770" y="584" class="label" text-anchor="middle">接受，max token = 42</text>
+
+  <path class="message" d="M 170 628 C 330 628 520 628 760 628" fill="none"/>
+  <text x="328" y="615" class="mono">恢复后 write(token=41)</text>
+  <rect x="665" y="646" width="210" height="52" rx="10" fill="#fff1ef" stroke="#c75a4a" stroke-width="2"/>
+  <text x="770" y="678" class="label" text-anchor="middle">拒绝：41 &lt; 42</text>
+
+  <text x="1050" y="695" class="small" text-anchor="middle">新 owner 已完成写入</text>
+</svg>

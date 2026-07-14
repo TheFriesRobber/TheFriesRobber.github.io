@@ -1,0 +1,293 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="长时间任务的可靠性不来自“不重试”，而来自显式状态机、有期所有权、fencing token 和幂等副作用。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="长时间任务的状态机、Lease 与幂等性 | Xiaoyuan"><meta property="og:description" content="长时间任务的可靠性不来自“不重试”，而来自显式状态机、有期所有权、fencing token 和幂等副作用。"><meta property="og:url" content="https://thefriesrobber.github.io/zh/writing/state-machines-leases-idempotency/"><link rel="canonical" href="https://thefriesrobber.github.io/zh/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/state-machines-leases-idempotency/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>长时间任务的状态机、Lease 与幂等性 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/state-machines-leases-idempotency/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 → ML Platform → Agent Infrastructure</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Systems Design</p> <h1 class="page-title">长时间任务的状态机、Lease 与幂等性</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Distributed%20Systems/">Distributed Systems</a><a class="pill" href="/zh/tags/State%20Machine/">State Machine</a><a class="pill" href="/zh/tags/Lease/">Lease</a><a class="pill" href="/zh/tags/Idempotency/">Idempotency</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>假设一个任务需要运行半小时：读取输入、生成结果、调用外部 API，最后把 artifact 地址写回数据库。Worker A 取得任务后调用外部 API，但一直没有收到响应；它随后失去网络连接，lease 过期。Worker B 接管任务并重新执行。此时 A 恢复运行，外部 API 的迟到响应也回来了。</p>
+<p>系统现在必须回答：</p>
+<ul>
+<li>任务究竟进行到哪一步，哪些事实已经持久化？</li>
+<li>A 和 B 都可能继续运行时，谁的写入仍然有效？</li>
+<li>外部操作可能已经成功时，B 能不能再次调用？</li>
+<li>用户在此时取消任务，应该表示一个请求，还是已经完成的事实？</li>
+</ul>
+<p>如果只有一个 <code>running</code> 字段和一段 <code>try/catch</code>，这些问题会被混在一起。可靠的长时间任务通常需要三个相互独立的机制：<strong>状态机记录进度，lease 管理有期所有权，幂等与 reconciliation 约束副作用。</strong></p>
+<h2 id="三个机制解决三个不同问题">三个机制解决三个不同问题</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>机制</th><th>回答的问题</th><th>不负责什么</th></tr></thead><tbody><tr><td>状态机</td><td>已经提交了哪些业务事实，下一步允许做什么</td><td>不能证明当前只有一个 worker 在运行</td></tr><tr><td>Lease + fencing token</td><td>谁暂时有执行权，迟到写入是否仍然有效</td><td>不能自动消除外部系统中的重复副作用</td></tr><tr><td>幂等 + reconciliation</td><td>同一个业务意图被重试时如何复用结果，未知结果如何收敛</td><td>不能代替任务自身的生命周期建模</td></tr></tbody></table>
+<p>缺少其中任何一层，都会把正确性寄托在一个并不成立的假设上：进程不会暂停、网络超时等于执行失败、消息只投递一次，或者锁过期后旧 worker 会立刻停止。</p>
+<h2 id="状态机表达已提交事实">状态机表达已提交事实</h2>
+<p>状态不应该只是 worker 的运行日志，而应该决定系统接下来允许发生什么。对于包含外部副作用的任务，可以从下面这组状态开始：</p>
+<figure>
+  <img src="/posts/zh/state-machines-leases-idempotency/task-state-machine.svg" alt="长时间任务从 pending 进入 running；运行中可以成功、进入可重试失败、等待外部结果或请求取消。retryable_failed 可以重新进入 running；waiting_external 经 reconciliation 后继续运行或失败；cancel_requested 只有在副作用收敛后才能进入 cancelled。succeeded、terminal_failed 和 cancelled 是终态。" loading="lazy">
+  <figcaption>状态机记录持久化进度；`waiting_external` 和 `cancel_requested` 都不是终态。</figcaption>
+</figure>
+<p>这里有几个容易被忽略的区别：</p>
+<ul>
+<li><code>retryable_failed</code> 表示失败已被分类，而且仍在重试预算内；它不是所有异常的默认归宿。</li>
+<li><code>waiting_external</code> 表示外部结果未知，需要查询或 reconciliation；它不等同于“调用失败”。</li>
+<li><code>cancel_requested</code> 表示用户意图已经持久化；只有确认不会再产生副作用后，才能进入 <code>cancelled</code>。</li>
+<li><code>succeeded</code>、<code>terminal_failed</code> 和 <code>cancelled</code> 是终态，迟到 callback 不能让任务重新回到 <code>running</code>。</li>
+</ul>
+<p>一个任务的当前记录至少需要这些信息：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_id</span></span>
+<span class="line"><span>state</span></span>
+<span class="line"><span>state_version</span></span>
+<span class="line"><span>attempt</span></span>
+<span class="line"><span>next_attempt_at</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>lease_owner</span></span>
+<span class="line"><span>lease_expires_at</span></span>
+<span class="line"><span>fencing_token      NOT NULL，初始值为 0</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>input_revision</span></span>
+<span class="line"><span>result_ref</span></span>
+<span class="line"><span>last_error_code</span></span>
+<span class="line"><span>last_error_at</span></span></code></pre>
+<p>其中 <code>state_version</code> 用于 optimistic concurrency control。Worker 发起的状态转移必须是带前置条件的原子写入，而不是先读出状态，再无条件覆盖：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> :next_state,</span></span>
+<span class="line"><span style="color:#24292E">    state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> :expected_state</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :expected_version</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token;</span></span></code></pre>
+<p>如果更新行数为 0，说明状态、版本或所有权已经变化。当前 worker 必须重新读取事实，而不是继续假设自己仍然掌控任务。</p>
+<p>用户取消属于 control-plane 写入：它同样要校验当前状态和 <code>state_version</code>，但不应该伪装成 worker 并复用 worker 的 fencing token。两类写入可以使用不同权限，状态机则负责解决它们的并发次序。例如，取消先提交后，worker 的旧版本完成写入应失败；worker 已经提交成功后，迟到的取消请求也不能把终态改成 <code>cancel_requested</code>。</p>
+<p>Snapshot 适合回答“任务现在是什么状态”，但不足以解释它为什么变成这样。实际系统通常还会追加一份 transition event：记录 <code>from_state</code>、<code>to_state</code>、原因、actor、attempt、fencing token 和时间。Snapshot 服务在线查询，event log 服务审计、调试和恢复分析；不要为了保留历史，把所有语义塞进一个不断增长的状态字符串。</p>
+<h2 id="lease-表达有期所有权">Lease 表达有期所有权</h2>
+<p>长时间任务不适合在整个执行期间持有数据库 transaction 或 row lock。Worker 可以通过一次短事务领取任务，获得一个会过期的 lease，并在执行期间定期续租。</p>
+<p>下面是概念性的领取操作；具体 SQL 需要按数据库方言调整：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> lease_owner </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :worker_id,</span></span>
+<span class="line"><span style="color:#24292E">    lease_expires_at </span><span style="color:#D73A49">=</span><span style="color:#24292E"> CURRENT_TIMESTAMP </span><span style="color:#D73A49">+</span><span style="color:#24292E"> :lease_duration,</span></span>
+<span class="line"><span style="color:#24292E">    fencing_token </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> COALESCE</span><span style="color:#24292E">(fencing_token, </span><span style="color:#005CC5">0</span><span style="color:#24292E">) </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#D73A49">    state</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> 'running'</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">    state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">    attempt </span><span style="color:#D73A49">=</span><span style="color:#24292E"> attempt </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> IN</span><span style="color:#24292E"> (</span><span style="color:#032F62">'pending'</span><span style="color:#24292E">, </span><span style="color:#032F62">'running'</span><span style="color:#24292E">, </span><span style="color:#032F62">'retryable_failed'</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (next_attempt_at </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span><span style="color:#D73A49"> OR</span><span style="color:#24292E"> next_attempt_at </span><span style="color:#D73A49">&#x3C;=</span><span style="color:#24292E"> CURRENT_TIMESTAMP)</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (lease_expires_at </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span><span style="color:#D73A49"> OR</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">&#x3C;=</span><span style="color:#24292E"> CURRENT_TIMESTAMP)</span></span>
+<span class="line"><span style="color:#24292E">RETURNING fencing_token, state_version, lease_expires_at;</span></span></code></pre>
+<p>领取和递增 fencing token 必须发生在同一个原子操作中。过期判断最好使用负责存储 lease 的系统时钟，而不是各个 worker 自己的本地时间；否则 clock skew 会直接进入所有权判断。</p>
+<p>续租也必须带上当前 owner 和 token：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">=</span><span style="color:#24292E"> CURRENT_TIMESTAMP </span><span style="color:#D73A49">+</span><span style="color:#24292E"> :lease_duration</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> lease_owner </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :worker_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">></span><span style="color:#24292E"> CURRENT_TIMESTAMP;</span></span></code></pre>
+<p>续租失败后，worker 应停止发起新的工作。但这仍然不是正确性保证：进程可能在续租前发生长时间 pause，等它恢复时 lease 已经被其他 worker 接管，而它还没有机会观察续租失败。</p>
+<p>Lease 时长需要在两种成本之间取舍：太短会因偶发延迟产生频繁接管，太长则会延迟故障恢复。Heartbeat 周期通常应明显短于 lease 时长，并为存储延迟和短暂停顿留出余量。这个选择影响可用性，但不能替代下一节的 fencing。</p>
+<h2 id="lease-过期不等于旧-worker-已经停止">Lease 过期不等于旧 worker 已经停止</h2>
+<p>Worker A 可能在 lease 有效时开始执行，然后因为 GC pause、进程挂起或网络分区停顿。Lease 过期后，Worker B 获得新 lease；A 随后恢复。此时两个进程可能同时认为自己可以继续。</p>
+<figure>
+  <img src="/posts/zh/state-machines-leases-idempotency/lease-takeover-fencing.svg" alt="Worker A 获得 token 41 后暂停，lease 随后过期。Worker B 接管并获得更大的 token 42，其写入被存储接受。A 恢复后携带旧 token 41 写入，存储比较 token 并拒绝该迟到写入。" loading="lazy">
+  <figcaption>Lease 允许接管；fencing token 让资源端拒绝旧所有者的迟到写入。</figcaption>
+</figure>
+<p>Fencing token 是每次成功取得所有权时严格递增的编号。受保护的资源保存已经接受的最大 token，并拒绝更小的值：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> task_outputs</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> payload </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :payload,</span></span>
+<span class="line"><span style="color:#24292E">    last_fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (last_fencing_token </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span></span>
+<span class="line"><span style="color:#D73A49">       OR</span><span style="color:#24292E"> last_fencing_token </span><span style="color:#D73A49">&#x3C;</span><span style="color:#24292E"> :fencing_token);</span></span></code></pre>
+<p>随机 UUID 可以区分 owner，却不能建立新旧顺序，因此不能单独充当 fencing token。另一个常见错误是只在释放 lease 时检查 owner：这可以避免 A 删除 B 的 lease，却不能阻止 A 在恢复后修改真正的业务资源。</p>
+<p>Fencing 的约束必须由最终接收写入的资源执行。如果某个外部 API 不理解 token，就不能声称 fencing 已经保护了那个副作用；此时需要依赖外部 API 的幂等能力、稳定业务标识和 reconciliation。</p>
+<h2 id="幂等-key-必须代表同一个业务意图">幂等 key 必须代表同一个业务意图</h2>
+<p>重试不可避免。关键不是让代码“只执行一次”，而是让同一个逻辑动作无论由哪个 attempt、哪个 worker 发起，都使用同一个 idempotency key。</p>
+<p>例如，“为任务生成第 3 版报告”可以定义为：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key = hash(task_id, "publish-report", input_revision=3)</span></span></code></pre>
+<p>下面这些 key 通常是错误的：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request_uuid()       # 每次重试都不同</span></span>
+<span class="line"><span>worker_id            # 接管后会变化</span></span>
+<span class="line"><span>attempt_number       # 每次重试都刻意生成新动作</span></span>
+<span class="line"><span>current_timestamp    # 无法把两个调用认作同一意图</span></span></code></pre>
+<p>系统可以维护一张 effect ledger：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key        unique</span></span>
+<span class="line"><span>task_id</span></span>
+<span class="line"><span>step_name</span></span>
+<span class="line"><span>input_revision</span></span>
+<span class="line"><span>payload_hash</span></span>
+<span class="line"><span>status            pending | in_progress | unknown | succeeded | terminal_failed</span></span>
+<span class="line"><span>external_ref</span></span>
+<span class="line"><span>result</span></span>
+<span class="line"><span>created_at</span></span>
+<span class="line"><span>updated_at</span></span></code></pre>
+<p><code>effect_key</code> 上的 unique constraint 负责合并并发请求；<code>payload_hash</code> 用来阻止同一个 key 被误用于不同参数。处理逻辑应满足：</p>
+<ol>
+<li>第一次看到 key 时原子创建记录。</li>
+<li>已成功的 key 直接返回已保存的结果或 <code>external_ref</code>。</li>
+<li>相同 key 处于 <code>in_progress</code> 或 <code>unknown</code> 时，不创建新的逻辑动作，而是查询、等待，或在确认原 owner 已失效后使用同一个 key 恢复。</li>
+<li>相同 key 对应不同 payload 时立即报冲突，而不是复用旧结果。</li>
+</ol>
+<p>幂等 key 还需要明确作用域和保留时间。如果下游只保存 key 24 小时，而任务可能在三天后重试，旧 key 被清理后仍然可能产生重复结果。调用方不能只知道“对方支持幂等”，还要知道它如何比较参数、缓存哪些结果、保留多久，以及并发请求如何处理。</p>
+<h2 id="timeout-表示结果未知不表示操作失败">Timeout 表示结果未知，不表示操作失败</h2>
+<p>外部调用超时可能发生在三个位置：请求还没到达、对方正在提交、对方已经成功但响应丢失。调用方只看到同一个 timeout，无法据此判断副作用是否发生。</p>
+<p>因此，timeout 后不应该立即生成新 key 并重发。更可靠的路径是：</p>
+<ol>
+<li>在调用前持久化 effect intent 和稳定 key。</li>
+<li>外部系统支持幂等 key 时，使用同一个 key 重试。</li>
+<li>外部系统支持按 client reference 查询时，先查询已经存在的结果。</li>
+<li>仍然无法判断时，把 effect 标记为 <code>unknown</code>，任务进入 <code>waiting_external</code>。</li>
+<li>由 reconciliation job 持续查询，直到确认成功、确认失败，或进入需要人工处理的终态。</li>
+</ol>
+<p>如果外部系统既不支持幂等 key，也不能按稳定业务标识查询，就不存在一个通用技巧同时保证“绝不重复”和“最终一定执行”。系统必须明确选择风险：保守地不重发可能丢失动作，主动重发可能产生重复；高风险操作还需要补偿流程或人工确认。</p>
+<p>Transactional outbox 可以解决“本地数据库提交”和“发布消息”之间的 dual write：在同一事务中更新业务数据并写入 outbox，再由 relay 发送消息。但 relay 和 broker 仍可能重复投递，消费者依然需要幂等。Outbox 也不能让任意外部 API 与本地数据库变成一个原子事务。</p>
+<h2 id="一次执行如何收敛">一次执行如何收敛</h2>
+<p>把这些机制放在一起，一次 worker 执行大致如下：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">def</span><span style="color:#6F42C1"> run</span><span style="color:#24292E">(task_id, worker_id):</span></span>
+<span class="line"><span style="color:#24292E">    lease </span><span style="color:#D73A49">=</span><span style="color:#24292E"> claim_task(task_id, worker_id)</span></span>
+<span class="line"><span style="color:#D73A49">    if</span><span style="color:#24292E"> lease </span><span style="color:#D73A49">is</span><span style="color:#005CC5"> None</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#D73A49">        return</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    # 独立 heartbeat 只续租匹配 owner + fencing_token 的 lease。</span></span>
+<span class="line"><span style="color:#24292E">    heartbeat.start(task_id, worker_id, lease.fencing_token)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">        task </span><span style="color:#D73A49">=</span><span style="color:#24292E"> load_task(task_id)</span></span>
+<span class="line"><span style="color:#D73A49">        if</span><span style="color:#24292E"> task.state </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "cancel_requested"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">            reconcile_then_cancel(task, lease)</span></span>
+<span class="line"><span style="color:#D73A49">            return</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">        key </span><span style="color:#D73A49">=</span><span style="color:#24292E"> stable_effect_key(</span></span>
+<span class="line"><span style="color:#E36209">            task_id</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.id,</span></span>
+<span class="line"><span style="color:#E36209">            step</span><span style="color:#D73A49">=</span><span style="color:#032F62">"publish-report"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#E36209">            input_revision</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.input_revision,</span></span>
+<span class="line"><span style="color:#24292E">        )</span></span>
+<span class="line"><span style="color:#24292E">        effect </span><span style="color:#D73A49">=</span><span style="color:#24292E"> get_or_create_effect(key, payload_hash(task.input))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">        if</span><span style="color:#24292E"> effect.status </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "succeeded"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">            complete_task(task, effect.result, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#D73A49">            return</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">        result </span><span style="color:#D73A49">=</span><span style="color:#24292E"> provider.publish_report(</span></span>
+<span class="line"><span style="color:#24292E">            task.input,</span></span>
+<span class="line"><span style="color:#E36209">            idempotency_key</span><span style="color:#D73A49">=</span><span style="color:#24292E">key,</span></span>
+<span class="line"><span style="color:#24292E">        )</span></span>
+<span class="line"><span style="color:#24292E">        record_effect_and_complete_task(</span></span>
+<span class="line"><span style="color:#E36209">            task</span><span style="color:#D73A49">=</span><span style="color:#24292E">task,</span></span>
+<span class="line"><span style="color:#E36209">            effect_key</span><span style="color:#D73A49">=</span><span style="color:#24292E">key,</span></span>
+<span class="line"><span style="color:#E36209">            result</span><span style="color:#D73A49">=</span><span style="color:#24292E">result,</span></span>
+<span class="line"><span style="color:#E36209">            expected_state_version</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.state_version,</span></span>
+<span class="line"><span style="color:#E36209">            fencing_token</span><span style="color:#D73A49">=</span><span style="color:#24292E">lease.fencing_token,</span></span>
+<span class="line"><span style="color:#24292E">        )</span></span>
+<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> NetworkTimeout:</span></span>
+<span class="line"><span style="color:#24292E">        mark_effect_unknown_if_owner(task_id, key, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#24292E">        move_to_waiting_external_if_owner(task_id, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#D73A49">    finally</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">        heartbeat.stop()</span></span></code></pre>
+<p>这段代码省略了具体 transaction 和错误分类，但保留了几个关键约束：effect intent 在外部调用前存在；重试复用稳定 key；完成状态的写入受 state version 和 fencing token 保护；timeout 进入未知结果处理，而不是被当成确定失败。</p>
+<p>如果 <code>record_effect_and_complete_task</code> 中的 effect 与 task 位于同一数据库，应尽量在一个短事务内提交。若它们不在同一事务边界，就需要明确哪个是 source of truth，以及另一个视图如何通过 reconciliation 收敛。</p>
+<h2 id="常见故障应该如何恢复">常见故障应该如何恢复</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>故障位置</th><th>不能做什么</th><th>收敛方式</th></tr></thead><tbody><tr><td>Worker 在外部调用前崩溃</td><td>永久保留 <code>running</code></td><td>Lease 过期后接管；新 worker 复用已有 effect intent</td></tr><tr><td>外部调用成功，记录结果前崩溃</td><td>用新 key 再调用</td><td>用原 key 重试或按 client reference 查询，再补写结果</td></tr><tr><td>Worker pause 超过 lease</td><td>假设旧 worker 已停止</td><td>新 owner 获得更大 token；资源端拒绝旧 token</td></tr><tr><td>Heartbeat 续租失败</td><td>继续发起新副作用</td><td>停止新工作；所有后续写入仍做 token/version 检查</td></tr><tr><td>Callback 在任务终态后到达</td><td>把任务重新改回 <code>running</code></td><td>按 effect key 关联并检查合法转移；终态保持不变</td></tr><tr><td>取消与外部成功并发</td><td>立即显示 <code>cancelled</code></td><td>先记录 <code>cancel_requested</code>，确认或补偿副作用后再进入终态</td></tr></tbody></table>
+<p>恢复逻辑应该从<strong>最后一个已持久化边界</strong>继续，而不是每次都从函数开头盲目重跑。每一步如果具有不同的副作用语义，就应该有各自稳定的 step key 和结果记录。</p>
+<h2 id="retry-需要预算不只是循环">Retry 需要预算，不只是循环</h2>
+<p>幂等让重试更安全，但不代表应该无限重试。至少需要记录：</p>
+<ul>
+<li>哪些错误可重试，哪些是输入、权限或业务约束导致的终态错误。</li>
+<li><code>attempt</code>、<code>next_attempt_at</code>、最大次数或最大总时长。</li>
+<li>指数 backoff 和 jitter，避免故障恢复时大量任务同时打向下游。</li>
+<li>Reconciliation 的扫描频率和 <code>unknown</code> 状态的最大允许时长。</li>
+<li>超出预算后进入 <code>terminal_failed</code>、补偿队列还是人工处理。</li>
+</ul>
+<p>等待 backoff 时不应持续占有 lease。先持久化 <code>retryable_failed</code> 和 <code>next_attempt_at</code>，释放所有权，让调度器在时间到达后重新领取。</p>
+<h2 id="观测应该围绕状态转移和不确定性">观测应该围绕状态转移和不确定性</h2>
+<p>平均任务耗时不足以解释长时间任务的可靠性。更有用的信号包括：</p>
+<ul>
+<li>每个状态的进入次数和停留时间，特别是 <code>waiting_external</code> 的 age。</li>
+<li>Lease 获取、续租失败、过期接管和同一任务的并发 owner 数量。</li>
+<li>Fencing rejection；它通常意味着旧 worker 或迟到请求确实存在。</li>
+<li>Idempotency hit、payload conflict 和重复请求复用结果的次数。</li>
+<li>Effect 处于 <code>unknown</code> 的数量、reconciliation 尝试次数和最终结果。</li>
+<li>非法状态转移、optimistic concurrency conflict 和终态后的迟到 callback。</li>
+</ul>
+<p>日志和 trace 中应同时带 <code>task_id</code>、<code>attempt</code>、<code>effect_key</code>、<code>state_version</code> 和 <code>fencing_token</code>。只有 task id，往往无法区分“同一任务的合法接管”和“同一 worker 的重复日志”。</p>
+<h2 id="设计边界">设计边界</h2>
+<p>这套设计不是所有后台任务的最低配置。</p>
+<ul>
+<li>如果操作很短，而且所有读写都能包含在一个数据库事务内，简单的队列表或事务锁可能已经足够。</li>
+<li>Queue 的 visibility timeout 本质上也是一种 lease；消息仍可能重复投递，所以它不能替代业务幂等。</li>
+<li>Workflow engine 可以提供 durable timer、retry 和状态恢复，但外部副作用的 idempotency key、业务终态和补偿语义仍然需要应用定义。</li>
+<li>Fencing 只有在资源端检查 token 时才成立。不能检查 token 的外部系统，需要稳定业务 key、查询和 reconciliation。</li>
+<li>“Exactly once” 应该拆成更具体的承诺：消息可能投递多次，但同一个业务 effect 最多产生一个可观察结果；或者重复结果能够被检测和补偿。不要把整个分布式执行笼统描述为只运行一次。</li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>长时间任务可靠性的核心，不是避免所有失败和重试，而是让每次恢复都有明确边界：</p>
+<ol>
+<li>状态机说明哪些事实已经提交，以及哪些转移仍然合法。</li>
+<li>Lease 让失联 worker 的任务可以被接管，fencing token 阻止旧 owner 覆盖新结果。</li>
+<li>稳定 idempotency key 把不同 attempt 识别为同一个业务意图。</li>
+<li>Timeout 被建模为未知结果，并通过查询、重试同一 key 或 reconciliation 收敛。</li>
+<li>取消、失败和成功都是持久化事实，而不是某个进程内的一次 return。</li>
+</ol>
+<p>当状态、所有权和副作用分别有自己的协议时，worker 崩溃、消息重复、网络分区和迟到 callback 才不会被压缩成一句含糊的“再试一次”。</p>
+<p>参考：</p>
+<ul>
+<li><a href="https://web.stanford.edu/class/cs240/readings/leases.pdf">Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency</a></li>
+<li><a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">How to do distributed locking</a></li>
+<li><a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">Making retries safe with idempotent APIs</a></li>
+<li><a href="https://docs.stripe.com/api/idempotent_requests">Stripe API: Idempotent requests</a></li>
+<li><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html">Transactional outbox pattern</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>留痕，积跬步至千里。</span> </footer> </main> </div> </body></html>

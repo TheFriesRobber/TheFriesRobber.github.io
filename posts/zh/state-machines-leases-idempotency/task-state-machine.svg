@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">长时间任务状态机</title>
+  <desc id="desc">任务从 pending 被领取后进入 running。运行中可以成功、进入可重试失败、等待外部结果、终态失败或请求取消。等待外部结果经 reconciliation 后继续运行，可重试失败在 backoff 后重新运行，取消请求只有在副作用收敛后才进入 cancelled。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#737a76"/>
+    </marker>
+    <style>
+      .title { font: 650 28px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171918; }
+      .label { font: 600 18px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171918; }
+      .small { font: 500 16px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #5c625f; }
+      .mono { font: 650 18px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #171918; }
+      .edge { fill: none; stroke: #737a76; stroke-width: 2.2; marker-end: url(#arrow); }
+      .node { fill: #ffffff; stroke: #c9cbc6; stroke-width: 2; }
+      .active { fill: #edf2ff; stroke: #2457d6; }
+      .wait { fill: #fff7e8; stroke: #c58a22; }
+      .terminal { fill: #eef8f1; stroke: #3b8b57; }
+      .error { fill: #fff1ef; stroke: #c75a4a; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" rx="18" fill="#fafaf9"/>
+  <rect x="1" y="1" width="1198" height="758" rx="17" fill="none" stroke="#dedfdb" stroke-width="2"/>
+  <text x="50" y="60" class="title">状态记录“已提交的事实”，不是进程是否还活着</text>
+
+  <path class="edge" d="M 235 150 L 335 150"/>
+  <text x="266" y="132" class="small">claim</text>
+
+  <path class="edge" d="M 525 150 L 620 150"/>
+  <text x="544" y="123" class="small">外部结果未知</text>
+
+  <path class="edge" d="M 810 150 L 920 150"/>
+  <text x="838" y="123" class="small">确认完成</text>
+
+  <path class="edge" d="M 430 198 C 430 248 325 258 325 320"/>
+  <text x="244" y="260" class="small">可重试错误</text>
+
+  <path class="edge" d="M 380 320 C 380 260 470 255 470 198"/>
+  <text x="424" y="292" class="small">backoff 到期</text>
+
+  <path class="edge" d="M 525 170 C 620 235 660 270 660 320"/>
+  <text x="572" y="252" class="small">不可重试</text>
+
+  <path class="edge" d="M 715 198 C 715 245 670 260 670 285 C 670 306 690 316 720 330"/>
+  <text x="727" y="265" class="small">reconciliation 失败</text>
+
+  <path class="edge" d="M 690 102 C 650 70 510 72 475 102"/>
+  <text x="525" y="82" class="small">确认结果，继续执行</text>
+
+  <path class="edge" d="M 495 178 C 620 395 790 418 850 378"/>
+  <text x="623" y="408" class="small">取消意图</text>
+
+  <path class="edge" d="M 785 178 C 835 220 885 260 910 320"/>
+  <text x="838" y="248" class="small">取消意图</text>
+
+  <path class="edge" d="M 1020 365 L 1040 365"/>
+
+  <g>
+    <rect class="node" x="55" y="102" width="180" height="96" rx="14"/>
+    <text x="145" y="145" class="mono" text-anchor="middle">pending</text>
+    <text x="145" y="173" class="small" text-anchor="middle">等待领取</text>
+  </g>
+
+  <g>
+    <rect class="node active" x="335" y="102" width="190" height="96" rx="14"/>
+    <text x="430" y="145" class="mono" text-anchor="middle">running</text>
+    <text x="430" y="173" class="small" text-anchor="middle">持有有效 lease</text>
+  </g>
+
+  <g>
+    <rect class="node wait" x="620" y="102" width="190" height="96" rx="14"/>
+    <text x="715" y="145" class="mono" text-anchor="middle">waiting_external</text>
+    <text x="715" y="173" class="small" text-anchor="middle">结果未知，等待核对</text>
+  </g>
+
+  <g>
+    <rect class="node terminal" x="920" y="102" width="220" height="96" rx="14"/>
+    <text x="1030" y="145" class="mono" text-anchor="middle">succeeded</text>
+    <text x="1030" y="173" class="small" text-anchor="middle">终态</text>
+  </g>
+
+  <g>
+    <rect class="node wait" x="225" y="320" width="200" height="90" rx="14"/>
+    <text x="325" y="360" class="mono" text-anchor="middle">retryable_failed</text>
+    <text x="325" y="387" class="small" text-anchor="middle">等待重试窗口</text>
+  </g>
+
+  <g>
+    <rect class="node error" x="555" y="320" width="220" height="90" rx="14"/>
+    <text x="665" y="360" class="mono" text-anchor="middle">terminal_failed</text>
+    <text x="665" y="387" class="small" text-anchor="middle">终态</text>
+  </g>
+
+  <g>
+    <rect class="node wait" x="830" y="320" width="190" height="90" rx="14"/>
+    <text x="925" y="360" class="mono" text-anchor="middle">cancel_requested</text>
+    <text x="925" y="387" class="small" text-anchor="middle">意图，不是终态</text>
+  </g>
+
+  <g>
+    <rect class="node terminal" x="1040" y="320" width="140" height="90" rx="14"/>
+    <text x="1110" y="360" class="mono" text-anchor="middle">cancelled</text>
+    <text x="1110" y="387" class="small" text-anchor="middle">已收敛 · 终态</text>
+  </g>
+
+  <rect x="55" y="505" width="1090" height="170" rx="14" fill="#ffffff" stroke="#dedfdb" stroke-width="2"/>
+  <text x="85" y="548" class="label">每次转移都必须验证前置条件</text>
+  <text x="85" y="585" class="small">• expected state + state version：防止两个执行者覆盖彼此的进度</text>
+  <text x="85" y="619" class="small">• fencing token：防止 lease 已过期的旧 owner 写入</text>
+  <text x="85" y="653" class="small">• terminal state guard：防止迟到 callback 让任务“复活”</text>
+</svg>

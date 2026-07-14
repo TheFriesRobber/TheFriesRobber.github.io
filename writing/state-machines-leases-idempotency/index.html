@@ -1,0 +1,293 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Reliable long-running tasks depend on explicit state machines, expiring ownership, fencing tokens, and idempotent side effects—not on avoiding retries."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="State Machines, Leases, and Idempotency for Long-Running Tasks | Xiaoyuan"><meta property="og:description" content="Reliable long-running tasks depend on explicit state machines, expiring ownership, fencing tokens, and idempotent side effects—not on avoiding retries."><meta property="og:url" content="https://thefriesrobber.github.io/writing/state-machines-leases-idempotency/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/state-machines-leases-idempotency/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>State Machines, Leases, and Idempotency for Long-Running Tasks | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/state-machines-leases-idempotency/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems → ML platforms → agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Systems Design</p> <h1 class="page-title">State Machines, Leases, and Idempotency for Long-Running Tasks</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Distributed%20Systems/">Distributed Systems</a><a class="pill" href="/tags/State%20Machine/">State Machine</a><a class="pill" href="/tags/Lease/">Lease</a><a class="pill" href="/tags/Idempotency/">Idempotency</a> </div> </header>  <h2 id="the-problem">The Problem</h2>
+<p>Consider a task that runs for half an hour: read its input, generate a result, call an external API, and finally persist the artifact location. Worker A claims the task and calls the external API, but receives no response. It then loses network connectivity and its lease expires. Worker B takes over and starts the work again. At that point, A resumes and the delayed API response arrives.</p>
+<p>The system now has to answer several questions:</p>
+<ul>
+<li>How far has the task actually progressed, and which facts are durable?</li>
+<li>If A and B can both continue running, whose writes are still valid?</li>
+<li>If the external operation may already have succeeded, can B call it again?</li>
+<li>If the user cancels now, does that represent a request or an accomplished fact?</li>
+</ul>
+<p>A single <code>running</code> field and a <code>try/catch</code> block collapse these questions into one. Reliable long-running tasks usually need three independent mechanisms: <strong>a state machine records progress, a lease manages temporary ownership, and idempotency plus reconciliation constrains side effects.</strong></p>
+<h2 id="three-mechanisms-for-three-different-problems">Three Mechanisms for Three Different Problems</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Mechanism</th><th>Question it answers</th><th>What it does not provide</th></tr></thead><tbody><tr><td>State machine</td><td>Which business facts are committed, and which step is legal next?</td><td>It cannot prove that only one worker is currently running</td></tr><tr><td>Lease + fencing token</td><td>Who temporarily owns execution, and whether a delayed write is still valid</td><td>It cannot automatically remove duplicate side effects in an external system</td></tr><tr><td>Idempotency + reconciliation</td><td>How retries of the same business intent reuse a result, and how uncertain outcomes converge</td><td>It cannot replace the task lifecycle itself</td></tr></tbody></table>
+<p>Leaving out any one of these layers makes correctness depend on an assumption that does not hold: processes never pause, a timeout means execution failed, a message is delivered only once, or an old worker immediately stops when its lease expires.</p>
+<h2 id="a-state-machine-records-committed-facts">A State Machine Records Committed Facts</h2>
+<p>A state should not merely describe a worker’s runtime activity. It should determine what the system is allowed to do next. For a task with external side effects, the following states are a reasonable starting point:</p>
+<figure>
+  <img src="/posts/en/state-machines-leases-idempotency/task-state-machine.svg" alt="A long-running task moves from pending to running after it is claimed. It can succeed, enter a retryable failure, wait for an external result, fail terminally, or receive a cancellation request. A retryable failure can return to running after backoff. A task waiting for an external result proceeds only after reconciliation. A cancellation request becomes cancelled only after side effects converge. Succeeded, terminal_failed, and cancelled are terminal states." loading="lazy">
+  <figcaption>The state machine records durable progress; `waiting_external` and `cancel_requested` are not terminal states.</figcaption>
+</figure>
+<p>Several distinctions in this model matter:</p>
+<ul>
+<li><code>retryable_failed</code> means the error has been classified and remains within the retry budget. It is not the default destination for every exception.</li>
+<li><code>waiting_external</code> means the external outcome is unknown and requires a query or reconciliation. It does not mean that the call failed.</li>
+<li><code>cancel_requested</code> means the user’s intent is durable. The task can enter <code>cancelled</code> only after the system knows that no unresolved side effect remains.</li>
+<li><code>succeeded</code>, <code>terminal_failed</code>, and <code>cancelled</code> are terminal. A delayed callback must not move the task back to <code>running</code>.</li>
+</ul>
+<p>A current task record needs at least the following information:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_id</span></span>
+<span class="line"><span>state</span></span>
+<span class="line"><span>state_version</span></span>
+<span class="line"><span>attempt</span></span>
+<span class="line"><span>next_attempt_at</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>lease_owner</span></span>
+<span class="line"><span>lease_expires_at</span></span>
+<span class="line"><span>fencing_token      NOT NULL, initially 0</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>input_revision</span></span>
+<span class="line"><span>result_ref</span></span>
+<span class="line"><span>last_error_code</span></span>
+<span class="line"><span>last_error_at</span></span></code></pre>
+<p><code>state_version</code> provides optimistic concurrency control. A worker transition must be an atomic conditional write, not a read followed by an unconditional overwrite:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> :next_state,</span></span>
+<span class="line"><span style="color:#24292E">    state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> :expected_state</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :expected_version</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token;</span></span></code></pre>
+<p>If this statement updates zero rows, the state, version, or owner has changed. The worker must reload the durable facts instead of continuing under the assumption that it still controls the task.</p>
+<p>User cancellation is a control-plane write. It should also check the current state and <code>state_version</code>, but it should not impersonate a worker by reusing the worker’s fencing token. The two write paths can use different permissions while the state machine resolves their ordering. If cancellation commits first, a completion based on the worker’s old version must fail. If success commits first, a delayed cancellation must not replace the terminal state with <code>cancel_requested</code>.</p>
+<p>A snapshot answers “what state is the task in now?” but cannot explain how it got there. A practical design normally appends transition events containing <code>from_state</code>, <code>to_state</code>, reason, actor, attempt, fencing token, and timestamp. The snapshot serves online reads; the event log serves audit, debugging, and recovery analysis. History should not be encoded in an ever-growing state string.</p>
+<h2 id="a-lease-represents-temporary-ownership">A Lease Represents Temporary Ownership</h2>
+<p>Long-running work should not hold a database transaction or row lock for its entire execution. A worker can claim a task in a short transaction, receive an expiring lease, and renew it periodically while it runs.</p>
+<p>The following is a conceptual claim operation; exact syntax depends on the database:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> lease_owner </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :worker_id,</span></span>
+<span class="line"><span style="color:#24292E">    lease_expires_at </span><span style="color:#D73A49">=</span><span style="color:#24292E"> CURRENT_TIMESTAMP </span><span style="color:#D73A49">+</span><span style="color:#24292E"> :lease_duration,</span></span>
+<span class="line"><span style="color:#24292E">    fencing_token </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> COALESCE</span><span style="color:#24292E">(fencing_token, </span><span style="color:#005CC5">0</span><span style="color:#24292E">) </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#D73A49">    state</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> 'running'</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">    state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">    attempt </span><span style="color:#D73A49">=</span><span style="color:#24292E"> attempt </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> IN</span><span style="color:#24292E"> (</span><span style="color:#032F62">'pending'</span><span style="color:#24292E">, </span><span style="color:#032F62">'running'</span><span style="color:#24292E">, </span><span style="color:#032F62">'retryable_failed'</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (next_attempt_at </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span><span style="color:#D73A49"> OR</span><span style="color:#24292E"> next_attempt_at </span><span style="color:#D73A49">&#x3C;=</span><span style="color:#24292E"> CURRENT_TIMESTAMP)</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (lease_expires_at </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span><span style="color:#D73A49"> OR</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">&#x3C;=</span><span style="color:#24292E"> CURRENT_TIMESTAMP)</span></span>
+<span class="line"><span style="color:#24292E">RETURNING fencing_token, state_version, lease_expires_at;</span></span></code></pre>
+<p>Claiming the task and incrementing the fencing token must be one atomic operation. Expiration should preferably be decided using the clock of the system that stores the lease, rather than each worker’s local clock. Otherwise, clock skew becomes part of the ownership decision.</p>
+<p>Renewal must also match the current owner and token:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">=</span><span style="color:#24292E"> CURRENT_TIMESTAMP </span><span style="color:#D73A49">+</span><span style="color:#24292E"> :lease_duration</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> lease_owner </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :worker_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">></span><span style="color:#24292E"> CURRENT_TIMESTAMP;</span></span></code></pre>
+<p>After a renewal updates zero rows, the worker should stop starting new work. That is still not a correctness guarantee: the process may pause before renewal, resume after another worker has taken over, and have no opportunity to observe the failed renewal first.</p>
+<p>Lease duration trades off two costs. A lease that is too short causes unnecessary takeovers during transient delays; one that is too long delays recovery after a real failure. The heartbeat interval should be comfortably shorter than the lease and leave room for storage latency and short pauses. This choice affects availability, but it does not replace fencing.</p>
+<h2 id="lease-expiration-does-not-stop-the-old-worker">Lease Expiration Does Not Stop the Old Worker</h2>
+<p>Worker A can start while its lease is valid and then pause because of GC, process suspension, or a network partition. Once its lease expires, Worker B obtains a new lease. When A resumes, both processes may still be executing.</p>
+<figure>
+  <img src="/posts/en/state-machines-leases-idempotency/lease-takeover-fencing.svg" alt="Worker A receives fencing token 41 and then pauses until its lease expires. Worker B takes over and receives the larger token 42. The protected resource accepts B&#x27;s write with token 42. When A resumes and writes with stale token 41, the resource compares tokens and rejects the delayed write." loading="lazy">
+  <figcaption>The lease enables takeover; the resource uses a fencing token to reject writes from an old owner.</figcaption>
+</figure>
+<p>A fencing token is a strictly increasing number issued on every successful acquisition. The protected resource stores the greatest token it has accepted and rejects smaller values:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> task_outputs</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> payload </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :payload,</span></span>
+<span class="line"><span style="color:#24292E">    last_fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (last_fencing_token </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span></span>
+<span class="line"><span style="color:#D73A49">       OR</span><span style="color:#24292E"> last_fencing_token </span><span style="color:#D73A49">&#x3C;</span><span style="color:#24292E"> :fencing_token);</span></span></code></pre>
+<p>A random UUID can distinguish owners, but it does not order them and therefore cannot serve as a fencing token by itself. Another common mistake is checking the owner only when releasing the lease. That prevents A from deleting B’s lease, but it does not stop A from modifying the actual business resource after it resumes.</p>
+<p>The final resource that receives the write must enforce fencing. If an external API does not understand the token, fencing does not protect that side effect. The design then has to depend on the API’s idempotency contract, a stable business identifier, and reconciliation.</p>
+<h2 id="an-idempotency-key-must-represent-a-business-intent">An Idempotency Key Must Represent a Business Intent</h2>
+<p>Retries are unavoidable. The goal is not to make code “run only once,” but to ensure that every attempt and every worker uses the same idempotency key for the same logical action.</p>
+<p>For example, “publish revision 3 of the report for this task” could use:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key = hash(task_id, "publish-report", input_revision=3)</span></span></code></pre>
+<p>The following keys are usually wrong:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request_uuid()       # different on every retry</span></span>
+<span class="line"><span>worker_id            # changes after takeover</span></span>
+<span class="line"><span>attempt_number       # deliberately turns each retry into a new action</span></span>
+<span class="line"><span>current_timestamp    # cannot identify two calls as the same intent</span></span></code></pre>
+<p>The system can maintain an effect ledger:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key        unique</span></span>
+<span class="line"><span>task_id</span></span>
+<span class="line"><span>step_name</span></span>
+<span class="line"><span>input_revision</span></span>
+<span class="line"><span>payload_hash</span></span>
+<span class="line"><span>status            pending | in_progress | unknown | succeeded | terminal_failed</span></span>
+<span class="line"><span>external_ref</span></span>
+<span class="line"><span>result</span></span>
+<span class="line"><span>created_at</span></span>
+<span class="line"><span>updated_at</span></span></code></pre>
+<p>The unique constraint on <code>effect_key</code> merges concurrent requests. <code>payload_hash</code> prevents the same key from being reused with different parameters. The handling rules are:</p>
+<ol>
+<li>Atomically create a record the first time the key appears.</li>
+<li>For a succeeded key, return the stored result or <code>external_ref</code>.</li>
+<li>If the same key is <code>in_progress</code> or <code>unknown</code>, do not create a new logical action. Query or wait, or recover with the same key after confirming that the original owner is gone.</li>
+<li>If the same key arrives with a different payload, return a conflict instead of replaying the old result.</li>
+</ol>
+<p>An idempotency contract also needs a scope and a retention period. If the downstream system retains a key for 24 hours but the task may retry after three days, a duplicate can still be created once the old key is removed. A caller needs to know more than whether idempotency is “supported”: it needs to know how parameters are compared, which results are cached, how long keys live, and how concurrent requests are handled.</p>
+<h2 id="a-timeout-means-unknown-not-failed">A Timeout Means Unknown, Not Failed</h2>
+<p>An external call can time out before the request arrives, while the remote system is committing it, or after the operation succeeds but before the response reaches the caller. The caller sees the same timeout in all three cases and cannot infer whether the side effect occurred.</p>
+<p>The safe response is not to generate a new key and resend immediately. A more reliable path is:</p>
+<ol>
+<li>Persist an effect intent and stable key before the call.</li>
+<li>If the external system supports idempotency keys, retry with the same key.</li>
+<li>If it can query by a client reference, look for the existing result first.</li>
+<li>If the outcome remains uncertain, mark the effect <code>unknown</code> and move the task to <code>waiting_external</code>.</li>
+<li>Let a reconciliation job query until it confirms success, confirms failure, or reaches a terminal state that requires manual handling.</li>
+</ol>
+<p>If an external system supports neither an idempotency key nor lookup by a stable business identifier, no generic technique can guarantee both “never duplicate” and “eventually execute.” The system has to choose a risk: refusing to resend can lose an action, while resending can duplicate it. High-risk operations also need compensation or manual review.</p>
+<p>A transactional outbox solves the dual write between committing local database state and publishing a message: update business data and insert an outbox row in one transaction, then let a relay deliver the message. The relay or broker can still deliver duplicates, so the consumer remains responsible for idempotency. An outbox also cannot make an arbitrary external API atomic with the local database.</p>
+<h2 id="how-one-execution-converges">How One Execution Converges</h2>
+<p>Putting these mechanisms together, a worker execution looks roughly like this:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">def</span><span style="color:#6F42C1"> run</span><span style="color:#24292E">(task_id, worker_id):</span></span>
+<span class="line"><span style="color:#24292E">    lease </span><span style="color:#D73A49">=</span><span style="color:#24292E"> claim_task(task_id, worker_id)</span></span>
+<span class="line"><span style="color:#D73A49">    if</span><span style="color:#24292E"> lease </span><span style="color:#D73A49">is</span><span style="color:#005CC5"> None</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#D73A49">        return</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    # A separate heartbeat renews only a lease matching owner + fencing_token.</span></span>
+<span class="line"><span style="color:#24292E">    heartbeat.start(task_id, worker_id, lease.fencing_token)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">        task </span><span style="color:#D73A49">=</span><span style="color:#24292E"> load_task(task_id)</span></span>
+<span class="line"><span style="color:#D73A49">        if</span><span style="color:#24292E"> task.state </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "cancel_requested"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">            reconcile_then_cancel(task, lease)</span></span>
+<span class="line"><span style="color:#D73A49">            return</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">        key </span><span style="color:#D73A49">=</span><span style="color:#24292E"> stable_effect_key(</span></span>
+<span class="line"><span style="color:#E36209">            task_id</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.id,</span></span>
+<span class="line"><span style="color:#E36209">            step</span><span style="color:#D73A49">=</span><span style="color:#032F62">"publish-report"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#E36209">            input_revision</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.input_revision,</span></span>
+<span class="line"><span style="color:#24292E">        )</span></span>
+<span class="line"><span style="color:#24292E">        effect </span><span style="color:#D73A49">=</span><span style="color:#24292E"> get_or_create_effect(key, payload_hash(task.input))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">        if</span><span style="color:#24292E"> effect.status </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "succeeded"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">            complete_task(task, effect.result, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#D73A49">            return</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">        result </span><span style="color:#D73A49">=</span><span style="color:#24292E"> provider.publish_report(</span></span>
+<span class="line"><span style="color:#24292E">            task.input,</span></span>
+<span class="line"><span style="color:#E36209">            idempotency_key</span><span style="color:#D73A49">=</span><span style="color:#24292E">key,</span></span>
+<span class="line"><span style="color:#24292E">        )</span></span>
+<span class="line"><span style="color:#24292E">        record_effect_and_complete_task(</span></span>
+<span class="line"><span style="color:#E36209">            task</span><span style="color:#D73A49">=</span><span style="color:#24292E">task,</span></span>
+<span class="line"><span style="color:#E36209">            effect_key</span><span style="color:#D73A49">=</span><span style="color:#24292E">key,</span></span>
+<span class="line"><span style="color:#E36209">            result</span><span style="color:#D73A49">=</span><span style="color:#24292E">result,</span></span>
+<span class="line"><span style="color:#E36209">            expected_state_version</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.state_version,</span></span>
+<span class="line"><span style="color:#E36209">            fencing_token</span><span style="color:#D73A49">=</span><span style="color:#24292E">lease.fencing_token,</span></span>
+<span class="line"><span style="color:#24292E">        )</span></span>
+<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> NetworkTimeout:</span></span>
+<span class="line"><span style="color:#24292E">        mark_effect_unknown_if_owner(task_id, key, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#24292E">        move_to_waiting_external_if_owner(task_id, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#D73A49">    finally</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">        heartbeat.stop()</span></span></code></pre>
+<p>The example omits database-specific transactions and error classification, but preserves the important boundaries: the effect intent exists before the remote call; retries reuse a stable key; completion is guarded by the state version and fencing token; and a timeout enters unknown-outcome handling instead of becoming a confirmed failure.</p>
+<p>If <code>record_effect_and_complete_task</code> writes the effect and task to the same database, it should commit them in one short transaction where possible. If they do not share a transaction boundary, the design must identify the source of truth and define how the other view converges through reconciliation.</p>
+<h2 id="recovering-from-common-failures">Recovering from Common Failures</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Failure point</th><th>Unsafe response</th><th>Convergence path</th></tr></thead><tbody><tr><td>Worker crashes before the external call</td><td>Leave the task <code>running</code> forever</td><td>Lease expires; the new worker reuses the persisted effect intent</td></tr><tr><td>External call succeeds before the result is recorded</td><td>Call again with a new key</td><td>Retry with the original key or query by client reference, then persist the result</td></tr><tr><td>Worker pauses beyond its lease</td><td>Assume the old worker stopped</td><td>New owner receives a larger token; the resource rejects the old token</td></tr><tr><td>Heartbeat renewal fails</td><td>Continue starting new side effects</td><td>Stop new work; keep checking token and version on every later write</td></tr><tr><td>Callback arrives after a terminal state</td><td>Move the task back to <code>running</code></td><td>Associate it by effect key and validate the transition; keep the terminal state</td></tr><tr><td>Cancellation races with external success</td><td>Report <code>cancelled</code> immediately</td><td>Persist <code>cancel_requested</code>; reconcile or compensate before entering a terminal state</td></tr></tbody></table>
+<p>Recovery should resume from the <strong>last durable boundary</strong>, not blindly restart the function from the top. If different steps have different side-effect semantics, each step needs its own stable key and result record.</p>
+<h2 id="retry-needs-a-budget-not-just-a-loop">Retry Needs a Budget, Not Just a Loop</h2>
+<p>Idempotency makes retries safer, but it does not justify retrying forever. The task model should record:</p>
+<ul>
+<li>Which errors are retryable and which represent invalid input, missing permission, or a terminal business constraint.</li>
+<li><code>attempt</code>, <code>next_attempt_at</code>, and a maximum attempt count or maximum elapsed time.</li>
+<li>Exponential backoff and jitter, so recovery does not send a synchronized burst to a downstream dependency.</li>
+<li>The reconciliation interval and the maximum acceptable age of an <code>unknown</code> effect.</li>
+<li>Whether an exhausted budget leads to <code>terminal_failed</code>, a compensation queue, or manual handling.</li>
+</ul>
+<p>A task waiting for backoff should not keep its lease. Persist <code>retryable_failed</code> and <code>next_attempt_at</code>, release ownership, and let the scheduler reclaim it when the time arrives.</p>
+<h2 id="observe-state-transitions-and-uncertainty">Observe State Transitions and Uncertainty</h2>
+<p>Average task duration is not enough to explain the reliability of long-running work. More useful signals include:</p>
+<ul>
+<li>Entries into each state and time spent there, especially the age of <code>waiting_external</code>.</li>
+<li>Lease acquisitions, failed renewals, expired takeovers, and concurrent owners observed for one task.</li>
+<li>Fencing rejections, which are evidence that an old worker or delayed request actually existed.</li>
+<li>Idempotency hits, payload conflicts, and retries that reused a stored result.</li>
+<li>Effects in <code>unknown</code>, their reconciliation attempts, and their eventual outcomes.</li>
+<li>Invalid transitions, optimistic concurrency conflicts, and callbacks arriving after a terminal state.</li>
+</ul>
+<p>Logs and traces should carry <code>task_id</code>, <code>attempt</code>, <code>effect_key</code>, <code>state_version</code>, and <code>fencing_token</code>. A task ID alone often cannot distinguish a legitimate takeover from duplicate logs emitted by the same worker.</p>
+<h2 id="design-boundaries">Design Boundaries</h2>
+<p>This is not the minimum implementation for every background job.</p>
+<ul>
+<li>If an operation is short and all reads and writes fit in one database transaction, a simple queue table or transactional lock may be enough.</li>
+<li>A queue visibility timeout is itself a kind of lease. Messages can still be delivered more than once, so it does not replace business idempotency.</li>
+<li>A workflow engine can provide durable timers, retries, and state recovery, but the application still defines idempotency keys, business terminal states, and compensation semantics for external side effects.</li>
+<li>Fencing works only when the resource checks the token. An external system that cannot do so needs a stable business key, lookup, and reconciliation.</li>
+<li>“Exactly once” should be decomposed into a concrete contract: a message may be delivered more than once, but one business effect produces at most one observable result; or duplicate results can be detected and compensated. The entire distributed execution should not be described loosely as running once.</li>
+</ul>
+<h2 id="back-to-the-problem">Back to the Problem</h2>
+<p>The core of reliable long-running work is not preventing every failure and retry. It is giving each recovery a precise boundary:</p>
+<ol>
+<li>The state machine states which facts are committed and which transitions remain legal.</li>
+<li>The lease makes work recoverable after a worker disappears, while the fencing token stops an old owner from overwriting a newer result.</li>
+<li>A stable idempotency key identifies attempts as the same business intent.</li>
+<li>A timeout becomes an unknown outcome that converges through lookup, a retry with the same key, or reconciliation.</li>
+<li>Cancellation, failure, and success are durable facts—not return statements inside one process.</li>
+</ol>
+<p>Once state, ownership, and side effects each have their own protocol, worker crashes, duplicate messages, network partitions, and delayed callbacks no longer collapse into the vague instruction to “try again.”</p>
+<p>References:</p>
+<ul>
+<li><a href="https://web.stanford.edu/class/cs240/readings/leases.pdf">Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency</a></li>
+<li><a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">How to do distributed locking</a></li>
+<li><a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">Making retries safe with idempotent APIs</a></li>
+<li><a href="https://docs.stripe.com/api/idempotent_requests">Stripe API: Idempotent requests</a></li>
+<li><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html">Transactional outbox pattern</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
