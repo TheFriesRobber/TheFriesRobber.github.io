@@ -1,0 +1,326 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A tool schema is not a copy of a backend DTO. It is an interface that helps a model select a capability, generate arguments, and recover from errors."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Tool Schemas Are Model-Facing APIs | Xiaoyuan"><meta property="og:description" content="A tool schema is not a copy of a backend DTO. It is an interface that helps a model select a capability, generate arguments, and recover from errors."><meta property="og:url" content="https://thefriesrobber.github.io/writing/tool-schemas-model-facing-apis/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/tool-schemas-model-facing-apis/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Tool Schemas Are Model-Facing APIs | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/tool-schemas-model-facing-apis/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Tool Schemas Are Model-Facing APIs</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time> <span>Updated 07/14/2026</span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Suppose a backend already has an endpoint for creating calendar events. It accepts more than a dozen fields: user ID, organization ID, title, start and end times, attendees, notification policy, audit source, request ID, and retry settings.</p>
+<p>The most direct approach is to convert that request DTO (Data Transfer Object, a data structure used to pass parameters between services) into JSON Schema (a vocabulary for describing the shape and constraints of JSON data), then register it as an Agent Tool. The types line up and the execution code can be reused, so another interface may seem unnecessary.</p>
+<p>But a model is not an API client following fixed code. It must infer <strong>whether to call a Tool</strong>, <strong>which Tool to call</strong>, and then generate arguments that satisfy the contract. Every ambiguous field in a DTO—and every missing constraint—forces the model to make another unnecessary guess.</p>
+<p>A Tool schema therefore should not be a copy of a backend DTO. It is a <strong>model-facing API</strong>: the Tool name and description help the model route to a capability, the input schema constrains the intent it can express, and the handler turns untrusted model input into an authorized, deterministic operation.</p>
+<blockquote>
+<p>Think of a Tool schema as an operation form placed in front of the model. The name and description are the form’s title and instructions, the input schema defines what the model may fill in, and the handler checks and submits it. A backend DTO is more like an internal work order: it may contain identity and execution details that the model should never provide.</p>
+</blockquote>
+<p>This article uses a few terms repeatedly:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Term</th><th>Meaning in this article</th></tr></thead><tbody><tr><td>model-facing API</td><td>An interface designed for a model to select, populate, and repair correctly</td></tr><tr><td>runtime</td><td>The framework around the model that supplies Tools, validates calls, and executes handlers</td></tr><tr><td>handler</td><td>The function that receives Tool arguments and performs the actual operation</td></tr><tr><td>backend</td><td>The deterministic service, database, or external API called by the handler</td></tr><tr><td>trusted context</td><td>Information derived from authentication or generated by the system, such as identity, permissions, and request ID</td></tr><tr><td>trace / eval</td><td>A trace records one real execution; an eval repeatedly tests the system against a fixed set of cases</td></tr></tbody></table>
+<h2 id="one-tool-participates-in-two-decisions">One Tool participates in two decisions</h2>
+<p>Function calling is often described as “the model generates JSON, then the application executes a function.” That skips an earlier step: the model must first select a capability from the Tools it can see.</p>
+<p>At minimum, one Tool call involves two separate decisions:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Decision</th><th>Main inputs</th><th>Common failures</th></tr></thead><tbody><tr><td>Whether to call a Tool, and which one</td><td>name, description, current task</td><td>Choosing a similar Tool, failing to call when needed, treating a write as a read</td></tr><tr><td>How to construct the arguments</td><td>property names, types, required fields, enums, property descriptions</td><td>Missing fields, type errors, invented fields, confused empty-value semantics</td></tr></tbody></table>
+<p>That is why checking only whether the JSON passes schema validation is insufficient. A call can be structurally valid but target the wrong capability. It can also select the right Tool and still fail because the interface exposes irrelevant fields.</p>
+<p>The full Tool boundary also includes identity, permissions, and audit data injected by the runtime. The model should express only the business parameters that can be inferred from the user’s task. It should not generate trusted context.</p>
+<figure>
+  <img src="/posts/en/tool-schemas-model-facing-apis/model-facing-tool-contract.svg" alt="User intent first passes through the Tool name and description for capability selection, then the input schema constrains model-generated arguments. The runtime separately injects identity, permissions, and request context before the handler validates the operation and calls the backend." loading="lazy">
+  <figcaption>The model supplies business arguments; the trusted runtime supplies identity, permissions, and audit context.</figcaption>
+</figure>
+<h2 id="start-with-a-bad-backend-dto">Start with a bad backend DTO</h2>
+<p>The following input may be appropriate between services, but it is a poor interface for a model:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "user_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"u_123"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "tenant_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"t_456"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "title"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Project sync"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "starts_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:00:00+08:00"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "ends_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:30:00+08:00"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "notification_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"default"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "actor_type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"req_789"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "retry_mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"safe"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>These fields mix three kinds of information:</p>
+<ol>
+<li>Business intent explicitly stated by the user, such as the title, time, and attendees.</li>
+<li>Context the application can derive from the current session, such as user identity, time zone, and scope.</li>
+<li>Internal control data required by infrastructure, such as request ID, actor, and retry policy.</li>
+</ol>
+<p>Once the last two categories enter the schema, the model has to make decisions about them. More importantly, fields such as <code>user_id</code> and <code>actor_type</code> may look like ordinary strings while actually belonging to the authorization and audit boundary. Even if a model usually fills them correctly, authorization cannot depend on the assumption that it usually will not fabricate them.</p>
+<p>A narrower model-facing Tool can accept only the information required to complete the task. To illustrate range constraints, assume this example product allows events from 5 to 480 minutes and at most 50 attendees. These numbers are example product policies, not universal calendar limits:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"object"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "properties"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "title"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "minLength"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event title visible to attendees."</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "starts_at"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Start time with an explicit UTC offset."</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "duration_minutes"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"integer"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "minimum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">5</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "maximum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event duration in minutes."</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "attendee_emails"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"array"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "items"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E"> },</span></span>
+<span class="line"><span style="color:#005CC5">      "minItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "maxItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">50</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Confirmed attendee email addresses. Omit when there are no attendees."</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "required"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"title"</span><span style="color:#24292E">, </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">, </span><span style="color:#032F62">"duration_minutes"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "additionalProperties"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The runtime then adds trusted context:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> function</span><span style="color:#6F42C1"> executeScheduleEvent</span><span style="color:#24292E">(</span><span style="color:#E36209">args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ScheduleEventArgs</span><span style="color:#24292E">, </span><span style="color:#E36209">ctx</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ToolContext</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">  const</span><span style="color:#005CC5"> input</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> validateBusinessRules</span><span style="color:#24292E">(args, ctx.timezone)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> calendarClient.</span><span style="color:#6F42C1">createEvent</span><span style="color:#24292E">({</span></span>
+<span class="line"><span style="color:#D73A49">    ...</span><span style="color:#24292E">input,</span></span>
+<span class="line"><span style="color:#24292E">    userId: ctx.authenticatedUserId,</span></span>
+<span class="line"><span style="color:#24292E">    permissionScope: ctx.permissionScope,</span></span>
+<span class="line"><span style="color:#24292E">    actor: ctx.actor,</span></span>
+<span class="line"><span style="color:#24292E">    requestId: ctx.requestId,</span></span>
+<span class="line"><span style="color:#24292E">  })</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The point is not to make the Tool look simpler. It is to assign responsibilities clearly: the model expresses the task, the runtime supplies trusted context, and the backend performs final authorization and consistency checks.</p>
+<h2 id="name-and-description-form-a-routing-interface">Name and description form a routing interface</h2>
+<p>A Tool name should describe a stable action, not an internal service or class name.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>calendar_api_v2_execute       # exposes implementation, unclear intent</span></span>
+<span class="line"><span>manage_calendar              # too broad</span></span>
+<span class="line"><span>schedule_calendar_event      # explicit action and resource</span></span></code></pre>
+<p>The description should answer a few routing questions:</p>
+<ul>
+<li>What result does this Tool produce?</li>
+<li>When should it be called?</li>
+<li>When should it not be called?</li>
+<li>Does it read data, or create a persistent side effect?</li>
+<li>What is the most important precondition?</li>
+</ul>
+<p>For example:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Create one calendar event for the current user. Use only after the title,</span></span>
+<span class="line"><span>start time, and duration are known. This tool writes to the calendar; it</span></span>
+<span class="line"><span>does not search for availability or resolve ambiguous time zones.</span></span></code></pre>
+<p>This description does not explain how the backend stores an event or repeat every property type. It provides the distinctions needed to select the Tool.</p>
+<p>Longer is not automatically better. If permissions, field documentation, retry rules, and product background are all packed into the description, they dilute the signals that affect selection. A useful division of responsibility is:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Information</th><th>Better location</th></tr></thead><tbody><tr><td>When to call; whether it has side effects</td><td>Tool description</td></tr><tr><td>How to fill one argument</td><td>Property description</td></tr><tr><td>Behavioral rules for the current task</td><td>System/developer instruction</td></tr><tr><td>User identity and resource scope</td><td>Trusted runtime context</td></tr><tr><td>Final authorization and business constraints</td><td>Handler and backend</td></tr></tbody></table>
+<p>Some repetition is appropriate. A write operation, for example, may be marked as a side effect in both its Tool description and the confirmation UI. But a prompt that says “do not exceed your permissions” is never a replacement for backend authorization.</p>
+<h2 id="a-schema-should-express-the-minimum-sufficient-input">A schema should express the minimum sufficient input</h2>
+<p>“Minimum” does not mean removing useful constraints. “Sufficient” does not mean handing every internal option to the model. The goal is to expose only the decisions the model must make to complete the user’s task.</p>
+<p>Every field should answer these questions:</p>
+<ul>
+<li>Which part of user intent does it represent?</li>
+<li>If it is absent, can the handler derive it safely and deterministically?</li>
+<li>Do missing, empty string, empty array, and <code>null</code> have different meanings?</li>
+<li>Can the valid range be expressed directly in the schema?</li>
+<li>Does the field actually belong to identity, permissions, audit, or infrastructure configuration?</li>
+</ul>
+<p>In JSON Schema, a property listed under <code>properties</code> is optional by default; it must also appear under <code>required</code> to be mandatory. Undeclared properties are also allowed by default. Only <code>additionalProperties: false</code> rejects near-synonyms invented by the model.</p>
+<p>Three states deserve separate treatment:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{}</span></span></code></pre>
+<p>The property is missing.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#032F62">""</span><span style="color:#24292E"> }</span></span></code></pre>
+<p>The caller explicitly supplied an empty string.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span><span style="color:#24292E"> }</span></span></code></pre>
+<p>The caller explicitly supplied <code>null</code>, which is valid only when the schema allows it.</p>
+<p>If the handler collapses all three with <code>value ?? ""</code>, a precise schema cannot preserve the distinction. For an interface where an empty string means “delete the current content,” the value may be empty while the property itself should still be required.</p>
+<h2 id="schema-validation-does-not-replace-handler-validation">Schema validation does not replace handler validation</h2>
+<p>A strict schema reduces syntactically invalid input. It does not prove that the call is authorized, nor can it capture every business condition.</p>
+<p>The handler still needs to check, for example:</p>
+<ul>
+<li>whether <code>starts_at</code> can be parsed and includes an explicit time zone;</li>
+<li>whether the current user may invite the listed attendees;</li>
+<li>whether a write has received the confirmation required in this context;</li>
+<li>whether the runtime actually supports the JSON Schema keywords used by the definition.</li>
+</ul>
+<p>The last point is easy to miss. Model platforms, gateways, and runtimes may implement only a subset of JSON Schema. A keyword such as <code>minItems</code> appearing in a type definition does not mean every execution path enforces it. A reliable design gives the model-facing schema contract tests—tests that confirm each execution path follows the same schema—and preserves critical business checks in the handler. Correctness should not depend on one adapter happening to support a keyword.</p>
+<p>The validation boundary can be divided into three layers:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Layer</th><th>Appropriate checks</th></tr></thead><tbody><tr><td>Schema/runtime validator</td><td>Types, required fields, enums, ranges, additional properties</td></tr><tr><td>Handler</td><td>Cross-field relationships, current state, confirmation requirements, recoverable business errors</td></tr><tr><td>Backend/storage</td><td>Identity authorization, resource ownership, transactions, versions, and idempotency—the same repeated submission produces the same business result</td></tr></tbody></table>
+<p>Critical checks may intentionally overlap. The goal is not mutual distrust. Each layer should reject invalid states that it is capable of recognizing.</p>
+<h2 id="errors-are-also-part-of-the-model-facing-api">Errors are also part of the model-facing API</h2>
+<p>If the application or runtime returns a Tool error to the model, that error becomes input to the model’s next decision. <code>400 invalid body</code> may be enough for an engineer to start reading logs, but it tells a model almost nothing about what to do next.</p>
+<p>A recoverable error should at least include a stable code, the problematic field, and a repair hint. It can use a fixed error envelope:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "ok"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "error"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ambiguous_time_zone"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "field"</span><span style="color:#24292E">: </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "message"</span><span style="color:#24292E">: </span><span style="color:#032F62">"The start time does not include a UTC offset."</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "hint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Ask the user for a time zone, then retry with an explicit offset."</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "recoverable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "requires_user_input"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "retryable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The envelope needs clear boundaries:</p>
+<ul>
+<li><code>error</code> should be a stable, low-cardinality machine code so traces and evals can aggregate it.</li>
+<li><code>message</code> should explain the failure without leaking a stack trace or an internal service response.</li>
+<li><code>hint</code> should describe a valid next step without inventing missing facts for the model.</li>
+<li><code>recoverable</code> indicates whether a legal repair path exists; <code>requires_user_input</code> says the current information is insufficient and the user must be asked.</li>
+<li><code>retryable</code> means only that retrying under the same conditions might succeed. A missing time zone is recoverable but not directly retryable. A transient network failure may be both recoverable and retryable.</li>
+<li>Candidate values should be permission-filtered and bounded in number.</li>
+</ul>
+<p>This makes recovery behavior part of the interface design instead of leaving it to model guesswork.</p>
+<h2 id="improve-the-schema-with-traces-and-evals">Improve the schema with traces and evals</h2>
+<p>A schema that looks reasonable in code review may still be hard for a model to use reliably. A fixed task set should measure at least:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>What it reveals</th></tr></thead><tbody><tr><td>Tool selection accuracy</td><td>Whether the name and description lead to the right capability</td></tr><tr><td>First-call valid rate</td><td>Whether the schema and property descriptions are clear enough</td></tr><tr><td>Repair success rate</td><td>Whether errors support a successful next step</td></tr><tr><td>Redundant call rate</td><td>Whether the Tool encourages duplicate reads or writes</td></tr><tr><td>Task success rate</td><td>Whether valid calls actually complete the user’s goal</td></tr><tr><td>Permission violation attempts</td><td>Whether the visible Tools, prompt, or arguments encourage unauthorized actions</td></tr></tbody></table>
+<p>Do not diagnose only from final task success. Two versions may both complete a task, while one succeeds on the first call and the other needs three invalid-argument retries. Their latency, cost, and fragility are very different.</p>
+<p>Change a small number of variables at a time. Keep the schema fixed while revising only the Tool name and description, then observe selection accuracy. Next, tighten fields and error messages, then observe first-call validity and repair success. If everything changes together, an improvement is hard to attribute to the right layer.</p>
+<h2 id="design-boundaries">Design boundaries</h2>
+<p>A Tool schema is not the answer to every Tool problem:</p>
+<ul>
+<li>If too many Tools create an oversized selection space, the system needs a Tool registry, permission filtering, and on-demand discovery. That is a Tool-surface problem, not a single-schema problem.</li>
+<li>A Tool with several commands and substantially different arguments may need to be split, but failure distributions should first show that the granularity is the problem.</li>
+<li>Long-running, recoverable, multi-stage work belongs in a workflow or task state machine. A Tool should remain an atomic capability within it.</li>
+<li>High-risk side effects usually need user confirmation, policy hooks, or approval flows. One sentence in a description cannot replace them.</li>
+<li>A schema guarantees an input shape. It does not guarantee that facts are true, the call is appropriate, or execution will succeed.</li>
+</ul>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>An Agent Tool and a backend API can reuse the same business capability without reusing the same interface shape.</p>
+<p>A backend DTO serves controlled programmatic callers and often carries full execution context. A Tool schema serves a model that must interpret natural language, select a capability, and then generate arguments. A reliable model-facing API should:</p>
+<ol>
+<li>Use a clear name and description to reduce ambiguity in capability selection.</li>
+<li>Expose only the minimum sufficient input needed to complete the user’s task.</li>
+<li>Let the trusted runtime inject identity, permissions, audit data, and infrastructure context.</li>
+<li>Validate in the schema, handler, and backend instead of betting correctness on one validator.</li>
+<li>Treat error recovery and real-call evaluation as part of the interface lifecycle.</li>
+</ol>
+<p>Code is the Tool’s execution implementation. The schema is the product surface shown to the model. They support the same operation, but they carry different responsibilities.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://developers.openai.com/api/docs/guides/function-calling">OpenAI Function calling</a></li>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools">Claude Platform: Define tools</a></li>
+<li><a href="https://json-schema.org/understanding-json-schema/reference/object">JSON Schema: Objects</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

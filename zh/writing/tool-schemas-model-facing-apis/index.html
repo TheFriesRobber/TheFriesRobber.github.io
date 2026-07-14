@@ -1,0 +1,326 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Tool Schemas Are Model-Facing APIs | Xiaoyuan"><meta property="og:description" content="Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。"><meta property="og:url" content="https://thefriesrobber.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="canonical" href="https://thefriesrobber.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/tool-schemas-model-facing-apis/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Tool Schemas Are Model-Facing APIs | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/tool-schemas-model-facing-apis/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Tool Schemas Are Model-Facing APIs</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time> <span>更新于 2026/07/14</span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>假设后端已经有一个创建日历事件的接口。它接收十几个字段：用户 ID、组织 ID、标题、开始时间、结束时间、参与者、通知策略、审计来源、请求 ID 和重试配置。</p>
+<p>最直接的做法，是把这份 request DTO（Data Transfer Object，服务之间传递参数的数据结构）转成 JSON Schema（描述 JSON 数据形状与约束的规则），再注册成 Agent Tool。类型能对上，执行函数也可以复用，似乎没有必要再设计一层接口。</p>
+<p>但模型不是一个按固定代码调用 API 的客户端。它必须先从自然语言中判断<strong>要不要调用</strong>，再判断<strong>调用哪个 Tool</strong>，最后生成一组满足规则的参数。DTO 中每多一个名字含糊的字段、每少一个必要约束，都会让模型多做一次不必要的猜测。</p>
+<p>因此，Tool schema 不应是 backend DTO 的复制品。它是一个 <strong>model-facing API</strong>：Tool name 和 description 帮助模型路由能力，input schema 约束可表达的意图，handler 则把这份不可信输入转换为经过鉴权的确定性操作。</p>
+<blockquote>
+<p>可以把 Tool schema 理解成模型面前的一张操作表单：name 和 description 是表单标题与用途说明，input schema 决定模型能填写哪些字段，handler 负责检查并真正提交。Backend DTO 更像系统内部工单，里面可以包含模型不该填写的身份和执行信息。</p>
+</blockquote>
+<p>本文会反复使用下面几个词：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>术语</th><th>本文中的含义</th></tr></thead><tbody><tr><td>model-facing API</td><td>面向模型设计的接口；目标是让模型容易选对、填对和改对</td></tr><tr><td>runtime</td><td>包围模型的一层运行框架，负责传入 Tool、校验调用并执行 handler</td></tr><tr><td>handler</td><td>收到 Tool 参数后真正执行业务逻辑的函数</td></tr><tr><td>backend</td><td>handler 调用的确定性服务、数据库或外部 API</td></tr><tr><td>trusted context</td><td>由登录态和系统生成的可信信息，例如用户身份、权限、请求 ID</td></tr><tr><td>trace / eval</td><td>trace 是一次真实调用的过程记录；eval 是用固定案例重复评测系统的方法</td></tr></tbody></table>
+<h2 id="一个-tool-同时参与两次决策">一个 Tool 同时参与两次决策</h2>
+<p>Function calling 常被描述成“模型生成 JSON，应用执行函数”。这个描述略过了更早的一步：模型首先需要从可见 Tool 中选择一个能力。</p>
+<p>一次调用至少包含两个不同问题：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>决策</th><th>主要输入</th><th>常见失败</th></tr></thead><tbody><tr><td>是否调用、调用哪个 Tool</td><td>name、description、当前任务</td><td>误选相似 Tool、该调用时没有调用、把读操作当成写操作</td></tr><tr><td>参数怎样生成</td><td>property name、type、required、enum、字段 description</td><td>漏字段、类型错误、自创字段、混淆空值语义</td></tr></tbody></table>
+<p>这也是为什么只检查“JSON 能否通过 schema”不够。一个调用可以结构完全合法，却选择了错误能力；也可以选对 Tool，却因为接口暴露了无关字段而在参数阶段失败。</p>
+<p>Tool 的完整边界还包括 runtime 注入的身份、权限和审计信息。模型只负责表达用户任务中可以推导出的业务参数，不应该生成这些可信上下文。</p>
+<figure>
+  <img src="/posts/zh/tool-schemas-model-facing-apis/model-facing-tool-contract.svg" alt="用户意图先经过 Tool name 和 description 完成能力选择，再由 input schema 约束模型参数。运行时在模型参数之外注入用户身份、权限和请求上下文，handler 完成业务校验后才调用 backend。" loading="lazy">
+  <figcaption>模型生成业务参数；身份、权限和审计上下文由可信运行时注入。</figcaption>
+</figure>
+<h2 id="先从-backend-dto-的反例开始">先从 backend DTO 的反例开始</h2>
+<p>下面是一份适合服务间调用、却不适合直接暴露给模型的输入：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "user_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"u_123"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "tenant_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"t_456"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "title"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Project sync"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "starts_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:00:00+08:00"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "ends_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:30:00+08:00"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "notification_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"default"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "actor_type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"req_789"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "retry_mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"safe"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>这些字段混合了三类信息：</p>
+<ol>
+<li>用户明确表达的业务意图，例如标题、时间和参与者。</li>
+<li>应用根据当前 session 推导的上下文，例如用户、时区和作用域。</li>
+<li>基础设施内部需要的控制字段，例如 request ID、actor 和 retry policy。</li>
+</ol>
+<p>后两类字段一旦进入 schema，模型就不得不为它们做决定。更严重的是，<code>user_id</code> 或 <code>actor_type</code> 看起来只是字符串，实际上却属于权限和审计边界。即使模型大多数时候能填对，也不能把授权建立在“模型通常不会伪造”之上。</p>
+<p>更窄的 model-facing Tool 可以只接收完成任务所需的信息。为了展示范围约束，下面假设这个示例产品只接受 5 到 480 分钟的事件、最多 50 名参与者；这些数字是示例策略，不是通用日历限制：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"object"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "properties"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "title"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "minLength"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event title visible to attendees."</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "starts_at"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Start time with an explicit UTC offset."</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "duration_minutes"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"integer"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "minimum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">5</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "maximum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event duration in minutes."</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "attendee_emails"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"array"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "items"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E"> },</span></span>
+<span class="line"><span style="color:#005CC5">      "minItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "maxItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">50</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Confirmed attendee email addresses. Omit when there are no attendees."</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "required"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"title"</span><span style="color:#24292E">, </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">, </span><span style="color:#032F62">"duration_minutes"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "additionalProperties"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>Runtime 再补上可信上下文：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> function</span><span style="color:#6F42C1"> executeScheduleEvent</span><span style="color:#24292E">(</span><span style="color:#E36209">args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ScheduleEventArgs</span><span style="color:#24292E">, </span><span style="color:#E36209">ctx</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ToolContext</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">  const</span><span style="color:#005CC5"> input</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> validateBusinessRules</span><span style="color:#24292E">(args, ctx.timezone)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> calendarClient.</span><span style="color:#6F42C1">createEvent</span><span style="color:#24292E">({</span></span>
+<span class="line"><span style="color:#D73A49">    ...</span><span style="color:#24292E">input,</span></span>
+<span class="line"><span style="color:#24292E">    userId: ctx.authenticatedUserId,</span></span>
+<span class="line"><span style="color:#24292E">    permissionScope: ctx.permissionScope,</span></span>
+<span class="line"><span style="color:#24292E">    actor: ctx.actor,</span></span>
+<span class="line"><span style="color:#24292E">    requestId: ctx.requestId,</span></span>
+<span class="line"><span style="color:#24292E">  })</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>这不是为了让 Tool 看起来更简单，而是在明确责任：模型表达任务，runtime 提供可信上下文，backend 执行最终授权和一致性检查。</p>
+<h2 id="name-和-description-是路由接口">Name 和 description 是路由接口</h2>
+<p>Tool name 首先应该表达一个稳定动作，而不是内部 service 或 class 名称。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>calendar_api_v2_execute       # 暴露实现，意图不清</span></span>
+<span class="line"><span>manage_calendar              # 范围太宽</span></span>
+<span class="line"><span>schedule_calendar_event      # 动作和资源都明确</span></span></code></pre>
+<p>Description 则需要回答几个路由问题：</p>
+<ul>
+<li>这个 Tool 完成什么结果？</li>
+<li>什么情况下应该调用？</li>
+<li>什么情况下不该调用？</li>
+<li>它是读取数据，还是会产生持久副作用？</li>
+<li>最关键的前置条件是什么？</li>
+</ul>
+<p>例如：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Create one calendar event for the current user. Use only after the title,</span></span>
+<span class="line"><span>start time, and duration are known. This tool writes to the calendar; it</span></span>
+<span class="line"><span>does not search for availability or resolve ambiguous time zones.</span></span></code></pre>
+<p>这段 description 没有解释后端怎样存储 event，也没有重复每个字段的类型。它提供的是选择 Tool 所需的判别信息。</p>
+<p>Description 也不是越长越好。把权限手册、字段文档、重试规则和产品背景全部塞进去，会稀释真正影响选择的信号。可以按职责分层：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>信息</th><th>更合适的位置</th></tr></thead><tbody><tr><td>何时调用、是否有副作用</td><td>Tool description</td></tr><tr><td>单个参数怎样填写</td><td>Property description</td></tr><tr><td>当前任务的行为原则</td><td>System/developer instruction</td></tr><tr><td>用户身份、资源作用域</td><td>Trusted runtime context</td></tr><tr><td>最终授权和业务约束</td><td>Handler 与 backend</td></tr></tbody></table>
+<p>少量重复是合理的，例如写操作可以同时在 Tool description 和确认 UI 中标明副作用。但不能因为 prompt 已经说过“不要越权”，就省掉真正的 backend authorization。</p>
+<h2 id="schema-应表达最小充分输入">Schema 应表达最小充分输入</h2>
+<p>所谓“最小”，不是尽量少写约束；所谓“充分”，也不是把所有内部选项都交给模型。目标是让模型只需做完成用户任务所必需的决定。</p>
+<p>每个字段都应该能回答：</p>
+<ul>
+<li>它对应哪个用户意图？</li>
+<li>没有它时，handler 能否安全、确定地推导？</li>
+<li>缺失、空字符串、空数组和 <code>null</code> 是否有不同含义？</li>
+<li>合法范围能否由 schema 直接表达？</li>
+<li>它是否其实属于身份、权限、审计或基础设施配置？</li>
+</ul>
+<p>JSON Schema 中，写在 <code>properties</code> 里的字段默认并不是必填；必须显式放进 <code>required</code>。同样，未声明的字段默认可以出现，只有使用 <code>additionalProperties: false</code> 才会拒绝模型自创的近义字段。</p>
+<p>需要特别区分三种状态：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{}</span></span></code></pre>
+<p>表示字段缺失；</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#032F62">""</span><span style="color:#24292E"> }</span></span></code></pre>
+<p>表示调用方明确传入空字符串；</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span><span style="color:#24292E"> }</span></span></code></pre>
+<p>表示显式 <code>null</code>，而且只有 schema 允许 <code>null</code> 时才合法。</p>
+<p>如果 handler 用 <code>value ?? ""</code> 把三者合并，schema 再精确也保不住语义。对于“空字符串表示删除内容”之类的接口，字段可以允许为空，但字段本身仍应是 required。</p>
+<h2 id="schema-validation-不能代替-handler-validation">Schema validation 不能代替 handler validation</h2>
+<p>严格 schema 能减少语法层面的无效输入，却不能证明调用已经被授权，也不能覆盖所有业务条件。</p>
+<p>仍然需要 handler 检查：</p>
+<ul>
+<li><code>starts_at</code> 是否能解析，是否包含明确时区。</li>
+<li>参与者是否在当前用户允许邀请的范围内。</li>
+<li>写操作是否已经获得当前场景要求的确认。</li>
+<li>当前 runtime 实际支持的 JSON Schema keyword 是否与定义一致。</li>
+</ul>
+<p>最后一点经常被忽略。不同模型平台、网关和 runtime 可能只实现 JSON Schema 的一部分。某个 keyword（例如 <code>minItems</code>）出现在类型定义里，不代表每条执行路径都会执行它。可靠的做法是：为 model-facing schema 建 contract test（验证各条执行路径是否遵守同一份 schema），同时在 handler 保留关键业务校验；不要把正确性押在某个适配器恰好支持的行为上。</p>
+<p>可以把验证边界拆成三层：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>层</th><th>适合检查什么</th></tr></thead><tbody><tr><td>Schema/runtime validator</td><td>类型、required、enum、范围、额外字段</td></tr><tr><td>Handler</td><td>跨字段关系、当前状态、确认条件、可修复业务错误</td></tr><tr><td>Backend/storage</td><td>身份授权、资源所有权、事务、版本和幂等（重复提交仍产生同一个业务结果）</td></tr></tbody></table>
+<p>三层可以有意重复关键检查。重复的目的不是互不信任，而是每一层都拒绝自己有能力识别的非法状态。</p>
+<h2 id="错误也是-model-facing-api-的一部分">错误也是 model-facing API 的一部分</h2>
+<p>如果 application/runtime 把 Tool error 返回给模型，它就会成为下一步决策的输入。对工程师来说，<code>400 invalid body</code> 也许足以开始查日志；对模型来说，它几乎没有提供下一步动作。</p>
+<p>一个可修复错误至少应包含稳定错误码、问题字段和修复提示。可以把它组织成一个固定格式的 error envelope：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "ok"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "error"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ambiguous_time_zone"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "field"</span><span style="color:#24292E">: </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "message"</span><span style="color:#24292E">: </span><span style="color:#032F62">"The start time does not include a UTC offset."</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "hint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Ask the user for a time zone, then retry with an explicit offset."</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "recoverable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "requires_user_input"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "retryable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>错误包需要控制边界：</p>
+<ul>
+<li><code>error</code> 使用低基数、稳定的机器码，便于 trace 和 eval 聚合。</li>
+<li><code>message</code> 解释当前失败，不透传 stack trace 或内部服务响应。</li>
+<li><code>hint</code> 给出合法的下一步，不替模型虚构缺失事实。</li>
+<li><code>recoverable</code> 表示是否存在合法修复路径；<code>requires_user_input</code> 说明当前信息不足，需要先询问用户。</li>
+<li><code>retryable</code> 只表示相同条件下重试是否可能成功。缺少时区属于可修复但不可直接重试，短暂网络失败才可能同时是 recoverable 和 retryable。</li>
+<li>候选值只返回经过权限过滤且数量受限的集合。</li>
+</ul>
+<p>这样，失败后的修复能力也成为接口设计的一部分，而不是依赖模型猜测。</p>
+<h2 id="用-trace-和-eval-改-schema">用 trace 和 eval 改 schema</h2>
+<p>一份 schema 在代码审查中看起来合理，不代表模型真的能稳定使用。至少应该在固定任务集上分别观察：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>指标</th><th>它暴露的问题</th></tr></thead><tbody><tr><td>Tool selection accuracy</td><td>name/description 是否让模型选对能力</td></tr><tr><td>First-call valid rate</td><td>schema 和字段说明是否足够清楚</td></tr><tr><td>Repair success rate</td><td>错误是否支持下一步修复</td></tr><tr><td>Redundant call rate</td><td>Tool 是否诱导重复读取或重复写入</td></tr><tr><td>Task success rate</td><td>合法调用是否真的完成用户目标</td></tr><tr><td>Permission violation attempts</td><td>可见 Tool、prompt 或参数是否在诱导越权尝试</td></tr></tbody></table>
+<p>诊断时不要只看最终 task success。两个版本都可能完成任务，但一个版本第一次调用就成功，另一个版本需要三次无效参数重试；它们在延迟、成本和脆弱性上完全不同。</p>
+<p>迭代也应一次只改变有限变量。例如，先保持 schema 不变，只修改 Tool name 和 description，观察选择率；再收紧字段与错误提示，观察首次合法率和修复率。否则结果改善后，很难知道真正起作用的是哪一层。</p>
+<h2 id="设计边界">设计边界</h2>
+<p>Tool schema 不是所有问题的答案：</p>
+<ul>
+<li>Tool 太多导致模型选择空间过大，需要单独设计 Tool registry（完整工具目录）、权限过滤和按需发现；这属于 Tool surface（模型当前实际可见的工具集合），而不是单个 schema。</li>
+<li>一个带多个 command 的 Tool 如果参数差异过大，可能需要拆成多个 Tool；但应先用失败分布证明问题来自拆分粒度。</li>
+<li>长时间、可恢复、多阶段的工作应由 workflow 或 task 状态机承载，Tool 只作为其中的原子能力。</li>
+<li>高风险副作用通常还需要用户确认、policy hook 或审批流程，不能靠 description 中的一句话代替。</li>
+<li>Schema 保证的是输入形状，不保证事实真实、调用合理或执行成功。</li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>Agent Tool 与 backend API 可以复用同一个业务能力，却不应该默认复用同一份接口形状。</p>
+<p>Backend DTO 面向受控程序调用者，往往包含完整执行上下文；Tool schema 面向一个需要先理解自然语言、再选择能力并生成参数的模型。一个可靠的 model-facing API 应该做到：</p>
+<ol>
+<li>用明确的 name 和 description 缩小能力选择的歧义。</li>
+<li>只暴露模型完成用户任务所需的最小充分输入。</li>
+<li>由可信 runtime 注入身份、权限、审计和基础设施上下文。</li>
+<li>用 schema、handler 和 backend 分层验证，而不是把正确性押在单一 validator 上。</li>
+<li>把错误修复和真实调用评测纳入接口生命周期。</li>
+</ol>
+<p>代码是 Tool 的执行实现，schema 则是模型看到的产品界面。两者服务同一个动作，但承担不同责任。</p>
+<p>参考：</p>
+<ul>
+<li><a href="https://developers.openai.com/api/docs/guides/function-calling">OpenAI Function calling</a></li>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools">Claude Platform: Define tools</a></li>
+<li><a href="https://json-schema.org/understanding-json-schema/reference/object">JSON Schema: Objects</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

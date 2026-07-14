@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Permission-first Tool surface selection</title>
+  <desc id="desc">完整 Tool registry 先经过身份权限、场景策略和依赖检查，形成当前 run 的 allowed set。Allowed set 被分成 eager 与 deferred；未授权能力直接 disabled。模型可以直接调用 eager Tool，也可以通过 discovery 从 deferred index 解锁完整定义。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#737a76"/>
+    </marker>
+    <style>
+      .title { font: 650 28px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171918; }
+      .label { font: 650 20px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171918; }
+      .small { font: 500 16px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #555c58; }
+      .mono { font: 600 17px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #171918; }
+      .edge { fill: none; stroke: #737a76; stroke-width: 2.2; marker-end: url(#arrow); }
+      .box { fill: #ffffff; stroke: #c9cbc6; stroke-width: 2; }
+      .allowed { fill: #eef8f1; stroke: #3b8b57; stroke-width: 2; }
+      .eager { fill: #edf2ff; stroke: #2457d6; stroke-width: 2; }
+      .deferred { fill: #fff7e8; stroke: #c58a22; stroke-width: 2; }
+      .disabled { fill: #fff1ef; stroke: #c75a4a; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" rx="18" fill="#fafaf9"/>
+  <rect x="1" y="1" width="1198" height="718" rx="17" fill="none" stroke="#dedfdb" stroke-width="2"/>
+  <text x="50" y="60" class="title">先决定“允许什么”，再决定“初始展示什么”</text>
+
+  <rect x="50" y="105" width="220" height="135" rx="14" class="box"/>
+  <text x="160" y="148" class="label" text-anchor="middle">Tool registry</text>
+  <text x="160" y="183" class="small" text-anchor="middle">已安装的全部能力</text>
+  <text x="160" y="213" class="small" text-anchor="middle">functions · plugins · connectors</text>
+
+  <path class="edge" d="M 270 172 L 340 172"/>
+
+  <rect x="340" y="95" width="250" height="155" rx="14" class="box"/>
+  <text x="465" y="137" class="label" text-anchor="middle">Run-context filters</text>
+  <text x="465" y="173" class="small" text-anchor="middle">identity + authorization</text>
+  <text x="465" y="203" class="small" text-anchor="middle">scenario policy + feature gate</text>
+  <text x="465" y="233" class="small" text-anchor="middle">dependency availability</text>
+
+  <path class="edge" d="M 590 172 L 660 172"/>
+
+  <rect x="660" y="105" width="220" height="135" rx="14" class="allowed"/>
+  <text x="770" y="148" class="label" text-anchor="middle">Allowed set</text>
+  <text x="770" y="183" class="small" text-anchor="middle">当前 run 可使用</text>
+  <text x="770" y="213" class="small" text-anchor="middle">discovery 的最大边界</text>
+
+  <path class="edge" d="M 465 250 C 465 285 1015 270 1015 315"/>
+
+  <rect x="920" y="315" width="230" height="120" rx="14" class="disabled"/>
+  <text x="1035" y="357" class="label" text-anchor="middle">Disabled</text>
+  <text x="1035" y="390" class="small" text-anchor="middle">未授权或依赖缺失</text>
+  <text x="1035" y="416" class="small" text-anchor="middle">模型与 search 均不可见</text>
+
+  <path class="edge" d="M 735 240 C 735 285 320 275 320 325"/>
+  <path class="edge" d="M 805 240 C 805 285 690 280 690 325"/>
+
+  <rect x="170" y="325" width="300" height="145" rx="14" class="eager"/>
+  <text x="320" y="368" class="label" text-anchor="middle">Eager surface</text>
+  <text x="320" y="402" class="small" text-anchor="middle">完整 name + description + schema</text>
+  <text x="320" y="432" class="small" text-anchor="middle">模型可立即调用</text>
+
+  <rect x="540" y="325" width="300" height="145" rx="14" class="deferred"/>
+  <text x="690" y="368" class="label" text-anchor="middle">Deferred index</text>
+  <text x="690" y="402" class="small" text-anchor="middle">namespace · summary · capability</text>
+  <text x="690" y="432" class="small" text-anchor="middle">完整定义尚未加载</text>
+
+  <text x="505" y="404" class="small" text-anchor="middle">or</text>
+
+  <rect x="270" y="545" width="250" height="110" rx="14" class="box"/>
+  <text x="395" y="588" class="label" text-anchor="middle">Model</text>
+  <text x="395" y="620" class="small" text-anchor="middle">调用当前已加载 Tool</text>
+
+  <rect x="620" y="545" width="250" height="110" rx="14" class="box"/>
+  <text x="745" y="588" class="label" text-anchor="middle">Discovery + unlock</text>
+  <text x="745" y="620" class="small" text-anchor="middle">再次授权后加载完整定义</text>
+
+  <path class="edge" d="M 320 470 C 320 510 365 515 385 545"/>
+  <path class="edge" d="M 690 470 C 690 510 720 515 735 545"/>
+  <path class="edge" d="M 620 600 C 565 600 555 560 520 560"/>
+
+  <text x="50" y="690" class="small">Deferred 是上下文与选择空间优化；Disabled 才表示当前能力不可达。两者不能互相替代。</text>
+</svg>
