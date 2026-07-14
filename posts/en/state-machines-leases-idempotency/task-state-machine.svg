@@ -27,7 +27,7 @@
   <text x="266" y="132" class="small">claim</text>
 
   <path class="edge" d="M 525 150 L 620 150"/>
-  <text x="535" y="123" class="small">outcome unknown</text>
+  <text x="540" y="123" class="small">unknown</text>
 
   <path class="edge" d="M 810 150 L 920 150"/>
   <text x="838" y="123" class="small">complete</text>
@@ -45,10 +45,8 @@
   <text x="726" y="265" class="small">reconciliation failed</text>
 
   <path class="edge" d="M 690 102 C 650 70 510 72 475 102"/>
-  <text x="515" y="82" class="small">result confirmed; continue</text>
-
-  <path class="edge" d="M 495 178 C 620 395 790 418 850 378"/>
-  <text x="623" y="408" class="small">cancel intent</text>
+  <rect x="520" y="59" width="120" height="28" rx="7" fill="#fafaf9"/>
+  <text x="580" y="79" class="small" text-anchor="middle">reconciled</text>
 
   <path class="edge" d="M 785 178 C 835 220 885 260 910 320"/>
   <text x="838" y="248" class="small">cancel intent</text>
