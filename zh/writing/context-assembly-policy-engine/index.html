@@ -60,7 +60,7 @@
 <span class="line"><span>      │</span></span>
 <span class="line"><span>      ▼</span></span>
 <span class="line"><span>provider-specific rendering</span></span></code></pre>
-<p>这不是一条为了架构整齐而设计的 pipeline。顺序本身表达了安全边界：未授权内容应当在参与排序、摘要或日志之前被排除；内容角色必须在渲染成模型消息之前确定。</p>
+<p>这不是一条为了架构整齐而设计的 pipeline。顺序本身表达了安全边界：未授权内容不能参与排序或摘要，其正文也不应进入 prompt log 或 debug log；拒绝访问这件事本身，仍可用不含敏感正文的 metadata 记录。内容角色必须在渲染成模型消息之前确定。</p>
 <h2 id="冲突需要显式决策">冲突需要显式决策</h2>
 <p>回到日程例子：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>memory：  用户通常上午有空，记录于 6 月 1 日</span></span>

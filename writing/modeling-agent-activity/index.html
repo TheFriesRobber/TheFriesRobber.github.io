@@ -3,7 +3,7 @@
 <p>The system records two Tool logs: one failed and one successful. Ask “Did this Tool call succeed?” and at least two apparently contradictory answers are possible:</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>by physical request: 1 successful attempt / 2 attempts = 50%</span></span>
 <span class="line"><span>by logical Tool Call: 1 eventually successful call / 1 call = 100%</span></span></code></pre>
-<p>If the final report is correct, the Run success rate is also 100%. All three numbers can be correct because they answer different questions.</p>
+<p>If the final report is correct, this Run’s outcome is successful. Across this one-Run sample, the Run-level success ratio would be 100%. These numbers can all be correct because they answer different questions.</p>
 <p>The first Agent Activity modeling decision is not how many fields to add. It is the grain: <strong>does one row represent a user goal, a logical action, or one physical attempt?</strong></p>
 <h2 id="separate-the-objects-along-one-execution">Separate the objects along one execution</h2>
 <p>Continue with the report example:</p>
@@ -32,7 +32,7 @@
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_call_id = call_42</span></span>
 <span class="line"><span>  ├─ attempt_id = attempt_1  → timeout</span></span>
 <span class="line"><span>  └─ attempt_id = attempt_2  → succeeded</span></span></code></pre>
-<p><code>tool_call_id</code> answers “which action did the model intend?” <code>attempt_id</code> answers “how many times did the Runtime actually try?” With both, the system can determine whether the user goal eventually completed and whether the underlying execution was stable.</p>
+<p><code>tool_call_id</code> answers “which action did the model intend?” <code>attempt_id</code> answers “how many times did the Runtime actually try?” Together they distinguish the logical Tool Call’s outcome from attempt-level reliability. Determining whether the user goal completed also requires linking the Tool Call to its Run and evaluating terminal Run evidence.</p>
 <p>Similarly, a user clicking “regenerate” should usually create a new Run, not an Attempt on the previous Run. The distinction comes from product semantics, not from timestamps: do the events represent the same user intent, and may they produce independent results?</p>
 <h2 id="do-not-infer-causality-from-nearby-timestamps">Do not infer causality from nearby timestamps</h2>
 <p>Agent execution can cross queues, SubAgents, and external callbacks. The order in which events reach the logging system may differ from the order in which they occurred.</p>
@@ -76,13 +76,13 @@
 
 <table><thead><tr><th>Analytical question</th><th>Appropriate grain</th></tr></thead><tbody><tr><td>Is one downstream request reliable?</td><td>One Tool Attempt per row</td></tr><tr><td>Did a model-proposed Tool Call eventually finish?</td><td>One logical Tool Call per row</td></tr><tr><td>Did the user’s goal complete?</td><td>One terminal Run per row</td></tr><tr><td>Which inputs contributed to final content?</td><td>One Artifact lineage edge per row</td></tr></tbody></table>
 <p>Putting every grain into one wide “one row per Run” table creates nested arrays. Querying raw events directly makes every dashboard reimplement retry handling, late-arrival logic, and deduplication.</p>
-<p>A more stable pattern preserves process history in source events and derives analytical facts idempotently at explicit grains. One underlying event may contribute to several questions without becoming several kinds of record.</p>
+<p>A more stable pattern preserves process history in source events and derives analytical facts idempotently at explicit grains. One underlying event may contribute to several derived models, but each model must preserve its own grain instead of treating the event as the same kind of record everywhere.</p>
 <h2 id="a-metric-must-name-its-denominator">A metric must name its denominator</h2>
 <p>“Tool success rate” is incomplete. It may mean:</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>successful attempts / all terminal attempts</span></span>
 <span class="line"><span>successful logical Tool Calls / all terminal logical Tool Calls</span></span>
 <span class="line"><span>successful Runs using this Tool / all terminal Runs using this Tool</span></span></code></pre>
-<p>When the first attempt fails and the second succeeds, Attempt success rate falls while logical Tool Call success remains successful. That difference is useful: the user’s goal recovered, but underlying reliability deteriorated.</p>
+<p>When the first attempt fails and the second succeeds, Attempt success rate falls while the logical Tool Call still counts as successful. That difference is useful: the user’s goal recovered, but underlying reliability deteriorated.</p>
 <p>Latency and cost have the same issue. End-to-end Run latency includes model time, queue wait, Tool Attempts, retry backoff, and Artifact writes. Keeping only the final total hides where time and cost went. Keeping only Attempts cannot answer how much one user goal consumed.</p>
 <p>Aggregation should therefore follow explicit relationships upward, rather than adding whichever numbers happen to share a table.</p>
 <h2 id="artifacts-connect-success-to-an-actual-result">Artifacts connect “success” to an actual result</h2>

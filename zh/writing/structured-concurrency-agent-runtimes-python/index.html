@@ -39,7 +39,7 @@
 <span class="line"><span style="color:#D73A49">        for</span><span style="color:#24292E"> call_id, task </span><span style="color:#D73A49">in</span><span style="color:#24292E"> tasks.items()</span></span>
 <span class="line"><span style="color:#24292E">    }</span></span></code></pre>
 <p>现在 <code>execute_tools()</code> 只有两种清晰结果：要么所有子 Task 已经收敛，可以返回结果；要么组内出现未处理失败，异常向父级传播。它不会在子 Task 仍运行时假装阶段已经完成。</p>
-<p>默认情况下，一个子 Task 抛出 <code>CancelledError</code> 之外的未处理异常后，TaskGroup 会请求取消其余 Task，等待它们结束，再以 <code>ExceptionGroup</code> 传播失败。</p>
+<p>默认情况下，一个子 Task 抛出 <code>CancelledError</code> 之外的未处理异常后，TaskGroup 会请求取消其余 Task，并等待它们结束。普通失败会按类型合并成 <code>ExceptionGroup</code> 或 <code>BaseExceptionGroup</code>；<code>KeyboardInterrupt</code> 和 <code>SystemExit</code> 则会在其他 Task 收敛后重新抛出。</p>
 <p>这不代表所有 Tool failure 都应该让整组 fail-fast。参数无效、资源不存在等预期业务失败，可以在 <code>execute_tool()</code> 内转换为 typed result，让其他独立 Tool 继续执行；Runtime bug 或未分类异常则继续抛出，让父级知道当前阶段没有可靠完成。</p>
 <p>Structured Concurrency 提供清楚的失败传播，但是否允许部分成功仍然是业务 policy。</p>
 <h2 id="cancellation-需要子级配合收敛">Cancellation 需要子级配合收敛</h2>

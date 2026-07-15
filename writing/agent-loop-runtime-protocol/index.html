@@ -23,8 +23,8 @@
 <li>The request arrived, but the write failed.</li>
 <li>The write succeeded, but the response was lost.</li>
 </ol>
-<p>One timeout corresponds to three different facts. A simple loop now has several unreliable choices.</p>
-<p>Treat the timeout as failure and ask the model to retry, and the user may get two identical notes. Pretend it succeeded, and the system may claim that a nonexistent result exists. Stop immediately, and neither the user nor the system has a way to determine whether the task completed.</p>
+<p>The same timeout observation is compatible with three different underlying outcomes. A simple loop now has several unreliable choices.</p>
+<p>Treat the timeout as failure and ask the model to retry, and the user may get two identical notes. Pretend it succeeded, and the system may claim that a nonexistent result exists. Stop immediately, and the current execution path leaves completion unresolved; without a status lookup or reconciliation mechanism, neither the user nor the Runtime learns the outcome.</p>
 <p>The missing piece is not another <code>try/except</code>. The loop has conflated two different questions:</p>
 <ul>
 <li>Did the current function receive a return value?</li>

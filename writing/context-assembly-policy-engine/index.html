@@ -60,7 +60,7 @@
 <span class="line"><span>      │</span></span>
 <span class="line"><span>      ▼</span></span>
 <span class="line"><span>provider-specific rendering</span></span></code></pre>
-<p>This ordering is not cosmetic architecture. It expresses security boundaries. Unauthorized content should be removed before ranking, summarization, or logging. A content role should be known before the content is rendered as a model message.</p>
+<p>This ordering is not cosmetic architecture. It expresses security boundaries. Unauthorized content should be excluded before it can influence ranking or summarization, and its body should not be copied into prompt or debug logs. The denied-access decision may still be recorded with non-sensitive metadata. A content role should be known before the content is rendered as a model message.</p>
 <h2 id="conflicts-require-an-explicit-decision">Conflicts require an explicit decision</h2>
 <p>Return to the schedule example:</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>memory:  “usually available in the morning,” recorded June 1</span></span>

@@ -3,7 +3,7 @@
 <p>系统记录了两条 Tool 日志：一条失败、一条成功。现在要回答“这次 Tool 调用成功了吗”，至少会得到两个看似矛盾的答案：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>按物理请求计算：1 次成功 / 2 次尝试 = 50%</span></span>
 <span class="line"><span>按逻辑 Tool Call 计算：最终成功 / 1 次调用 = 100%</span></span></code></pre>
-<p>如果最终报告也正确生成，这次 Run 的成功率还是 100%。三个数字都可能正确，只是回答的问题不同。</p>
+<p>如果最终报告也正确生成，这次 Run 的结果就是成功；在这个只有一个 Run 的样本里，Run 层成功比例是 100%。这些数字都可能正确，只是回答的问题不同。</p>
 <p>Agent Activity 建模最先要解决的不是字段够不够多，而是 grain：<strong>一行数据究竟代表一个用户目标、一个逻辑动作，还是一次物理尝试。</strong></p>
 <h2 id="先沿一次执行把对象分开">先沿一次执行把对象分开</h2>
 <p>继续使用生成报告的例子：</p>
@@ -32,7 +32,7 @@
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_call_id = call_42</span></span>
 <span class="line"><span>  ├─ attempt_id = attempt_1  → timeout</span></span>
 <span class="line"><span>  └─ attempt_id = attempt_2  → succeeded</span></span></code></pre>
-<p><code>tool_call_id</code> 回答“模型想完成哪个动作”，<code>attempt_id</code> 回答“Runtime 实际试了几次”。它们分开后，系统既能判断用户目标是否最终完成，也能分析底层执行是否稳定。</p>
+<p><code>tool_call_id</code> 回答“模型想完成哪个动作”，<code>attempt_id</code> 回答“Runtime 实际试了几次”。两者分开后，系统可以区分逻辑 Tool Call 的结果与 Attempt 层可靠性。要判断用户目标是否完成，还需要把 Tool Call 关联到所属 Run，并检查 Run 终止时的证据。</p>
 <p>同样，用户主动点击“重新生成”通常应产生新的 Run，而不是上一个 Run 的 Attempt。判断依据不是两条日志时间是否接近，而是产品语义：它们是否代表同一个用户意图，是否允许产生两个独立结果。</p>
 <h2 id="不要用时间接近推断因果关系">不要用时间接近推断因果关系</h2>
 <p>Agent 执行可能跨 Queue、SubAgent 和外部 callback。两条 event 到达日志系统的顺序，不一定是实际发生顺序。</p>
@@ -76,13 +76,13 @@
 
 <table><thead><tr><th>分析问题</th><th>合适的 Grain</th></tr></thead><tbody><tr><td>下游服务单次请求是否稳定</td><td>一行一个 Tool Attempt</td></tr><tr><td>模型提出的 Tool Call 最终是否完成</td><td>一行一个逻辑 Tool Call</td></tr><tr><td>用户目标是否完成</td><td>一行一个 terminal Run</td></tr><tr><td>最终内容依赖哪些输入</td><td>一行一条 Artifact lineage edge</td></tr></tbody></table>
 <p>把这些 grain 全塞进“一行一个 Run”的宽表，会产生大量嵌套数组；直接拿 raw event 做 dashboard，则会让每个查询重复处理 retry、迟到和去重。</p>
-<p>更稳妥的做法是让 source event 保留过程，再按稳定 grain 幂等地产生分析事实。这样，同一条底层事件可以进入不同问题的计算，但不会被误认为同一种记录。</p>
+<p>更稳妥的做法是让 source event 保留过程，再按稳定 grain 幂等地产生分析事实。同一条底层事件可以进入多个派生模型，但每个模型仍需保留自己的 grain，不能在所有计算中都把它当成同一种记录。</p>
 <h2 id="指标必须把分母写清楚">指标必须把分母写清楚</h2>
 <p>“Tool 成功率”本身不是完整指标。它至少可能表示：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>successful attempts / all terminal attempts</span></span>
 <span class="line"><span>successful logical tool calls / all terminal logical tool calls</span></span>
 <span class="line"><span>successful runs using this tool / all terminal runs using this tool</span></span></code></pre>
-<p>第一次失败、第二次成功时，Attempt success rate 下降，logical Tool Call success rate 仍然成功。这正是系统需要的信息：用户目标被恢复了，但底层可靠性正在变差。</p>
+<p>第一次失败、第二次成功时，Attempt success rate 下降，logical Tool Call 仍然算成功。这正是系统需要的信息：用户目标被恢复了，但底层可靠性正在变差。</p>
 <p>Latency 和 cost 也一样。Run 的端到端耗时包含 model、queue wait、Tool Attempt、retry backoff 和 Artifact 写入。如果只保存最终总数，就无法判断时间和成本消耗在哪一层；如果只保存 Attempt，又无法回答一次用户目标总共付出了多少代价。</p>
 <p>所以聚合必须沿显式关系向上进行，而不是把某张表里最容易相加的数字当成答案。</p>
 <h2 id="artifact-让成功连接到实际结果">Artifact 让“成功”连接到实际结果</h2>

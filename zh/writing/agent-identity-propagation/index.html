@@ -73,8 +73,8 @@
 <span class="line"><span>child： files.read on /project/docs/**</span></span></code></pre>
 <p>子级权限应当是父级授权的子集。调用链越深，权限不应因为“实现方便”反而变大。</p>
 <h2 id="模型不能提供可信身份">模型不能提供可信身份</h2>
-<p>模型可以生成文件路径、修改内容和搜索条件，因为这些属于任务提案。它不应该生成 <code>subject_id</code>、<code>tenant_id</code>、authorization scope、OAuth token 或 audit actor。</p>
-<p>这些字段即使出现在 Tool Schema 中，也只是模型输出。它们可能来自错误的 memory、被文件中的文字诱导，或被模型直接编造。</p>
+<p>模型可以生成文件路径、修改内容和搜索条件，也可以提出需要哪项 capability，因为这些都属于任务提案。它不能提供具有权威性的 <code>subject_id</code>、<code>tenant_id</code>、已授予的 authorization scope、OAuth token 或 audit actor。</p>
+<p>这类 identity 或 authorization 字段即使出现在 Tool Schema 中，也只是模型输出。它们可能来自错误的 memory、被文件中的文字诱导，或被模型直接编造。</p>
 <p>Runtime 应从已认证 session、delegation record 和 workflow metadata 中注入可信 context：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> function</span><span style="color:#6F42C1"> updateFile</span><span style="color:#24292E">(</span><span style="color:#E36209">args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> UpdateFileArgs</span><span style="color:#24292E">, </span><span style="color:#E36209">ctx</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> TrustedContext</span><span style="color:#24292E">) {</span></span>
 <span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> fileService.</span><span style="color:#6F42C1">update</span><span style="color:#24292E">({</span></span>
