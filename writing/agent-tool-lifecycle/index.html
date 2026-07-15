@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A file write shows why a Tool needs a complete lifecycle across model selection, trusted execution, and result delivery."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="A Tool Lifecycle Is More Than a Function Call | Xiaoyuan"><meta property="og:description" content="A file write shows why a Tool needs a complete lifecycle across model selection, trusted execution, and result delivery."><meta property="og:url" content="https://thefriesrobber.github.io/writing/agent-tool-lifecycle/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/agent-tool-lifecycle/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>A Tool Lifecycle Is More Than a Function Call | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-tool-lifecycle/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">A Tool Lifecycle Is More Than a Function Call</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent Tool is often described as “a function with a JSON Schema”: the model generates arguments, the Runtime invokes the function, and the return value goes back to the model.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool definition → Model arguments → Handler → Tool Result</span></span></code></pre>
+<p>That model works well for demonstrating function calling. Suppose the user says, “Save the report in the project directory,” and the model calls:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"write_file"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "arguments"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/project/report.md"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "content"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span></span>
+<span class="line"><span style="color:#24292E">  }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>Even if the handler has no bug, the call can fail elsewhere. The user may not be allowed to write to the directory. The model may have seen an outdated Tool definition. The file may have been written while the Runtime received only a timeout. Or the handler may return a complete file object that still does not tell the next model turn whether the write succeeded.</p>
+<p>The function body alone cannot solve these problems because they occur before the model sees the Tool, before the action executes, while an external side effect occurs, and after the result returns.</p>
+<p>The purpose of a Tool Lifecycle is not to invent more stages. It is to preserve identity, authority, and outcome as one logical action crosses those boundaries.</p>
+<h2 id="a-registered-tool-should-not-always-be-visible">A registered Tool should not always be visible</h2>
+<p>A registry answers “which capabilities exist in the system?” The current Tool surface answers “which capabilities may this model turn use?” Those sets are not the same.</p>
+<p><code>write_file</code> may be registered but absent from the model input because the user has read-only access, the project workspace is not mounted, or the current phase permits analysis but not modification.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>registered tools</span></span>
+<span class="line"><span>      ↓ identity, permission, environment</span></span>
+<span class="line"><span>allowed tools</span></span>
+<span class="line"><span>      ↓ eager, deferred, on-demand</span></span>
+<span class="line"><span>current model surface</span></span></code></pre>
+<p>The allowed set must be computed before choosing which Tools are eager, deferred, or discoverable on demand. Otherwise an unauthorized Tool may reveal its name, description, or resource types to the model even if execution later rejects it.</p>
+<p><a href="/writing/designing-agent-tool-surfaces/">Agent Tool Surfaces: Eager, Deferred, and On-Demand Discovery</a> discusses surface selection separately. For the lifecycle, the important fact is which definition a call used and why that definition appeared in the current surface.</p>
+<h2 id="model-arguments-are-an-execution-proposal">Model arguments are an execution proposal</h2>
+<p>The model-generated <code>path</code> and <code>content</code> describe how it proposes to complete the task. They cannot also decide which user the action represents, which tenant owns it, or whether write permission exists.</p>
+<p>A trusted execution combines information from three sources:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Information</th><th>Source</th><th>Example</th></tr></thead><tbody><tr><td>Model arguments</td><td>Generated from the task</td><td><code>path</code>, <code>content</code></td></tr><tr><td>Runtime context</td><td>Injected by authentication and policy layers</td><td>subject, actor, tenant, deadline</td></tr><tr><td>Backend state</td><td>Maintained by the resource owner</td><td>file version, directory permission, current lease</td></tr></tbody></table>
+<p>Only the first category belongs in model output. Putting <code>tenant_id</code> or authorization scope in a Tool Schema lets untrusted input claim its own authority.</p>
+<p>The conceptual handler interface is therefore closer to:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">type</span><span style="color:#6F42C1"> ToolHandler</span><span style="color:#24292E">&#x3C;</span><span style="color:#6F42C1">Args</span><span style="color:#24292E">, </span><span style="color:#6F42C1">Result</span><span style="color:#24292E">> </span><span style="color:#D73A49">=</span><span style="color:#24292E"> (</span></span>
+<span class="line"><span style="color:#E36209">  args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> Args</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#E36209">  context</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> TrustedToolContext</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#E36209">  signal</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> AbortSignal</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">) </span><span style="color:#D73A49">=></span><span style="color:#6F42C1"> Promise</span><span style="color:#24292E">&#x3C;</span><span style="color:#6F42C1">Result</span><span style="color:#24292E">></span></span></code></pre>
+<p><code>args</code> carries the model’s proposal, <code>context</code> supplies trusted identity and execution boundaries, and <code>signal</code> carries deadline or cancellation. They meet at the function boundary but must retain their different provenance.</p>
+<h2 id="schema-valid-does-not-mean-executable">Schema-valid does not mean executable</h2>
+<p>A JSON Schema can verify that <code>path</code> is a string and that <code>content</code> stays within a length limit. It cannot prove that the user may modify <code>/project/report.md</code>, or know whether the file changed after the model read it.</p>
+<p>Two trusted boundaries still need to make different decisions before execution:</p>
+<ul>
+<li>The Runtime uses the authenticated subject, actor, and tenant for authorization.</li>
+<li>The backend uses current resource state to check ownership, version, business constraints, and the transaction boundary.</li>
+</ul>
+<p>This is not duplicate validation. Schema rejects structurally invalid arguments. Authorization rejects an action the caller may not perform. The backend rejects a change that cannot be applied to the resource’s current state.</p>
+<p><a href="/writing/tool-schemas-model-facing-apis/">Tool Schemas Are Model-Facing APIs</a> explains the schema boundary in more detail.</p>
+<h2 id="a-handler-exception-does-not-prove-that-the-action-failed">A handler exception does not prove that the action failed</h2>
+<p>Suppose the file service saves <code>report.md</code>, but the response is lost on its way back. The Runtime sees a timeout. Calling the Tool again may overwrite the file, create a new version, or trigger downstream work twice.</p>
+<p>A write therefore needs a stable logical identity. Several attempts may belong to one write, but a retry must not silently become a new user action:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>write operation_7</span></span>
+<span class="line"><span>  ├─ attempt 1: timeout, outcome unknown</span></span>
+<span class="line"><span>  └─ attempt 2: confirms that file_version_12 exists</span></span></code></pre>
+<p>The Runtime must retain the operation identity, and the downstream service should provide idempotency or result lookup where possible. At this point the lifecycle records <code>succeeded</code>, definitely <code>failed</code>, or <code>unknown</code>; it does not translate every exception into “nothing happened.”</p>
+<h2 id="a-successful-backend-response-still-should-not-enter-context-unchanged">A successful backend response still should not enter Context unchanged</h2>
+<p>An external file API may return permission lists, internal storage fields, version history, and several megabytes of content. A successful handler call does not make all of that suitable for the next model turn.</p>
+<p>The Runtime should normalize the backend response into a bounded, interpretable Tool Result:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "file"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/project/report.md"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">12</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "content_included"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The result should say whether it is complete or truncated, where its facts came from, and where large content can be read as an Artifact. Without those boundaries, the model may treat a partial result as complete or mistake instructions embedded in external data for trusted instructions.</p>
+<h2 id="the-lifecycle-connects-one-action">The lifecycle connects one action</h2>
+<p>The <code>write_file</code> call has now crossed several owners. The Registry supplied the definition. Policy decided visibility. The model generated arguments. The Runtime injected trusted context. The backend confirmed the side effect. A result normalizer decided what the model would see.</p>
+<p>The lifecycle does not require all of this code to live in one service. It requires the decisions to remain linked to the same logical call: which definition the model saw, who authorized which action, which attempts occurred, and which result was finally confirmed.</p>
+<p>If those relationships break, the system knows only that “a function was called” and “something failed somewhere.” It cannot distinguish a Tool-selection problem from argument generation, authorization, execution, or result consumption.</p>
+<h2 id="when-a-function-abstraction-is-enough">When a function abstraction is enough</h2>
+<p>If a Tool is local, read-only, short-lived, has no user-specific permissions, and produces no side effect that must be recovered, implementing it as an ordinary function is reasonable.</p>
+<p>Lifecycle complexity comes from crossing boundaries, not from the word “Tool.” Facts outside the function body become necessary only when capabilities are dynamically visible, access resources on a user’s behalf, execute across processes, or create external side effects.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>A successful handler invocation proves only that execution reached the function boundary once.</p>
+<p>An interpretable Tool Runtime must also ensure that the model saw the currently allowed definition; model arguments could not forge trusted identity; Schema, authorization, and backend state each checked the facts they own; an unknown result did not blindly become a new action; and a successful response was normalized before entering the next model turn.</p>
+<p>Once those boundaries remain connected, a Tool is no longer just a function. It becomes an agent capability whose execution can be authorized and whose result can be confirmed.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should Tool Errors expose repairable causes instead of returning only exception strings?</li>
+<li>How should timeout and cancellation propagate and converge across the call chain?</li>
+<li>How should concurrent Tool Calls preserve consistency when modifying the same resource?</li>
+<li>How should Tool security be divided across prompt, surface, handler, and backend?</li>
+<li>How should Tool selection, arguments, execution reliability, and result consumption be evaluated separately?</li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

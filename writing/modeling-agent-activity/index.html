@@ -1,0 +1,112 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A Tool retry shows why an Agent Run, a logical action, and an execution Attempt cannot share one row of data."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Define the Grain Before Modeling Agent Activity | Xiaoyuan"><meta property="og:description" content="A Tool retry shows why an Agent Run, a logical action, and an execution Attempt cannot share one row of data."><meta property="og:url" content="https://thefriesrobber.github.io/writing/modeling-agent-activity/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/modeling-agent-activity/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/modeling-agent-activity/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Define the Grain Before Modeling Agent Activity | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/modeling-agent-activity/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Data Platform</p> <h1 class="page-title">Define the Grain Before Modeling Agent Activity</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Data%20Modeling/">Data Modeling</a><a class="pill" href="/tags/Observability/">Observability</a><a class="pill" href="/tags/Lineage/">Lineage</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent Run calls a file-reading Tool. The first request times out, the retry succeeds, and the agent eventually produces a report.</p>
+<p>The system records two Tool logs: one failed and one successful. Ask “Did this Tool call succeed?” and at least two apparently contradictory answers are possible:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>by physical request: 1 successful attempt / 2 attempts = 50%</span></span>
+<span class="line"><span>by logical Tool Call: 1 eventually successful call / 1 call = 100%</span></span></code></pre>
+<p>If the final report is correct, the Run success rate is also 100%. All three numbers can be correct because they answer different questions.</p>
+<p>The first Agent Activity modeling decision is not how many fields to add. It is the grain: <strong>does one row represent a user goal, a logical action, or one physical attempt?</strong></p>
+<h2 id="separate-the-objects-along-one-execution">Separate the objects along one execution</h2>
+<p>Continue with the report example:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>User Message: “Generate a report from this file”</span></span>
+<span class="line"><span>  └─ Run: completes the user goal</span></span>
+<span class="line"><span>       ├─ Turn 1: model decides to read the file</span></span>
+<span class="line"><span>       │    └─ Tool Call: read file_17</span></span>
+<span class="line"><span>       │         ├─ Attempt 1: timeout</span></span>
+<span class="line"><span>       │         └─ Attempt 2: succeeded</span></span>
+<span class="line"><span>       ├─ Turn 2: model generates the report from the content</span></span>
+<span class="line"><span>       └─ Artifact: report.md</span></span></code></pre>
+<p>These are not several names for one object:</p>
+<ul>
+<li>A Message is one user- or agent-visible expression.</li>
+<li>A Run is one logical execution started to complete a user goal.</li>
+<li>A Turn is one complete model request and response.</li>
+<li>A Tool Call is one logical action proposed by the model.</li>
+<li>An Attempt is one physical Runtime execution of that action.</li>
+<li>An Artifact is a persistent input read or output produced by the execution.</li>
+</ul>
+<p>This article focuses on analytical grain, not the full Runtime state machine for these objects. The important observation is that their relationships are usually not one-to-one.</p>
+<h2 id="retry-exposes-grain-mistakes-quickly">Retry exposes grain mistakes quickly</h2>
+<p>Suppose an analytics table treats every HTTP request as a Tool Call. The timeout and successful retry become two separate actions, making it appear that the model requested the file twice.</p>
+<p>If retry instead overwrites one row, the final state becomes <code>succeeded</code>, but the initial timeout—and its latency, cost, and error—disappears.</p>
+<p>The logical and physical identities must coexist:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_call_id = call_42</span></span>
+<span class="line"><span>  ├─ attempt_id = attempt_1  → timeout</span></span>
+<span class="line"><span>  └─ attempt_id = attempt_2  → succeeded</span></span></code></pre>
+<p><code>tool_call_id</code> answers “which action did the model intend?” <code>attempt_id</code> answers “how many times did the Runtime actually try?” With both, the system can determine whether the user goal eventually completed and whether the underlying execution was stable.</p>
+<p>Similarly, a user clicking “regenerate” should usually create a new Run, not an Attempt on the previous Run. The distinction comes from product semantics, not from timestamps: do the events represent the same user intent, and may they produce independent results?</p>
+<h2 id="do-not-infer-causality-from-nearby-timestamps">Do not infer causality from nearby timestamps</h2>
+<p>Agent execution can cross queues, SubAgents, and external callbacks. The order in which events reach the logging system may differ from the order in which they occurred.</p>
+<p>For example, the first Tool Attempt’s timeout may be ingested before an external service later reports that the read completed. Sorting by <code>ingested_at</code> alone can make the callback look like a new action after the retry.</p>
+<p>Relationships should be stored explicitly instead of reconstructed from timing:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Run run_12</span></span>
+<span class="line"><span>  └─ Tool Call call_42</span></span>
+<span class="line"><span>       ├─ Attempt attempt_1</span></span>
+<span class="line"><span>       └─ Attempt attempt_2</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>Artifact report_7</span></span>
+<span class="line"><span>  ← derived from file_17@v3</span></span>
+<span class="line"><span>  ← produced by run_12</span></span></code></pre>
+<p>Timestamps still measure waiting and latency. <code>parent_id</code>, a logical action ID, and Artifact lineage express who triggered whom and which inputs produced a result.</p>
+<h2 id="one-event-stream-should-not-directly-serve-every-metric">One Event Stream should not directly serve every metric</h2>
+<p>An execution system can append events such as attempt started, timeout, retry scheduled, and run completed. The analytical layer should derive facts at the grain required by each question:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Analytical question</th><th>Appropriate grain</th></tr></thead><tbody><tr><td>Is one downstream request reliable?</td><td>One Tool Attempt per row</td></tr><tr><td>Did a model-proposed Tool Call eventually finish?</td><td>One logical Tool Call per row</td></tr><tr><td>Did the user’s goal complete?</td><td>One terminal Run per row</td></tr><tr><td>Which inputs contributed to final content?</td><td>One Artifact lineage edge per row</td></tr></tbody></table>
+<p>Putting every grain into one wide “one row per Run” table creates nested arrays. Querying raw events directly makes every dashboard reimplement retry handling, late-arrival logic, and deduplication.</p>
+<p>A more stable pattern preserves process history in source events and derives analytical facts idempotently at explicit grains. One underlying event may contribute to several questions without becoming several kinds of record.</p>
+<h2 id="a-metric-must-name-its-denominator">A metric must name its denominator</h2>
+<p>“Tool success rate” is incomplete. It may mean:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>successful attempts / all terminal attempts</span></span>
+<span class="line"><span>successful logical Tool Calls / all terminal logical Tool Calls</span></span>
+<span class="line"><span>successful Runs using this Tool / all terminal Runs using this Tool</span></span></code></pre>
+<p>When the first attempt fails and the second succeeds, Attempt success rate falls while logical Tool Call success remains successful. That difference is useful: the user’s goal recovered, but underlying reliability deteriorated.</p>
+<p>Latency and cost have the same issue. End-to-end Run latency includes model time, queue wait, Tool Attempts, retry backoff, and Artifact writes. Keeping only the final total hides where time and cost went. Keeping only Attempts cannot answer how much one user goal consumed.</p>
+<p>Aggregation should therefore follow explicit relationships upward, rather than adding whichever numbers happen to share a table.</p>
+<h2 id="artifacts-connect-success-to-an-actual-result">Artifacts connect “success” to an actual result</h2>
+<p>A Run with status <code>succeeded</code> does not necessarily mean the user received the correct output. A report may reference an old file version, or generation may complete while upload fails.</p>
+<p>Making Artifact a separate object—and recording which Run produced it and which source versions it read—lets the system answer:</p>
+<ul>
+<li>Does the final report actually exist?</li>
+<li>Which version of <code>file_17</code> did it use?</li>
+<li>Did a rerun create a new Artifact or overwrite an old one?</li>
+<li>Which downstream results were affected by one bad source?</li>
+</ul>
+<p>This lineage needs only observable input-output relationships. It does not require storing hidden model reasoning.</p>
+<h2 id="when-simple-logs-are-enough">When simple logs are enough</h2>
+<p>If each agent request calls the model once, uses no Tools, performs no retry, and creates no background task or Artifact, one request log and one response log may be sufficient.</p>
+<p>A single conversation record loses explanatory power only when one user goal begins to contain several model turns, physical attempts, and persistent outputs. At that point, adding more JSON fields is not the first fix. Defining the grains is.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>When many logs still cannot explain an execution, the system has often mixed facts at different grains rather than omitted one more field.</p>
+<p>Separating Run, logical Tool Call, Attempt, and Artifact lets one retry express both truths: a low-level request failed, but the user goal eventually recovered. Success rate, latency, cost, and lineage can then use the appropriate denominator and causal relationship.</p>
+<p>Agent Activity modeling should not start with one wide table for every use case. It should start by defining what each record represents.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should Run, Turn, Step, and background Task define state and retry units?</li>
+<li>How should an event log, current snapshot, and analytical fact be derived and reconciled?</li>
+<li>How should event time, sequence, and late data work across services?</li>
+<li>How should token, Tool, Sandbox, and storage costs be attributed along causality?</li>
+<li>How should traces, Eval datasets, and production bad cases reference the same execution facts?</li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

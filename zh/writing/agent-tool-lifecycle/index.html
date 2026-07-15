@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="沿一次文件写入解释 Tool 在模型选择、可信执行与结果返回之间为什么需要完整生命周期。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Tool Lifecycle 不只是函数调用 | Xiaoyuan"><meta property="og:description" content="沿一次文件写入解释 Tool 在模型选择、可信执行与结果返回之间为什么需要完整生命周期。"><meta property="og:url" content="https://thefriesrobber.github.io/zh/writing/agent-tool-lifecycle/"><link rel="canonical" href="https://thefriesrobber.github.io/zh/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/agent-tool-lifecycle/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Tool Lifecycle 不只是函数调用 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-tool-lifecycle/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Tool Lifecycle 不只是函数调用</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>Agent Tool 经常被描述成“一个带 JSON Schema 的函数”：模型生成参数，Runtime 调用函数，再把返回值交回模型。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool definition → Model arguments → Handler → Tool Result</span></span></code></pre>
+<p>这个模型很适合演示 function calling。假设用户说“把报告保存到项目目录”，模型调用：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"write_file"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "arguments"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/project/report.md"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "content"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span></span>
+<span class="line"><span style="color:#24292E">  }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>即使 handler 本身没有 bug，这次调用仍可能在其他位置出错：当前用户其实不能写这个目录；模型看到的是旧版 Tool definition；文件已经写入，但 Runtime 只收到 timeout；handler 返回了完整文件对象，下一轮模型却看不出写入是否成功。</p>
+<p>这些问题无法只在函数体里解决，因为它们分别发生在模型看到 Tool 之前、执行动作之前、外部副作用发生时和结果回到模型之后。</p>
+<p>所以 Tool Lifecycle 的意义不是罗列更多阶段，而是让同一个逻辑动作穿过这些边界时，身份、权限和结果不会断开。</p>
+<h2 id="tool-已注册不代表模型现在应该看见它">Tool 已注册，不代表模型现在应该看见它</h2>
+<p>Registry 回答“系统里有哪些能力”，当前 Tool surface 回答“这一轮模型可以使用哪些能力”。两者不是同一个集合。</p>
+<p><code>write_file</code> 已注册，仍可能因为当前用户只有读取权限、项目 workspace 尚未挂载，或这一轮任务只允许分析而不能修改，而不应进入模型输入。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>registered tools</span></span>
+<span class="line"><span>      ↓  identity、permission、environment</span></span>
+<span class="line"><span>allowed tools</span></span>
+<span class="line"><span>      ↓  eager、deferred、on-demand</span></span>
+<span class="line"><span>current model surface</span></span></code></pre>
+<p>这里必须先算 allowed set，再考虑哪些 Tool 常驻、延迟加载或按需发现。否则，一个未授权 Tool 即使最终没有执行，它的名称、description 和资源类型也可能已经暴露给模型。</p>
+<p>Tool surface 的选择策略已在 <a href="/zh/writing/designing-agent-tool-surfaces/">Agent Tool Surface：Eager、Deferred 与按需加载</a> 中单独讨论。对 Lifecycle 来说，关键只是保留这次调用使用了哪个 definition，以及它为什么出现在当前 surface。</p>
+<h2 id="model-arguments-只是执行提案">Model arguments 只是执行提案</h2>
+<p>模型生成的 <code>path</code> 和 <code>content</code> 表达它想怎样完成任务，但不能同时决定这次动作代表哪个用户、属于哪个 tenant，或者是否已经得到写权限。</p>
+<p>一次可信执行包含三类来源不同的信息：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>信息</th><th>来源</th><th>例子</th></tr></thead><tbody><tr><td>Model arguments</td><td>模型根据任务生成</td><td><code>path</code>、<code>content</code></td></tr><tr><td>Runtime context</td><td>认证与 policy 层注入</td><td>subject、actor、tenant、deadline</td></tr><tr><td>Backend state</td><td>资源 owner 维护</td><td>文件版本、目录权限、当前 lease</td></tr></tbody></table>
+<p>只有第一类应该由模型填写。把 <code>tenant_id</code> 或 authorization scope 放进 Tool Schema，相当于让不可信输入声明自己的权限。</p>
+<p>因此，handler 的概念接口更接近：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">type</span><span style="color:#6F42C1"> ToolHandler</span><span style="color:#24292E">&#x3C;</span><span style="color:#6F42C1">Args</span><span style="color:#24292E">, </span><span style="color:#6F42C1">Result</span><span style="color:#24292E">> </span><span style="color:#D73A49">=</span><span style="color:#24292E"> (</span></span>
+<span class="line"><span style="color:#E36209">  args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> Args</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#E36209">  context</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> TrustedToolContext</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#E36209">  signal</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> AbortSignal</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">) </span><span style="color:#D73A49">=></span><span style="color:#6F42C1"> Promise</span><span style="color:#24292E">&#x3C;</span><span style="color:#6F42C1">Result</span><span style="color:#24292E">></span></span></code></pre>
+<p><code>args</code> 表达模型提案，<code>context</code> 提供可信身份与执行边界，<code>signal</code> 传递 deadline 或 cancellation。它们在函数入口汇合，但不能因此失去各自来源。</p>
+<h2 id="schema-合法不代表这个动作可以执行">Schema 合法，不代表这个动作可以执行</h2>
+<p>JSON Schema 可以确认 <code>path</code> 是字符串、<code>content</code> 没有超过长度限制，却无法证明当前用户有权修改 <code>/project/report.md</code>，也无法知道文件版本是否在模型读取后已经变化。</p>
+<p>执行前仍需由可信边界完成两类判断：</p>
+<ul>
+<li>Runtime 使用认证得到的 subject、actor 和 tenant 做 authorization。</li>
+<li>Backend 使用最新资源状态检查 owner、版本、业务约束和 transaction boundary。</li>
+</ul>
+<p>这是同一个动作在不同时间点面对的不同事实，并不是重复校验。Schema 拒绝结构上不合法的参数；authorization 拒绝调用者无权进行的动作；backend 拒绝当前状态下无法成立的修改。</p>
+<p>Tool Schema 为什么是 model-facing API，可参考 <a href="/zh/writing/tool-schemas-model-facing-apis/">Agent Tool Schema 是面向模型的 API</a>。</p>
+<h2 id="handler-返回异常不等于外部动作失败">Handler 返回异常，不等于外部动作失败</h2>
+<p>如果文件服务已经保存 <code>report.md</code>，但响应在返回途中丢失，Runtime 最终只看到 timeout。此时再次调用可能覆盖文件、产生新版本或重复触发后续流程。</p>
+<p>因此，一次写操作需要稳定的逻辑身份。多次 attempt 可以属于同一个写入，但不能因为 retry 就悄悄变成新的用户动作：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>write operation_7</span></span>
+<span class="line"><span>  ├─ attempt 1：timeout，结果未知</span></span>
+<span class="line"><span>  └─ attempt 2：确认 file_version_12 已存在</span></span></code></pre>
+<p>这要求 Runtime 保留 operation identity，也要求下游在可能时提供幂等或结果查询能力。Lifecycle 在这里记录的是 <code>succeeded</code>、明确 <code>failed</code> 或 <code>unknown</code>，而不是把所有 exception 都解释成“没有发生”。</p>
+<h2 id="成功响应也不能原样塞回-context">成功响应也不能原样塞回 Context</h2>
+<p>外部文件 API 可能返回权限列表、内部存储字段、历史版本和几 MB 内容。handler 调用成功，不代表这些数据都适合成为下一轮模型输入。</p>
+<p>Runtime 应把 backend response 转换成有界、可解释的 Tool Result，例如：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "file"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/project/report.md"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">12</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "content_included"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>结果需要明确是否完整、是否截断、事实来自哪里，以及大内容应到哪个 Artifact 读取。否则模型可能把局部结果当作完整结果，或让外部数据中的文字变成新的 instruction。</p>
+<h2 id="lifecycle-连接的是同一个动作">Lifecycle 连接的是同一个动作</h2>
+<p>到这里，一次 <code>write_file</code> 已经经过了几个不同 owner：Registry 提供 definition，policy 决定是否可见，模型生成参数，Runtime 注入可信 context，backend 确认副作用，result normalizer 再决定模型看到什么。</p>
+<p>Lifecycle 不要求把所有实现放进一个服务。它只要求这些决定仍能关联到同一个逻辑调用：模型看到了哪个 definition、谁授权了什么动作、发生了哪些 attempt，以及最后确认了哪个结果。</p>
+<p>如果这些关系断开，系统只能看到“函数调用过”和“某处报错”，无法判断问题发生在 Tool 选择、参数生成、authorization、执行还是结果消费。</p>
+<h2 id="什么时候函数抽象已经足够">什么时候函数抽象已经足够</h2>
+<p>如果 Tool 是本地、只读、执行时间短，没有用户权限差异，也不会产生需要恢复的副作用，那么把它实现为一个普通函数完全合理。</p>
+<p>Lifecycle 的复杂度来自跨越边界，而不是来自 Tool 这个名字。当能力开始动态可见、代表用户访问资源、跨进程执行或产生外部副作用时，函数体之外的事实才必须被明确保存。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>Tool handler 被调用成功，只能说明执行入口走通了一次。</p>
+<p>一个可解释的 Tool Runtime 还要保证：模型看到的是当前允许的 definition；模型参数不会伪造可信身份；Schema、authorization 与 backend state 各自检查自己掌握的事实；结果未知时不会盲目生成新动作；成功结果经过归一化后再进入下一轮模型输入。</p>
+<p>把这些边界连接起来，Tool 才不只是一个函数，而是一项能够被安全执行并确认结果的 Agent 能力。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>Tool Error 怎样向模型表达可修复原因，而不是只返回异常字符串。</li>
+<li>Timeout 与 Cancellation 怎样沿调用链传播并最终收敛。</li>
+<li>并发 Tool Call 修改同一资源时怎样保证一致性。</li>
+<li>Tool 安全应怎样分布在 prompt、surface、handler 与 backend。</li>
+<li>怎样分别评测 Tool 选择、参数、执行可靠性和结果消费。</li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一组失去 owner 的 Tool Task 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Python Agent Runtime 中的 Structured Concurrency | Xiaoyuan"><meta property="og:description" content="从一组失去 owner 的 Tool Task 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。"><meta property="og:url" content="https://thefriesrobber.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="canonical" href="https://thefriesrobber.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/structured-concurrency-agent-runtimes-python/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Python Agent Runtime 中的 Structured Concurrency | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-concurrency-agent-runtimes-python/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Python Agent Runtime 中的 Structured Concurrency</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Python/">Python</a><a class="pill" href="/zh/tags/Asyncio/">Asyncio</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>Python Agent Runtime 收到三个可以并行执行的 Tool Call。最直接的写法是：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> def</span><span style="color:#6F42C1"> start_tools</span><span style="color:#24292E">(calls):</span></span>
+<span class="line"><span style="color:#D73A49">    for</span><span style="color:#24292E"> call </span><span style="color:#D73A49">in</span><span style="color:#24292E"> calls:</span></span>
+<span class="line"><span style="color:#24292E">        asyncio.create_task(execute_tool(call))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">    return</span><span style="color:#032F62"> "started"</span></span></code></pre>
+<p>这段代码确实让三个 coroutine 同时运行，却在创建 Task 后立刻返回。接下来几个问题没有 owner：</p>
+<ul>
+<li>父 Run 什么时候可以进入完成状态？</li>
+<li>一个 Tool 失败后，谁读取它的异常？</li>
+<li>用户取消 Run 时，谁负责停止剩余 Tool？</li>
+<li>进程 shutdown 前，哪些工作必须等待？</li>
+</ul>
+<p>Structured Concurrency 解决的不是“怎样更快创建 Task”，而是 ownership：<strong>一组并发工作必须属于一个明确的生命周期；父级负责等待子级结束，并接收它们的失败。</strong></p>
+<p>本文基于 Python 3.11 及以上版本提供的 <code>asyncio.TaskGroup</code>。</p>
+<h2 id="create_task-没有错丢掉-task-才是问题"><code>create_task()</code> 没有错，丢掉 Task 才是问题</h2>
+<p><code>asyncio.create_task()</code> 返回一个 Task。调用方如果保存它，就可以等待结果、读取异常或请求取消；如果直接丢弃 reference，代码也同时丢掉了管理这项工作的入口。</p>
+<p>Python 官方文档明确建议保存 <code>create_task()</code> 返回的 reference。Event loop 只持有 Task 的 weak reference，没有其他强引用的 Task 甚至可能在执行完成前被垃圾回收。</p>
+<p>即使 Task 正常存活，上一段代码仍然存在更根本的问题：<code>start_tools()</code> 的函数生命周期与它启动的工作脱离了。函数已经返回，Tool 却可能仍在修改外部状态。</p>
+<p>这会产生两个互相冲突的事实：父 Run 认为这个阶段结束了，子 Task 仍认为自己可以继续执行。</p>
+<h2 id="taskgroup-把并发工作放回父级-scope">TaskGroup 把并发工作放回父级 Scope</h2>
+<p><code>asyncio.TaskGroup</code> 是一个 async context manager。离开 <code>async with</code> 之前，它会等待组内 Task 全部结束：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#24292E"> asyncio</span></span>
+<span class="line"></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> def</span><span style="color:#6F42C1"> execute_tools</span><span style="color:#24292E">(calls):</span></span>
+<span class="line"><span style="color:#24292E">    tasks </span><span style="color:#D73A49">=</span><span style="color:#24292E"> {}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">    async</span><span style="color:#D73A49"> with</span><span style="color:#24292E"> asyncio.TaskGroup() </span><span style="color:#D73A49">as</span><span style="color:#24292E"> group:</span></span>
+<span class="line"><span style="color:#D73A49">        for</span><span style="color:#24292E"> call </span><span style="color:#D73A49">in</span><span style="color:#24292E"> calls:</span></span>
+<span class="line"><span style="color:#24292E">            tasks[call.id] </span><span style="color:#D73A49">=</span><span style="color:#24292E"> group.create_task(</span></span>
+<span class="line"><span style="color:#24292E">                execute_tool(call),</span></span>
+<span class="line"><span style="color:#E36209">                name</span><span style="color:#D73A49">=</span><span style="color:#D73A49">f</span><span style="color:#032F62">"tool:</span><span style="color:#005CC5">{</span><span style="color:#24292E">call.id</span><span style="color:#005CC5">}</span><span style="color:#032F62">"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#24292E">            )</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">    return</span><span style="color:#24292E"> {</span></span>
+<span class="line"><span style="color:#24292E">        call_id: task.result()</span></span>
+<span class="line"><span style="color:#D73A49">        for</span><span style="color:#24292E"> call_id, task </span><span style="color:#D73A49">in</span><span style="color:#24292E"> tasks.items()</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span></code></pre>
+<p>现在 <code>execute_tools()</code> 只有两种清晰结果：要么所有子 Task 已经收敛，可以返回结果；要么组内出现未处理失败，异常向父级传播。它不会在子 Task 仍运行时假装阶段已经完成。</p>
+<p>默认情况下，一个子 Task 抛出 <code>CancelledError</code> 之外的未处理异常后，TaskGroup 会请求取消其余 Task，等待它们结束，再以 <code>ExceptionGroup</code> 传播失败。</p>
+<p>这不代表所有 Tool failure 都应该让整组 fail-fast。参数无效、资源不存在等预期业务失败，可以在 <code>execute_tool()</code> 内转换为 typed result，让其他独立 Tool 继续执行；Runtime bug 或未分类异常则继续抛出，让父级知道当前阶段没有可靠完成。</p>
+<p>Structured Concurrency 提供清楚的失败传播，但是否允许部分成功仍然是业务 policy。</p>
+<h2 id="cancellation-需要子级配合收敛">Cancellation 需要子级配合收敛</h2>
+<p>TaskGroup 的失败处理依赖 cancellation。Python 中调用 <code>task.cancel()</code> 是发出取消请求，<code>CancelledError</code> 会在 coroutine 下一次获得执行机会时抛出；它不是强制立即终止。</p>
+<p>子任务需要在 <code>finally</code> 中释放资源，并在捕获 <code>CancelledError</code> 做完必要清理后继续传播：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> def</span><span style="color:#6F42C1"> write_artifact</span><span style="color:#24292E">(stream, sink):</span></span>
+<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#D73A49">        async</span><span style="color:#D73A49"> for</span><span style="color:#24292E"> chunk </span><span style="color:#D73A49">in</span><span style="color:#24292E"> stream:</span></span>
+<span class="line"><span style="color:#D73A49">            await</span><span style="color:#24292E"> sink.write(chunk)</span></span>
+<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> asyncio.CancelledError:</span></span>
+<span class="line"><span style="color:#D73A49">        await</span><span style="color:#24292E"> sink.mark_interrupted()</span></span>
+<span class="line"><span style="color:#D73A49">        raise</span></span>
+<span class="line"><span style="color:#D73A49">    finally</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#D73A49">        await</span><span style="color:#24292E"> stream.aclose()</span></span></code></pre>
+<p>如果代码吞掉 <code>CancelledError</code>，父 TaskGroup 可能一直等不到子级按预期收敛。反过来，即使本地 Task 已经取消，也不能直接推断远端副作用已经撤销：HTTP 请求可能已经提交写入，subprocess 也可能已经修改文件。</p>
+<p>所以 Structured Concurrency 能保证本地 Task lifecycle 有 owner，却不能代替 Tool Runtime 对外部结果进行确认。</p>
+<h2 id="真正的后台任务不能只靠裸-task">真正的后台任务不能只靠裸 Task</h2>
+<p>有些工作本来就需要在请求返回后继续，例如一个可能运行几分钟的报告生成任务。这不意味着 fire-and-forget 的内存 Task 就变得安全。</p>
+<p>请求结束后仍需执行的工作，应该先获得 durable task identity 和可恢复状态，再交给 Queue 或 Workflow worker。这样，新 owner 是后台 worker，而不是已经消失的 HTTP request scope。</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>请求内并发：TaskGroup 拥有并等待子 Task</span></span>
+<span class="line"><span>请求外任务：Queue / Workflow 拥有 durable task</span></span>
+<span class="line"><span>无 owner Task：生命周期没有明确归属</span></span></code></pre>
+<p>区分标准不是工作运行多久，而是谁负责在进程重启、取消和失败后继续解释它的状态。</p>
+<h2 id="taskgroup-不解决资源上限">TaskGroup 不解决资源上限</h2>
+<p>TaskGroup 回答“谁拥有这些 Task”，不回答“一次可以运行多少 Task”。如果同时向下游发出一万个请求，它们即使都在同一个 group 中，也可能压垮 connection pool 或 provider limit。</p>
+<p>Semaphore、bounded Queue 和 admission control 负责限制并发与传递 backpressure；deadline 负责限制整个阶段能够消耗的时间。它们与 ownership 互补，但不是 Structured Concurrency 本身。</p>
+<p>同样，两个 Tool 并行修改同一资源仍需 OCC、transaction 或按 key serialization。TaskGroup 只管理 Python Task 的生命周期，不保证业务状态一致性。</p>
+<h2 id="什么时候直接使用-create_task-是合理的">什么时候直接使用 <code>create_task()</code> 是合理的</h2>
+<p><code>create_task()</code> 本身不是反模式。如果调用方：</p>
+<ul>
+<li>保存 Task reference。</li>
+<li>明确谁等待结果或处理异常。</li>
+<li>在父级取消和 shutdown 时收敛 Task。</li>
+<li>不在子 Task 尚未结束时把父阶段标成完成。</li>
+</ul>
+<p>那么它仍然是合适的底层 API。TaskGroup 的价值，是让一组共同完成某个阶段的 Task 默认拥有同一个结构化 scope，减少遗漏这些责任的机会。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>并发 Tool Call 的首要问题不是怎样把循环改成 <code>create_task()</code>，而是创建之后谁对这些 Task 负责。</p>
+<p>TaskGroup 让父级等待子级，统一传播未处理失败，并通过 cancellation 让整组工作收敛。需要脱离父级生命周期的任务，则应把 ownership 明确移交给 Queue 或 Workflow，而不是留下一项无人负责的内存工作。</p>
+<p>当每个 Task 都能回答“我属于哪个 scope，谁等待我，失败交给谁”，Python async 才从同时运行很多 coroutine 变成一个可解释的执行结构。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>Semaphore、connection pool 与 provider limit 应怎样共同确定并发上限。</li>
+<li>Bounded Queue 怎样形成 backpressure，并处理过期任务。</li>
+<li>Absolute deadline 怎样跨 model、Tool 和 retry 传播。</li>
+<li>Async generator 与 SSE/WebSocket 断线后怎样关闭上游工作。</li>
+<li>怎样观察 Task age、Queue depth、event loop lag 与 cancellation latency。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://docs.python.org/3/library/asyncio-task.html">Python <code>asyncio</code> Coroutines and Tasks</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
