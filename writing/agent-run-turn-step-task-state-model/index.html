@@ -1,0 +1,138 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A report still being converted shows why one status cannot represent a user goal, model round trip, logical action, and background work."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Run, Turn, Step, and Task Are Different State Machines | Xiaoyuan"><meta property="og:description" content="A report still being converted shows why one status cannot represent a user goal, model round trip, logical action, and background work."><meta property="og:url" content="https://thefriesrobber.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Run, Turn, Step, and Task Are Different State Machines | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-run-turn-step-task-state-model/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Run, Turn, Step, and Task Are Different State Machines</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/State%20Machine/">State Machine</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user asks an Agent: “Read this file, generate a report, and export it as a PDF.”</p>
+<p>Suppose reading and saving can finish within the current request, but PDF conversion may take several minutes and requires a separate conversion environment. Rather than hold the HTTP connection open, the Runtime saves the Markdown, submits the conversion to a queue, and lets another worker execute it. The request can return, and the original process may even restart, but the Run cannot finish until the PDF actually exists.</p>
+<p>Under those conditions, one execution might proceed like this:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Turn 1: the model decides to read the file</span></span>
+<span class="line"><span>Step 1: read_file succeeds</span></span>
+<span class="line"><span>Turn 2: the model generates the report body</span></span>
+<span class="line"><span>Step 2: saving report.md succeeds</span></span>
+<span class="line"><span>Task 1: convert report.md to report.pdf in the background</span></span></code></pre>
+<p>Task is not a mandatory layer in every Agent. Here it represents work that has left the current call and must be queued, executed, and recovered independently. If PDF conversion is merely a synchronous call inside the current function, such as <code>await convert_to_pdf(report)</code>, it remains a Step in the Run and does not need a separate Task.</p>
+<p>If the system stores only one execution record:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_18"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"running"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>this <code>running</code> status answers almost nothing. Is the model still generating content? Has the file been saved? Is the PDF conversion waiting in a queue? What should stop when the user cancels? After a process restart, should the system regenerate the entire report or resume only the conversion?</p>
+<p>All of these activities belong to one user request, but they do not share one completion condition. The problem is not a shortage of status values. The system has compressed execution objects with different grains into one state.</p>
+<h2 id="start-with-the-question-each-state-answers">Start with the question each state answers</h2>
+<p>Run, Turn, Step, and Task are not standardized terms across frameworks. One implementation may call an Agent Loop iteration a step; another may call background work a job. The names can differ, but four distinct questions still need answers:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Object</th><th>Question it answers</th><th>Who decides it is complete</th></tr></thead><tbody><tr><td>Run</td><td>Has this user goal been completed?</td><td>Agent Runtime or orchestrator</td></tr><tr><td>Turn</td><td>Has this model request and response finished?</td><td>model adapter</td></tr><tr><td>Step</td><td>Does this logical action have a definite result?</td><td>the Runtime executing the action</td></tr><tr><td>Task</td><td>Has this independently scheduled work converged after leaving the current call?</td><td>queue, worker, or workflow engine</td></tr></tbody></table>
+<p>The goal is not a perfectly shaped object tree. It is to let each state describe only the facts its owner can actually establish.</p>
+<p><img src="/posts/en/agent-run-turn-step-task-state-model/execution-grains.svg" alt="A timeline for Run, Turn, Step, and Task during report generation. Both Turns and Steps are finished while the Run waits for a background Task."></p>
+<p><em>Objects inside one Run can occupy different states at the same time. A parent status must not overwrite facts already established by its children.</em></p>
+<h2 id="a-run-tracks-the-user-goal">A Run tracks the user goal</h2>
+<p>In this example, the Run’s goal is not “the model returned once.” It is “a usable PDF report exists.” When Turn 2 returns the report body, the Run therefore cannot enter <code>succeeded</code>; it is still waiting for the PDF Task.</p>
+<p>A more accurate state is:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_18: waiting</span></span>
+<span class="line"><span>reason: task_9 has not finished</span></span>
+<span class="line"><span>completed evidence: report.md version 3</span></span>
+<span class="line"><span>missing evidence: report.pdf artifact</span></span></code></pre>
+<p>The distinction between <code>waiting</code> and <code>running</code> matters to both the product interface and recovery logic. <code>waiting</code> says no model or Tool currently owns execution and the system is waiting for an external condition. <code>running</code> means an owner is actively advancing the work only while a valid lease or heartbeat supports that claim. A stale <code>running</code> value left after a process crash is not a live fact; an expired lease must enter reconciliation or recovery.</p>
+<p>A Run’s terminal state must also return to the goal. If the PDF Task ultimately fails, the Run may be <code>failed</code>. If the user explicitly accepts the Markdown report as a degraded result, the same Run may end as <code>succeeded</code>, but it should record which Artifact was delivered. The absence of an exception from the last function call is not enough to prove that the user goal was completed.</p>
+<h2 id="a-turn-describes-one-model-round-trip">A Turn describes one model round trip</h2>
+<p>Turn 1 receives the user’s request and the file Tool, then returns a proposed <code>read_file</code> call. Turn 2 adds the file content to its input and returns the report body.</p>
+<p>Each Turn can record independently:</p>
+<ul>
+<li>which model and provider actually received the request;</li>
+<li>which context revision and Tool surface were used;</li>
+<li>whether the response completed, was cancelled, or failed to parse;</li>
+<li>token usage, latency, and finish reason.</li>
+</ul>
+<p>A <code>succeeded</code> Turn proves only that the model adapter obtained a usable response. It does not prove that a Tool proposed by the response executed, or that the Run completed.</p>
+<p>If the transport fails before the provider accepts the request and retry is known to be safe, the Runtime may still treat the second transport attempt as part of the same Turn. A new Turn begins only after the model receives new visible input, such as the result of reading the file. Otherwise infrastructure retries are miscounted as additional rounds of Agent reasoning.</p>
+<h2 id="a-step-tracks-one-logical-action">A Step tracks one logical action</h2>
+<p>A Step is a logical action the Runtime needs to observe and advance. Reading the source file and saving the Markdown are two Steps in this example.</p>
+<p>Suppose <code>save_report</code> writes <code>report.md</code>, but its response is lost. After seeing a timeout, the Runtime should not move the Step directly to <code>failed</code>. Its status is <code>unknown</code>: the external effect may have happened even though no result was confirmed.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>step_save_report</span></span>
+<span class="line"><span>  logical identity: save this report</span></span>
+<span class="line"><span>  status: unknown</span></span>
+<span class="line"><span>  attempt 1: timeout</span></span></code></pre>
+<p>If a later retry is still confirming or completing the same save, it keeps <code>step_save_report</code> and adds an Attempt. If the user asks to save a second copy, that is a new Step.</p>
+<p>This is why a Step and a physical request cannot share one identity. A Step answers “did this action eventually complete?” An Attempt answers “how many times did the Runtime physically try?” Attempt is execution evidence, not a fifth business state machine introduced by this article.</p>
+<h2 id="a-task-appears-only-after-the-lifecycle-leaves-the-current-call">A Task appears only after the lifecycle leaves the current call</h2>
+<p>Once PDF conversion enters a queue, the HTTP request can return and a worker may restart. The conversion no longer belongs to the current call stack. A scheduler owns it, so it needs identity and state that can survive across requests and processes. That is the Task in this article.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_9: convert report.md@v3 to PDF</span></span>
+<span class="line"><span>  attempt 1: worker lost</span></span>
+<span class="line"><span>  attempt 2: running</span></span></code></pre>
+<p>The Task’s retry unit is the same scheduled work—not a new Run and not a request for the model to regenerate the report. As long as the input remains <code>report.md@v3</code> and the conversion can be replayed safely or deduplicated downstream by <code>task_9</code>, another worker Attempt can remain part of the same Task. If the report body advances to version 4, the Runtime should explicitly cancel the old Task or create a new one rather than let two versions compete for the same output path.</p>
+<p>When the Task succeeds, it produces <code>report.pdf</code>, which may give the Runtime the evidence needed for <code>run_18</code> to reach a terminal state. The Task status is not copied automatically into the Run. The Run evaluates its own goal condition again: an Artifact derived from the correct input version was published atomically and passed a minimum integrity or format check. Merely seeing an output path does not rule out a partial file left by a worker crash or cancellation.</p>
+<p>If conversion is fast and the parent waits for it before returning, the design can stay simpler: execute <code>convert_to_pdf</code> as another Step. The boundary between Step and Task is neither the operation name nor duration alone. It is whether lifecycle and ownership have separated. Work that the current Runtime call remains responsible for awaiting and converging is a Step; work transferred to a queue, worker, or workflow engine is a Task.</p>
+<h2 id="retry-must-stay-at-the-correct-layer">Retry must stay at the correct layer</h2>
+<p>Now suppose the first PDF worker crashes and the second succeeds. The recovery path should be:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_18 remains waiting</span></span>
+<span class="line"><span>turn_1 and turn_2 remain succeeded</span></span>
+<span class="line"><span>step_read and step_save_report remain succeeded</span></span>
+<span class="line"><span>task_9 adds attempt 2</span></span></code></pre>
+<p>If the system can retry only the whole Run, the model reads the file again, regenerates the body, and saves it again. Even if the final PDF is correct, the system can no longer explain the additional tokens, file versions, and external writes.</p>
+<p>Conversely, a model-output parse failure should not retry the PDF Task. First determine whether a failure is recoverable within the object where it occurred. End the Run or create a new one only when the original goal can no longer continue.</p>
+<p>This rule does not mean every layer must retry automatically. It means a retry must not silently change logical identity:</p>
+<ul>
+<li>a transport retry remains in the same Turn;</li>
+<li>a Tool retry remains in the same Step;</li>
+<li>a worker retry remains in the same Task;</li>
+<li>a user-requested rerun usually creates a new Run.</li>
+</ul>
+<h2 id="cancellation-does-not-rewrite-every-state-to-cancelled">Cancellation does not rewrite every state to cancelled</h2>
+<p>If the user cancels while the PDF conversion is running, the Runtime first moves the Run to <code>cancelling</code> and sends <code>task_9</code> a cancellation request. It must not rewrite completed Turns and Steps to <code>cancelled</code>; the report body was generated and saved, and those are historical facts.</p>
+<p>The Task should not claim <code>cancelled</code> merely because it received the request. A worker may be writing a file, and a remote conversion service may already have produced a result. The Task reaches its appropriate terminal state only after its owner confirms that work stopped and handles any remaining Artifact. Until then, it can remain in <code>cancelling</code> or another explicit transitional state.</p>
+<p>The Run waits for its unfinished owned work to complete reconciliation, then enters a terminal state according to product policy. If the PDF finishes after the cancellation request, policy may retain it as an undelivered Artifact, deliver it and mark the Run <code>succeeded</code>, or clean it up and mark the Run <code>cancelled</code>. None of these choices rewrites the history of children that already completed.</p>
+<p>Cancellation therefore propagates intent, not a status overwrite across every child. Each owner must still resolve its state from the facts it can observe.</p>
+<h2 id="separate-states-produce-definite-answers">Separate states produce definite answers</h2>
+<p>At one instant, the system can store:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Run run_18       → waiting for task_9</span></span>
+<span class="line"><span>Turn turn_1      → succeeded</span></span>
+<span class="line"><span>Step step_read   → succeeded</span></span>
+<span class="line"><span>Turn turn_2      → succeeded</span></span>
+<span class="line"><span>Step step_save   → succeeded, artifact report.md@v3</span></span>
+<span class="line"><span>Task task_9      → running, attempt 2</span></span></code></pre>
+<p>The product UI queries the Run and knows the user goal is still in progress. Model-cost analysis queries Turns. Tool reliability uses Steps and Attempts. Queue operations inspect Tasks. Parent, causality, and Artifact version connect these objects, but they no longer compete for one <code>status</code> field.</p>
+<p>What a Checkpoint persists, and how an event log produces a current snapshot, are separate persistence questions. How an analytics store calculates metrics at the correct grain is covered in <a href="/writing/modeling-agent-activity/">Model Agent Activity by Grain First</a>. This article establishes the Runtime semantics first: who owns each state, who decides completion, and which layer should recover from a failure.</p>
+<h2 id="when-one-state-is-enough">When one state is enough</h2>
+<p>If a request makes one model call, executes no Tool, starts no background work, and can restart from the beginning without additional side effects, then Run and Turn may be one-to-one. The implementation can store one record rather than create four tables for conceptual completeness.</p>
+<p>The trigger for separation is an actual lifecycle split: one user goal now includes multiple model round trips, a logical action can retry, or work must continue outside the current request. At that point, sharing one state makes recovery and metrics ambiguous.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Run, Turn, Step, and Task differ not because of their names or hierarchy, but because they have different completion evidence and retry units.</p>
+<p>A model response does not prove a Tool executed. A completed Tool does not prove background work converged. Even a <code>succeeded</code> Task helps complete the user goal only when it delivers the correct Artifact required by the Run.</p>
+<p>Once state belongs to the object that owns it, the Runtime can recover only the necessary layer after a failure. It can also explain whether the system is calling a model, resolving an action, waiting for a worker, or has actually completed the user goal.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>Should a Checkpoint persist events, snapshots, or reconstructable state, and how should a restart recover them?</li>
+<li>How should event logs and current snapshots handle concurrent updates and out-of-order events?</li>
+<li>How should deadlines and cancellation propagate across Run, Step, and Task?</li>
+<li>How should Run, Turn, Step, and Task enter one Trace without mixing their grains?</li>
+</ul>
+<p>Reference:</p>
+<ul>
+<li><a href="https://openai.github.io/openai-agents-python/running_agents/">OpenAI Agents SDK: Running agents</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

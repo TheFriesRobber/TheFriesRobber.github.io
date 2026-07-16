@@ -1,0 +1,174 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A conflict among policy, request transformation, and tracing shows why Agent Runtime Hooks need explicit mutation, short-circuit, error, and replay semantics."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Middleware Hooks Need Ordering and Failure Contracts | Xiaoyuan"><meta property="og:description" content="A conflict among policy, request transformation, and tracing shows why Agent Runtime Hooks need explicit mutation, short-circuit, error, and replay semantics."><meta property="og:url" content="https://thefriesrobber.github.io/writing/agent-middleware-hook-contracts/"><link rel="canonical" href="https://thefriesrobber.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="zh-CN" href="https://thefriesrobber.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="en" href="https://thefriesrobber.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="x-default" href="https://thefriesrobber.github.io/writing/agent-middleware-hook-contracts/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Middleware Hooks Need Ordering and Failure Contracts | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-middleware-hook-contracts/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/TheFriesRobber" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Middleware Hooks Need Ordering and Failure Contracts</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Middleware/">Middleware</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent Runtime registers three Hooks before calling a model:</p>
+<ul>
+<li>a capability policy removes Tools unavailable under the current permissions;</li>
+<li>a request transformer renders the internal request as a provider payload;</li>
+<li>tracing records structured information about the instructions and Tools the model actually received rather than capturing complete sensitive content by default.</li>
+</ul>
+<p>The initial Tool candidates are:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>read_file, write_file, delete_file</span></span></code></pre>
+<p>The current user has read and write permissions, so <code>delete_file</code> must not enter the model input. If Hooks merely execute in registration order, several different outcomes are possible:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>transform → policy</span></span>
+<span class="line"><span>the provider payload already contains delete_file; changing the internal list is too late</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>trace → policy → transform</span></span>
+<span class="line"><span>the trace records a Tool surface that the model never received</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>policy → transform → trace</span></span>
+<span class="line"><span>policy narrows the capabilities first, and the trace records the final request</span></span></code></pre>
+<p>Each Hook looks reasonable in isolation, yet changing their order changes both security and the observable facts. The name <code>beforeModel</code> says only that a callback runs before the model. It does not say who may change which fields, who may block the call, or whether tracing observes the request before or after mutation.</p>
+<p>A Hook becomes a stable Runtime extension point only when it has a composition contract—not when the Runtime exposes a large set of callback names.</p>
+<h2 id="registration-order-cannot-define-execution-semantics">Registration order cannot define execution semantics</h2>
+<p>The easiest implementation stores Hooks in an array and calls them in order:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">for</span><span style="color:#24292E"> hook </span><span style="color:#D73A49">in</span><span style="color:#24292E"> before_model_hooks:</span></span>
+<span class="line"><span style="color:#24292E">    request </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> hook(request)</span></span></code></pre>
+<p>This code lets “who registered first” decide policy precedence, mutation authority, and the observation boundary at the same time. Adding a plugin—or merely changing initialization order—can change the final Tool surface.</p>
+<p>A safer design defines phases first, then allows explicit priority or dependency within a phase:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>trusted context</span></span>
+<span class="line"><span>  → policy decision</span></span>
+<span class="line"><span>  → request transformation</span></span>
+<span class="line"><span>  → observation scope opens on the final request</span></span>
+<span class="line"><span>  → model call</span></span>
+<span class="line"><span>  → result normalization</span></span>
+<span class="line"><span>  → output policy</span></span>
+<span class="line"><span>  → observation scope closes with the final result</span></span></code></pre>
+<p>Every Runtime does not need these exact phase names. The sequence expresses a more basic constraint: capabilities should be narrowed according to trusted permissions before the request is rendered or sent; transformation must not re-expand capabilities already removed by policy; and an observer must not open its span until the final request exists and must close it after result normalization so the observed version is unambiguous.</p>
+<p><img src="/posts/en/agent-middleware-hook-contracts/hook-composition.svg" alt="The ordering of policy, transformation, observation, and the model call in an Agent Runtime. Policy narrows capability first, the transformer creates the request, and an observer wraps the call to record the final facts."></p>
+<p><em>Hook phases express authority and fact boundaries. Position in a registration array should not silently change those boundaries.</em></p>
+<h2 id="first-distinguish-what-a-hook-is-allowed-to-do">First distinguish what a Hook is allowed to do</h2>
+<p>Hook systems tend to lose control not because they have too many callbacks, but because every callback receives the same authority by default. Start by separating a few kinds of behavior:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Kind</th><th>What it may do</th><th>What it should not do</th></tr></thead><tbody><tr><td>Policy</td><td>allow, deny, require approval, or narrow capability</td><td>silently add a Tool or fabricate trusted context</td></tr><tr><td>Transformation</td><td>produce a new typed value from approved input</td><td>change identity, permissions, or the audit subject</td></tr><tr><td>Control</td><td>short-circuit, fall back, or choose an explicit branch</td><td>return an arbitrary string indistinguishable from a normal result</td></tr><tr><td>Observation</td><td>record events, metrics, and traces</td><td>rewrite a business result or secretly initiate another business action</td></tr></tbody></table>
+<p>This is not an attempt to create a callback taxonomy. It limits mutation authority. Tracing that needs only to read the final request should not receive a mutable request. A request transformer responsible only for provider shaping should not be able to replace the subject or credential injected by the Runtime.</p>
+<p>One simple approach is for transformations to return new values rather than share a mutable object:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#24292E"> asyncio</span></span>
+<span class="line"></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">decision </span><span style="color:#D73A49">=</span><span style="color:#24292E"> policy.evaluate(context, request)</span></span>
+<span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> decision.denied:</span></span>
+<span class="line"><span style="color:#D73A49">    return</span><span style="color:#24292E"> denied_result(decision.reason)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">provider_request </span><span style="color:#D73A49">=</span><span style="color:#24292E"> transform(decision.allowed_request)</span></span>
+<span class="line"><span style="color:#D73A49">with</span><span style="color:#24292E"> trace.model_span(provider_request) </span><span style="color:#D73A49">as</span><span style="color:#24292E"> span:</span></span>
+<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">        response </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> model.generate(provider_request)</span></span>
+<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> asyncio.CancelledError:</span></span>
+<span class="line"><span style="color:#24292E">        span.record_cancelled()</span></span>
+<span class="line"><span style="color:#D73A49">        raise</span></span>
+<span class="line"><span style="color:#D73A49">    except</span><span style="color:#005CC5"> BaseException</span><span style="color:#D73A49"> as</span><span style="color:#24292E"> error:</span></span>
+<span class="line"><span style="color:#24292E">        span.record_error(error)</span></span>
+<span class="line"><span style="color:#D73A49">        raise</span></span>
+<span class="line"><span style="color:#D73A49">    else</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">        span.record_result(response)</span></span></code></pre>
+<p><code>model_span</code> is a conceptual interface, not the API of a particular SDK. The example assumes that <code>record_*</code> methods and scope cleanup are no-throw or write to a local buffer first: observation failures are recorded and retried separately, and must not replace a model result, original exception, or cancellation. The example expresses that observation begins after the final provider request exists, and that the same observation scope closes correctly whether the model succeeds, raises an exception, or is cancelled.</p>
+<p>Return to the opening example. Policy receives the three Tool candidates plus trusted permissions and produces an allowed request containing only <code>read_file</code> and <code>write_file</code>. The transformer can render only that set. The trace records Tool names or a stable hash from the final provider request. The transformer cannot reintroduce <code>delete_file</code> by rereading the original registry.</p>
+<h2 id="a-short-circuit-must-be-a-visible-result">A short-circuit must be a visible result</h2>
+<p>A policy that rejects a high-risk Tool, a cache hit that skips a model call, and an exhausted budget may all need to short-circuit execution.</p>
+<p>If a Hook returns only <code>None</code> to mean “do not continue,” the caller has no reliable way to distinguish denial, cache hit, and a Hook bug. A clearer contract returns a typed outcome:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>continue(transformed_request)</span></span>
+<span class="line"><span>deny(reason, policy_id)</span></span>
+<span class="line"><span>require_approval(action_id)</span></span>
+<span class="line"><span>use_cached(response_id)</span></span>
+<span class="line"><span>fail(error_class, retryable)</span></span></code></pre>
+<p>An observer can then record why the model was never called, and the Run can decide whether to wait for user approval, use a cached result, or enter a failed state. Each outcome must also define the phase where execution resumes: <code>deny</code>, <code>require_approval</code>, and <code>fail</code> do not call the model or Tool handler; <code>use_cached</code> skips the model call, but the cached response still passes through the same normalization and output policy as a live response; every branch emits an observable execution event. Otherwise the cache becomes a hidden path around result policy.</p>
+<p>A short-circuit changes control flow, so it must become an execution fact rather than remain an early <code>return</code> hidden inside one callback.</p>
+<h2 id="before-and-after-are-not-usually-symmetric-lists">Before and After are not usually symmetric lists</h2>
+<p>Some Hooks manage resources in pairs. A tracing span opens before a call and closes afterward. A temporary credential may be injected before a Tool and revoked when the Tool exits.</p>
+<p>These Hooks behave more like nested scopes:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>before A</span></span>
+<span class="line"><span>  before B</span></span>
+<span class="line"><span>    execute</span></span>
+<span class="line"><span>  after B</span></span>
+<span class="line"><span>after A</span></span></code></pre>
+<p>If <code>after</code> callbacks also run in registration order, A may close a resource that B is still using. Whether cleanup runs in reverse order should be part of the Runtime contract, not something every Hook author has to guess.</p>
+<p>Cancellation must follow the same unwind contract: scopes already entered clean up in reverse order, so resources such as temporary credentials are not left behind. A cleanup error should be recorded separately rather than replace the original cancellation. Whether an after Hook with an external side effect may be replayed follows the delivery contract defined later.</p>
+<p>Not every after Hook belongs to the same nesting model. A metrics observer may consume a completed event, while an output policy must run before content reaches the user or the next context. Putting both into one <code>afterModel</code> array once again delegates different semantics to registration order.</p>
+<h2 id="a-hook-failure-must-not-rewrite-a-tool-result-that-already-happened">A Hook failure must not rewrite a Tool result that already happened</h2>
+<p>Ordering problems appear on the happy path; retries make the failure contract even more important.</p>
+<p>Suppose <code>write_file</code> successfully saves a report. An <code>afterTool</code> Hook then sends a trace event to a remote collector, but the collector times out. If middleware marks the whole chain as failed, an outer retry may execute <code>write_file</code> again:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt 1: write_file succeeds → trace delivery times out</span></span>
+<span class="line"><span>attempt 2: write_file succeeds again</span></span></code></pre>
+<p>The second write is not a tracing retry. It repeats the business side effect. The Runtime must preserve two separate facts:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Step: succeeded, artifact = report.md@v3</span></span>
+<span class="line"><span>Trace delivery: failed, pending an independent retry or degradation</span></span></code></pre>
+<p>Each Hook kind therefore needs a predefined failure policy:</p>
+<ul>
+<li>If Policy cannot decide, a high-risk action generally should not continue; fail closed or require approval.</li>
+<li>If Transformation fails, the model or Tool call has not happened yet, so the current phase can stop. Retrying is easy to reason about only when the transformation itself is pure.</li>
+<li>If Observation fails, the Runtime generally should not repeat a completed business action. It can buffer locally, retry the observation separately, or mark observability as degraded.</li>
+<li>Strict compliance may require a failed observation channel to block later actions, but that constraint must execute before the action. It cannot retroactively pretend an existing side effect did not occur.</li>
+</ul>
+<p>“Generally” matters. Different products can choose different policies. The contract does not prescribe one universal answer; it prevents accidental exception propagation from deciding whether a failure blocks, degrades, or recovers independently.</p>
+<h2 id="retry-and-replay-need-stable-identity">Retry and replay need stable identity</h2>
+<p>When a Runtime retries a model call, it can rerun pure validation and transformation. A metric observer can be replayed safely only when the metric intentionally counts physical Attempts, tolerates duplicates, or deduplicates by stable event identity. Once a Hook has an external side effect, replay can produce duplicates.</p>
+<p>Suppose a Hook sends a notification after a Tool finishes. The process crashes after the notification succeeds but before a checkpoint records that fact. Recovery enters <code>afterTool</code> again. If the Hook generates a new message ID, the user receives two notifications.</p>
+<p>This kind of action should not hide inside a callback as incidental work. There are two safer choices:</p>
+<ol>
+<li>Promote the notification to an explicit Step whose logical identity, Attempts, and result are stored by the Runtime.</li>
+<li>If it genuinely belongs to an infrastructure Hook, use a stable <code>event_id</code>, let the downstream system deduplicate it, and retain delivery state.</li>
+</ol>
+<p>Replay then means another delivery of the same Hook event, not a new business intent. Observers for metrics, tracing, billing, and audit must likewise state whether they accept at-least-once delivery, require an idempotent upsert, or need a durable outbox. A stable <code>event_id</code> alone cannot prevent duplicate side effects; repeated deliveries converge on one result only when the downstream system deduplicates them or performs an idempotent upsert.</p>
+<h2 id="contract-tests-should-verify-composition-not-only-individual-hooks">Contract tests should verify composition, not only individual Hooks</h2>
+<p>Testing each callback’s return value is not enough. Composition semantics are the part that is easy to get wrong. A minimal contract-test suite can verify that:</p>
+<ul>
+<li>capability policy runs before provider payload generation;</li>
+<li>a transformer cannot add a Tool removed by policy;</li>
+<li>the model or Tool handler is not called after <code>deny</code> or <code>require_approval</code>;</li>
+<li>a cached response still passes through normalization and output policy;</li>
+<li>paired scopes unwind their after behavior in reverse order;</li>
+<li>cancellation unwinds entered scopes in reverse order, and cleanup errors do not replace the original cancellation;</li>
+<li>observer failure does not turn a successful Tool Step into <code>failed</code>;</li>
+<li>replay follows its declared delivery contract: at-least-once delivery reuses one <code>event_id</code> and may deliver duplicates, while only idempotent or deduplicated delivery is tested for a single side effect;</li>
+<li>the trace distinguishes original candidates, policy decision, and final request.</li>
+</ul>
+<p>These tests do not need a real model. A fake handler that records call order can verify whether the Runtime’s extension contract is stable. Model evals test whether a Hook’s policy is effective; contract tests first establish that the policy executes in the intended place.</p>
+<p>Trace content also needs a boundary. Structural metadata, stable IDs, phases, states, and redacted summaries are generally enough by default. Complete instructions or provider payloads should be captured only when explicitly needed and must be governed by redaction, access control, and a retention policy. Credentials, secrets, and unnecessary user content should not enter a trace.</p>
+<h2 id="when-a-simple-callback-is-enough">When a simple callback is enough</h2>
+<p>If there is one internal Hook that writes only local logs, never mutates input, never short-circuits control flow, and cannot affect the business result when it fails, an ordinary callback is enough.</p>
+<p>A composition contract becomes necessary when Hooks come from multiple modules, can change prompts or Tool surfaces, may block a call, or can cause external side effects during retry and replay. The complexity comes from authority and failure boundaries, not from the word middleware.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p><code>beforeModel</code>, <code>afterModel</code>, <code>beforeTool</code>, and <code>afterTool</code> provide temporal positions, not execution semantics.</p>
+<p>A stable Hook system must also answer: in what order do policy, transformation, control, and observation run; which fields may each kind change; how does a short-circuit become observable; does an exception block, degrade, or recover independently; and can retry or replay duplicate a side effect?</p>
+<p>Once those contracts are explicit, Hooks can extend a Runtime safely. Otherwise every new callback adds a hidden control-flow branch, and the true execution order can be discovered only by reading initialization code.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should a policy decision connect to user confirmation and high-risk Tool approval?</li>
+<li>How should Hook events, Runtime events, and Trace spans share identity?</li>
+<li>After a Plugin or Skill version changes, which Hook contract should resume an old Checkpoint?</li>
+<li>Which stable extension points should a provider adapter expose for request shaping?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://openai.github.io/openai-agents-python/agents/">OpenAI Agents SDK: Agent lifecycle hooks</a></li>
+<li><a href="https://openai.github.io/openai-agents-python/guardrails/">OpenAI Agents SDK: Guardrails</a></li>
+<li><a href="https://code.claude.com/docs/en/hooks">Claude Code: Hooks reference</a></li>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

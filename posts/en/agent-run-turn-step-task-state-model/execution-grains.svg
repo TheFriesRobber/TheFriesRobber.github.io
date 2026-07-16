@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
+  <title id="title">Execution timeline for Run, Turn, Step, and Task</title>
+  <desc id="desc">One Run contains two completed Turns, two completed Steps, and a background Task that is still running.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #202124; }
+    .label { font-size: 18px; font-weight: 650; }
+    .small { font-size: 15px; fill: #4b5563; }
+    .lane { stroke: #d1d5db; stroke-width: 2; }
+    .done { fill: #e8f5ec; stroke: #3f7d52; stroke-width: 2; }
+    .waiting { fill: #fff4d6; stroke: #a66b00; stroke-width: 2; }
+    .running { fill: #e7f0ff; stroke: #3c6fb6; stroke-width: 2; }
+  </style>
+  <rect width="960" height="420" rx="18" fill="#fafafa"/>
+  <text x="36" y="45" class="label">Different lifecycles inside one user goal</text>
+  <text x="36" y="72" class="small">The Run can wait for a background Task after its Turns and Steps finish</text>
+
+  <text x="36" y="132" class="label">Run</text>
+  <line x1="130" y1="126" x2="920" y2="126" class="lane"/>
+  <rect x="150" y="103" width="580" height="46" rx="12" class="running"/>
+  <text x="373" y="132" class="small">run_18 · running</text>
+  <rect x="740" y="103" width="160" height="46" rx="12" class="waiting"/>
+  <text x="753" y="132" class="small">waiting for task_9</text>
+
+  <text x="36" y="207" class="label">Turn</text>
+  <line x1="130" y1="201" x2="920" y2="201" class="lane"/>
+  <rect x="160" y="178" width="140" height="46" rx="12" class="done"/>
+  <text x="182" y="207" class="small">turn_1 · done</text>
+  <rect x="450" y="178" width="140" height="46" rx="12" class="done"/>
+  <text x="472" y="207" class="small">turn_2 · done</text>
+
+  <text x="36" y="282" class="label">Step</text>
+  <line x1="130" y1="276" x2="920" y2="276" class="lane"/>
+  <rect x="310" y="253" width="130" height="46" rx="12" class="done"/>
+  <text x="325" y="282" class="small">read_file · done</text>
+  <rect x="600" y="253" width="130" height="46" rx="12" class="done"/>
+  <text x="611" y="282" class="small">save_report · done</text>
+
+  <text x="36" y="357" class="label">Task</text>
+  <line x1="130" y1="351" x2="920" y2="351" class="lane"/>
+  <rect x="740" y="328" width="160" height="46" rx="12" class="running"/>
+  <text x="763" y="357" class="small">task_9 · running</text>
+</svg>
