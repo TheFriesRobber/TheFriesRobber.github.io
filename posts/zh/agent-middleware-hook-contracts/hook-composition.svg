@@ -10,6 +10,10 @@
     text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #202124; }
     .heading { font-size: 18px; font-weight: 650; }
     .body { font-size: 14px; fill: #4b5563; }
+    .phase-heading { font-size: 16px; font-weight: 650; }
+    .phase-detail { font-size: 13px; fill: #4b5563; }
+    .observer-label { font-size: 14px; font-weight: 600; fill: #4b5563; }
+    .observer-detail { font-size: 12px; fill: #4b5563; }
     .box { stroke-width: 2; }
     .arrow { stroke: #697386; stroke-width: 2; marker-end: url(#arrow); }
   </style>
@@ -18,28 +22,30 @@
   <text x="36" y="68" class="body">注册顺序不应改变 Tool 可见性或 tracing 口径</text>
 
   <rect x="38" y="112" width="150" height="92" rx="14" fill="#f2f3f5" stroke="#858b94" class="box"/>
-  <text x="61" y="148" class="heading">Trusted context</text>
-  <text x="65" y="177" class="body">identity · permission</text>
+  <text x="113" y="148" text-anchor="middle" class="phase-heading">Trusted context</text>
+  <text x="113" y="177" text-anchor="middle" class="phase-detail">identity · permission</text>
 
   <line x1="188" y1="158" x2="232" y2="158" class="arrow"/>
   <rect x="240" y="112" width="150" height="92" rx="14" fill="#fff0e5" stroke="#b56a32" class="box"/>
-  <text x="286" y="148" class="heading">Policy</text>
-  <text x="261" y="177" class="body">allow · deny · narrow</text>
+  <text x="315" y="148" text-anchor="middle" class="phase-heading">Policy</text>
+  <text x="315" y="177" text-anchor="middle" class="phase-detail">allow · deny · narrow</text>
 
   <line x1="390" y1="158" x2="434" y2="158" class="arrow"/>
   <rect x="442" y="112" width="150" height="92" rx="14" fill="#eaf2ff" stroke="#4b76b8" class="box"/>
-  <text x="462" y="148" class="heading">Transformer</text>
-  <text x="466" y="177" class="body">render approved input</text>
+  <text x="517" y="148" text-anchor="middle" class="phase-heading">Transformer</text>
+  <text x="517" y="172" text-anchor="middle" class="phase-detail">render approved</text>
+  <text x="517" y="190" text-anchor="middle" class="phase-detail">input</text>
 
   <line x1="592" y1="158" x2="636" y2="158" class="arrow"/>
   <rect x="644" y="96" width="284" height="124" rx="16" fill="#f3eefe" stroke="#7655a8" class="box"/>
-  <text x="665" y="126" class="body">Observer scope · record final request/result</text>
-  <rect x="660" y="142" width="78" height="58" rx="10" fill="#e9f6ec" stroke="#4a8358" class="box"/>
-  <text x="677" y="177" class="body">Model</text>
-  <rect x="748" y="142" width="82" height="58" rx="10" fill="#e9f6ec" stroke="#4a8358" class="box"/>
-  <text x="758" y="177" class="body">Normalize</text>
-  <rect x="840" y="142" width="72" height="58" rx="10" fill="#e9f6ec" stroke="#4a8358" class="box"/>
-  <text x="854" y="167" class="body">Output</text>
-  <text x="855" y="185" class="body">policy</text>
+  <text x="665" y="119" class="observer-label">Observer 范围</text>
+  <text x="665" y="137" class="observer-detail">最终请求 · 归一化结果</text>
+  <rect x="660" y="148" width="78" height="54" rx="10" fill="#e9f6ec" stroke="#4a8358" class="box"/>
+  <text x="699" y="180" text-anchor="middle" class="body">Model</text>
+  <rect x="748" y="148" width="82" height="54" rx="10" fill="#e9f6ec" stroke="#4a8358" class="box"/>
+  <text x="789" y="180" text-anchor="middle" class="body">Normalize</text>
+  <rect x="840" y="148" width="72" height="54" rx="10" fill="#e9f6ec" stroke="#4a8358" class="box"/>
+  <text x="876" y="172" text-anchor="middle" class="body">Output</text>
+  <text x="876" y="189" text-anchor="middle" class="body">policy</text>
 
 </svg>
