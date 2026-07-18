@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用执行前编译的 RunSpec 分开 Profile policy 与 Runtime mechanism，避免业务分支不断侵入 Agent Loop。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="RunSpec 如何把业务策略移出 Agent Loop | Xiaoyuan"><meta property="og:description" content="用执行前编译的 RunSpec 分开 Profile policy 与 Runtime mechanism，避免业务分支不断侵入 Agent Loop。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/runspec-policy-mechanism-boundary/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>RunSpec 如何把业务策略移出 Agent Loop | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/runspec-policy-mechanism-boundary/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">RunSpec 如何把业务策略移出 Agent Loop</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Architecture/">Architecture</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>假设同一套 Agent Runtime 同时支持两种入口：</p>
+<ul>
+<li>对话入口使用响应快、成本低的模型，只开放搜索和读取 Tool，最多运行 8 个 Turn。</li>
+<li>后台研究入口允许更长时间运行，开放文件写入和 SubAgent，预算也更高。</li>
+</ul>
+<p>最直接的实现，是在 Agent Loop 里判断入口类型：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> request.mode </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "chat"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">    model </span><span style="color:#D73A49">=</span><span style="color:#032F62"> "fast-model"</span></span>
+<span class="line"><span style="color:#24292E">    tools </span><span style="color:#D73A49">=</span><span style="color:#24292E"> read_only_tools</span></span>
+<span class="line"><span style="color:#24292E">    max_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 8</span></span>
+<span class="line"><span style="color:#D73A49">elif</span><span style="color:#24292E"> request.mode </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "research"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#24292E">    model </span><span style="color:#D73A49">=</span><span style="color:#032F62"> "reasoning-model"</span></span>
+<span class="line"><span style="color:#24292E">    tools </span><span style="color:#D73A49">=</span><span style="color:#24292E"> read_write_tools </span><span style="color:#D73A49">+</span><span style="color:#24292E"> subagent_tools</span></span>
+<span class="line"><span style="color:#24292E">    max_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 40</span></span></code></pre>
+<p>接下来又会出现付费等级、地区限制、实验分组、用户授权和模型降级。每种条件看起来都只增加一个 <code>if</code>，最终却让 Loop 同时决定“这次执行允许什么”和“Tool Call 应该怎样运行”。</p>
+<p>这时最危险的问题不是代码太长，而是同一个请求在执行中途可能改变含义：恢复时重新读取了新配置，Eval 使用了另一套默认值，或者某个分支忘记同步 Tool 权限。</p>
+<h2 id="policy-与-mechanism-为什么要分开">Policy 与 mechanism 为什么要分开</h2>
+<p>这里的 policy 是“本次执行选择什么”，例如模型、Tool Surface、预算和权限范围；mechanism 是“已经选定后怎样执行”，例如调用模型、校验 Tool Call、传播取消和记录事件。</p>
+<p>Agent Loop 应该能够执行不同 policy，但不应该知道为什么某个用户得到了某组 Tool。否则，每增加一种产品规则，都要改动最核心的执行控制流。</p>
+<p>可以把边界压缩成三个对象：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>对象</th><th>回答的问题</th><th>生命周期</th></tr></thead><tbody><tr><td>Profile</td><td>某类场景通常采用什么 policy</td><td>可以持续修改</td></tr><tr><td>RunSpec</td><td>这一次 Run 最终采用什么执行契约</td><td>Run 创建时固定</td></tr><tr><td>Runtime state</td><td>这一次 Run 已执行到哪里</td><td>随执行变化</td></tr></tbody></table>
+<p>Profile 可以叫 scenario、preset 或 agent definition，名字并不重要。重要的是它仍是一份可变策略；真正交给 Runtime 的应该是已经解析完默认值、权限和实验条件的 RunSpec。</p>
+<figure>
+  <img src="/posts/zh/runspec-policy-mechanism-boundary/runspec-boundary.svg" alt="请求与 Profile 先经过 policy compiler 生成不可变的 RunSpec，Runtime 只消费 RunSpec 并持续产生执行事件。" loading="lazy">
+  <figcaption>Policy 在执行前收敛为 RunSpec；Runtime 不再反向读取可变 Profile。</figcaption>
+</figure>
+<h2 id="runspec-固定什么">RunSpec 固定什么</h2>
+<p>继续使用前面的后台研究入口。编译后的 RunSpec 可以是一个概念性结构：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "spec_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "profile"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">12</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#005CC5">  "model_route"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "primary"</span><span style="color:#24292E">: </span><span style="color:#032F62">"reasoning-model"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "fallback_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"same-capability-only"</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "tool_surface"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">27</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "allowed"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"read_file"</span><span style="color:#24292E">, </span><span style="color:#032F62">"write_file"</span><span style="color:#24292E">, </span><span style="color:#032F62">"spawn_agent"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "max_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">40</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1800</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "max_subagents"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "authority"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "subject_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"subject_8"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "grant_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"grant_31"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "grant_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">5</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "max_audience"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search-service"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace-service"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">    "max_scopes"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"web:search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace:read"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace:write"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">  }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>它固定的是<strong>选择结果</strong>，不是把整个运行现场都塞进配置。</p>
+<ul>
+<li>Model response、当前 Turn、剩余预算和 Tool Result 属于 Runtime state。</li>
+<li>用户刚上传的新文件、执行期间的 steering 输入属于新的运行事实。</li>
+<li>OAuth token、API key 等 secret 不应复制进 RunSpec。<code>grant_ref + revision</code> 指向不可变的最大授权 envelope，RunSpec 同时固定 audience、scope 和 resource boundary；执行时可以因撤销或当前条件进一步收窄，不能在 fingerprint 不变时扩大权限。</li>
+<li>每轮真正送给模型的 Context 仍要结合最新 history、Memory、文件和 Tool Result 组装，不应在 Run 创建时冻结成一长段字符串。</li>
+</ul>
+<p>这个区分让 RunSpec 保持可序列化和可解释，同时避免它变成“所有东西的 JSON”。</p>
+<h2 id="把开场例子走一遍">把开场例子走一遍</h2>
+<p>后台研究请求到达后，流程不再让 Loop 判断 <code>mode</code>：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Compiler 读取 research Profile revision 12。</span></span>
+<span class="line"><span>2. 根据当前授权，把 Tool Surface 收窄为四个 Tool。</span></span>
+<span class="line"><span>3. 解析模型和预算，生成 RunSpec version 3。</span></span>
+<span class="line"><span>4. 持久化不可变 RunSpec 和 fingerprint，再追加引用它们的 `run.created(run_id, runspec_ref, fingerprint)` 事实。</span></span>
+<span class="line"><span>5. Runtime 按 RunSpec 启动 Loop，并记录实际发生的 model/tool event。</span></span></code></pre>
+<p>如果用户没有文件写权限，第 2 步就会排除 <code>write_file</code>。Runtime 不需要在每次 Tool Call 时重新理解“research 用户能否写文件”；可信的 Tool handler 仍会做后端鉴权，也可以因授权撤销进一步拒绝动作，但不能让同一 RunSpec 获得编译时上限之外的新能力。</p>
+<p>RunSpec 与 Event Log 位于同一数据库时，RunSpec 持久化和 <code>run.created</code> append 可以共享 transaction。跨存储时，应先保存不可变 RunSpec，再 append 引用；append 最终失败留下的 orphan RunSpec 由 retention / reconciliation 清理。RunSpec 是被执行事实引用的契约，不是 Run snapshot 的 projection。</p>
+<p>如果 Profile 在 Run 执行到一半时升级到 revision 13，当前 Run 仍使用 revision 12。新策略只影响之后创建的 Run。这样一次恢复不会因为重新读取 Profile 而突然换模型或增加 Tool。</p>
+<h2 id="为什么需要-version-与-fingerprint">为什么需要 version 与 fingerprint</h2>
+<p>只保存 <code>profile_id=research</code> 仍不够，因为这个 Profile 会变化。RunSpec 至少需要保留自身 schema version、依赖对象的 revision，以及基于规范化内容计算的 fingerprint。</p>
+<p>它们分别解决不同问题：</p>
+<ul>
+<li><code>spec_version</code> 告诉恢复代码怎样读取这份结构。</li>
+<li>Profile、Tool Surface、prompt 等 revision 说明输入来自哪个版本。</li>
+<li>Fingerprint 用于判断两次执行是否真的使用了同一份契约，而不是只碰巧使用了同一个名字。</li>
+</ul>
+<p>Fingerprint 可以理解为 RunSpec 内容的“短指纹”。但 SHA-256 只接收 bytes，并不知道 JSON 里的 object key、空白或数字应该怎样表示；因此系统必须先定义 canonicalization，也就是“同一份逻辑内容怎样稳定变成同一串 bytes”。</p>
+<p>例如，可以先按业务语义排除 <code>created_at</code> 等运行时字段、把没有顺序语义的 Tool 集合排序，再使用 RFC 8785 JSON Canonicalization Scheme 生成 UTF-8 bytes。下面是两条完整 test vector；hash 输入就是代码块中每行 JSON 的 UTF-8 bytes，不包含换行：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span><span style="color:#005CC5">"canonicalization"</span><span style="color:#24292E">:</span><span style="color:#032F62">"jcs-v1"</span><span style="color:#24292E">,</span><span style="color:#005CC5">"model"</span><span style="color:#24292E">:</span><span style="color:#032F62">"reasoning-model"</span><span style="color:#24292E">,</span><span style="color:#005CC5">"profile"</span><span style="color:#24292E">:{</span><span style="color:#005CC5">"id"</span><span style="color:#24292E">:</span><span style="color:#032F62">"research"</span><span style="color:#24292E">,</span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">:</span><span style="color:#005CC5">12</span><span style="color:#24292E">},</span><span style="color:#005CC5">"tool_surface"</span><span style="color:#24292E">:{</span><span style="color:#005CC5">"allowed"</span><span style="color:#24292E">:[</span><span style="color:#032F62">"read_file"</span><span style="color:#24292E">,</span><span style="color:#032F62">"search"</span><span style="color:#24292E">],</span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">:</span><span style="color:#005CC5">27</span><span style="color:#24292E">}}</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>sha256 = 374c31f96298b5fe5522161fb193f902efb1cee09fcf76dd2a45c11ac97de0b1</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span><span style="color:#005CC5">"canonicalization"</span><span style="color:#24292E">:</span><span style="color:#032F62">"jcs-v1"</span><span style="color:#24292E">,</span><span style="color:#005CC5">"model"</span><span style="color:#24292E">:</span><span style="color:#032F62">"reasoning-model"</span><span style="color:#24292E">,</span><span style="color:#005CC5">"profile"</span><span style="color:#24292E">:{</span><span style="color:#005CC5">"id"</span><span style="color:#24292E">:</span><span style="color:#032F62">"research"</span><span style="color:#24292E">,</span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">:</span><span style="color:#005CC5">12</span><span style="color:#24292E">},</span><span style="color:#005CC5">"tool_surface"</span><span style="color:#24292E">:{</span><span style="color:#005CC5">"allowed"</span><span style="color:#24292E">:[</span><span style="color:#032F62">"read_file"</span><span style="color:#24292E">,</span><span style="color:#032F62">"search"</span><span style="color:#24292E">,</span><span style="color:#032F62">"write_file"</span><span style="color:#24292E">],</span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">:</span><span style="color:#005CC5">28</span><span style="color:#24292E">}}</span></span></code></pre>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>sha256 = eb98321387bd356c133bbb08dfe58262608b8e304a2a5604a7e22f795a23fb44</span></span></code></pre>
+<p>两个 Run 都叫 <code>research</code>，但第二条多了 <code>write_file</code>，因此 fingerprint 不同。Trace 或 Eval 看到差异后，就知道这两次执行不能只按同一个 Profile 名称直接比较。反过来，如果规范化内容相同，fingerprint 也应相同，不必逐字段比较整份 RunSpec。</p>
+<p><code>canonicalization</code> 本身也是契约的一部分：实现必须固定字段包含规则、业务集合的排序方式和 JCS 版本，并保存相应 test vector。只写一句“先把 JSON 排序”仍可能让不同语言产生不同 bytes。</p>
+<p>Fingerprint 不等于安全签名，因为任何能修改 RunSpec 的人都可以重新计算一个匹配的新 hash。它适合发现配置漂移和快速比较内容，不能单独证明是谁生成了这份 RunSpec。</p>
+<p>即使 fingerprint 相同，也不能证明外部 Provider 行为完全相同。它只能让 Trace、恢复和 Eval 回答：“这两次执行的本地契约是否一致？”</p>
+<h2 id="runtime-仍然需要执行时判断">Runtime 仍然需要执行时判断</h2>
+<p>把 policy 编译到 RunSpec，不代表 Runtime 里不能有任何分支。与执行事实有关的判断仍属于 mechanism：</p>
+<ul>
+<li>Tool Call 是否符合 schema。</li>
+<li>Deadline 是否已经到达。</li>
+<li>取消是否已经被请求。</li>
+<li>本次失败是否满足 RunSpec 允许的 retry 条件。</li>
+<li>当前授权引用是否已被撤销，后端是否仍允许产生副作用。</li>
+</ul>
+<p>区别在于 Runtime 根据显式契约和当前事实做判断，不再自行推导产品身份、套餐或入口类型。Policy compiler 决定 retry budget 是多少；Runtime 负责正确消耗它。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>Agent Loop 不应该随着入口、用户等级和实验策略一起膨胀。更稳定的分工是：Profile 表达可变 policy，compiler 在执行前把选择结果固化为 RunSpec，Runtime 只解释这份契约并记录执行事实。</p>
+<p>这样，新增一种场景通常意味着新增或修改 Profile 与 compiler rule，而不是在模型和 Tool 循环里再加一条业务分支。更重要的是，一次 Run 从创建、恢复到 Eval 都能指向同一份执行契约。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>RunSpec 创建后，Runtime 产生的消息、状态和事件应以什么作为事实源。</li>
+<li>每个 Turn 如何从 history、Memory、files 与 Tool results 组装最新 Context。</li>
+<li>Profile、compiler 与 Runtime 是否需要拆成不同服务，应由哪些故障和所有权边界决定。</li>
+<li>RunSpec 跨越信任域时，怎样使用 HMAC 或数字签名证明来源与完整性。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8785.html">RFC 8785：JSON Canonicalization Scheme</a></li>
+<li><a href="https://csrc.nist.gov/pubs/fips/180-4/upd1/final">NIST FIPS 180-4：Secure Hash Standard</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

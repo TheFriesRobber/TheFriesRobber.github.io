@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="解释 Runtime 如何校验 Spawn Request、创建 Child Run，并约束它的上下文、能力、预算、取消和结果回收。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="SubAgent 如何从 Spawn Request 变成受控的 Child Run | Xiaoyuan"><meta property="og:description" content="解释 Runtime 如何校验 Spawn Request、创建 Child Run，并约束它的上下文、能力、预算、取消和结果回收。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>SubAgent 如何从 Spawn Request 变成受控的 Child Run | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/subagent-delegation-isolation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">SubAgent 如何从 Spawn Request 变成受控的 Child Run</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Multi-Agent/">Multi-Agent</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>主 Agent 在执行中发现两个临时子问题：一个比较数据库方案，另一个分析部署方式。它向 Runtime 提出两次 Spawn Request：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spawn_agent(type="research", goal="比较数据库方案", mode="sync")</span></span>
+<span class="line"><span>spawn_agent(type="research", goal="分析部署方式", mode="sync")</span></span></code></pre>
+<p>示例里没有让模型填写 request ID。可信 Runtime 在父 Step 的这次 Tool Call 首次进入 admission 时分配并持久化 <code>spawn_request_id</code>；同一逻辑 Tool Call 的所有 retry Attempt 都复用它，只有新的委派意图才获得新 ID。</p>
+<p>这两次 Tool Call 只是创建请求，不是已经生成的 SubAgent。真正的问题从这里才开始：Runtime 应该允许创建吗？使用哪份 Agent definition？Child 与父 Run 是什么关系？它能看到什么，又怎样把结果交回来？</p>
+<p>一种省事实现，是每次都新建模型会话，再复制父 Agent 的完整 Context、全部 Tool、credential 和同一个 workspace。</p>
+<p>两个 child 都把结果写到 <code>report.md</code>。后完成的覆盖了先完成的文件；其中一个还从父 Context 读到了与任务无关的用户资料。最终父 Agent 只拿到两句“已完成”，既不知道该信哪个文件，也无法确认每个结论来自哪里。</p>
+<p>问题不是 SubAgent 数量太多，而是 Runtime 把 Spawn Request 直接解释成“复制父 Agent”。没有创建协议时，共享会成为默认值：共享 Context、credential、workspace、预算，最后也共享责任。</p>
+<p>上一篇<a href="/zh/writing/agent-delegation-primitives/">《Agent 拆出子任务后，应该交给谁执行？》</a>已经说明为什么这个子问题适合交给 SubAgent。本文接着回答：选定 SubAgent 后，Runtime 怎样把一次创建请求变成受父 Run 管理的 Child Run。</p>
+<h2 id="spawn-request-只是创建提议">Spawn Request 只是创建提议</h2>
+<p>模型可以提出目标、SubAgent 类型和期望的返回方式，但不能自行生成可信 Agent definition、授权或 credential。父 Step retry 时还可能重复提交同一个请求，因此创建流程必须先定义幂等边界。Runtime 至少要经过下面几步：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>父 Agent 产生 Spawn Request</span></span>
+<span class="line"><span>→ dedup：以 parent_run_id + spawn_request_id 查找既有结果</span></span>
+<span class="line"><span>→ admission：检查 Tool Surface、nesting depth、并发和剩余预算</span></span>
+<span class="line"><span>→ resolution：从可信 Registry 解析 Agent definition 与 revision</span></span>
+<span class="line"><span>→ reserve：分配 child_run_id，原子记录 request、parent、definition revision 与 preparing 状态</span></span>
+<span class="line"><span>→ compilation：为该 child_run_id 裁剪 Context、capability、workspace 和 deadline</span></span>
+<span class="line"><span>→ activation：原子保存 envelope、ready 状态和 dispatch intent / outbox</span></span>
+<span class="line"><span>→ dispatch：dispatcher 按 child_run_id 幂等投递，或 scheduler claim durable ready record</span></span>
+<span class="line"><span>→ collection：把结构化结果或 handle 返回父 Agent</span></span></code></pre>
+<p>这里的 <strong>Child Run</strong> 是拥有独立 <code>run_id</code> 和执行状态、但生命周期仍由父 Run 管理的一次 Agent 执行。它可以是 ephemeral，也可以由 durable Runtime 随父 Run 一起持久化和恢复。父 Runtime 可以单独取消或 retry 自己拥有的 Child Run，这不会改变 owner。只有当这些状态、retry 和控制需要脱离父 Run，由持久任务系统独立拥有并收敛时，才应升级为 Child Task；worker / process 重启本身也不要求转移 owner。</p>
+<p><code>spawn_request_id</code> 是父 Run 范围内的幂等键，由可信 Runtime 绑定到稳定的父 Step / Tool Call identity。相同逻辑请求因 timeout 或 Tool Result 丢失而重试时，Runtime 返回同一个 <code>child_run_id</code>，或返回第一次已经确定的 admission failure，不能再创建第二个 Child Run。</p>
+<p>如果 <code>preparing</code> 记录位于 durable store，进程在 reserve 后、activation 前崩溃时，reconciler 可以从这条记录继续 compilation，或把它收敛为明确失败。Activation 也不能只做“先写 ready，随后在内存里 enqueue”：envelope、<code>ready</code> 和 dispatch intent / outbox 要在同一个提交边界持久化，再由 dispatcher 按 <code>child_run_id</code> 幂等投递；另一种做法是 scheduler 直接轮询并 claim durable <code>ready</code> record。这样进程在 ready 后崩溃，Child Run 仍会被重新发现。Reconciler 还应扫描长期停留的 <code>preparing</code> 和 <code>ready</code>，而不是只等待一次容易丢失的通知。纯进程内实现只能在记录和调度者仍存活时去重与执行，不提供跨崩溃保证。</p>
+<p>Admission 失败也应成为明确的 Tool Result，例如 <code>spawn_not_allowed</code>、<code>depth_exceeded</code> 或 <code>budget_exhausted</code>。不能先启动 child，再让模型从 timeout 猜测创建是否成功。</p>
+<h2 id="委派不是复制父-agent">委派不是复制父 Agent</h2>
+<p>SubAgent 的目标是完成一个受限子问题，而不是克隆父 Agent 的全部身份和能力。一份 delegation contract 至少要回答：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>目标是什么？</span></span>
+<span class="line"><span>允许读取哪些 Context？</span></span>
+<span class="line"><span>允许调用哪些 Tool，以谁的身份？</span></span>
+<span class="line"><span>可以读写哪个 workspace？</span></span>
+<span class="line"><span>最多消耗多少时间、token 和成本，同时占用多少并发槽？</span></span>
+<span class="line"><span>父级取消时怎样处理？</span></span>
+<span class="line"><span>结果按什么 schema 返回，由谁验证？</span></span></code></pre>
+<p>这些信息可以组成 delegation envelope：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "delegation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"delegation_7"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "spawn_request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"spawn_19"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "parent_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "parent_step_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"step_12"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "child_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_21"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "definition"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#005CC5">  "mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"sync"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "goal"</span><span style="color:#24292E">: </span><span style="color:#032F62">"比较两个数据库方案在当前约束下的取舍"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "context_refs"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"requirements_v3"</span><span style="color:#24292E">, </span><span style="color:#032F62">"traffic_assumptions_v2"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "tool_surface"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"web_search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"read_workspace"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "authority"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "actor_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"principal_21"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "subject_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"subject_8"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "grant_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"grant_41"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "audience"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search-service"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace-service"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">    "scopes"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"web:search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace:read"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">    "expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:03:00Z"</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "workspace"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"read"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/inputs"</span><span style="color:#24292E">], </span><span style="color:#005CC5">"write"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/outputs/db"</span><span style="color:#24292E">]},</span></span>
+<span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">180</span><span style="color:#24292E">, </span><span style="color:#005CC5">"max_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#005CC5">  "result_schema"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research_result.v2"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>Envelope 是执行授权引用和结果预期，不是给模型看的长 prompt。<code>principal_21</code> 是可信 Runtime 为这个 Child Run 绑定并认证的 per-Run execution principal；裸 <code>run_21</code> 只是执行记录 ID，从不直接参与授权判断。可信执行层根据不可伪造的 <code>grant_ref</code> 重新解析 actor、subject、audience、scope 与 expiry，并检查路径和资源限制。Envelope 中这些字段用于约束和审计，不能让 child 仅靠修改 JSON 扩大权限。</p>
+<figure>
+  <img src="/posts/zh/subagent-delegation-isolation/subagent-contract.svg" alt="父 Agent 提出 Spawn Request，Runtime 为它分配并去重 request identity，完成 admission、definition resolution、Child Run identity reserve 和 delegation compilation，再激活一条持久 ready record；scheduler claim 这条 ready record 后执行对应 Child Run，并把结构化结果与证据交回父 Agent。" loading="lazy">
+  <figcaption>模型只提出创建请求；图中采用 durable-ready 路径，Runtime 激活完整 ready record，scheduler claim 该记录后再执行对应 Child Run。</figcaption>
+</figure>
+<h2 id="同步返回与异步-handle-仍由父-run-拥有">同步返回与异步 Handle 仍由父 Run 拥有</h2>
+<p>同步模式下，父 Step 等待 Child Run 到达终态，再把结构化结果作为本次 <code>spawn_agent</code> Tool Result 交给下一轮模型：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Step waiting_for_child</span></span>
+<span class="line"><span>→ child Run completed</span></span>
+<span class="line"><span>→ validate child result</span></span>
+<span class="line"><span>→ parent Step succeeded</span></span>
+<span class="line"><span>→ result enters next parent Turn</span></span></code></pre>
+<p>异步模式可以先返回稳定 <code>child_run_id</code>，让父 Agent 继续其他工作，之后再通过 <code>get_child_result</code> 或完成事件收集结果。但 handle 不会自动带来 durability：如果 Child Run 只存在于当前进程，进程退出后它仍会丢失；如果 durable Runtime 持久化父子状态，二者可以在新 worker 中恢复，owner 仍是父 Run。只有 child 的状态、retry 和控制需要脱离父 Run，由 task system 或 workflow 独立拥有并收敛时，才应回到上一篇的 owner 判断，升级为 Child Task 或 durable workflow node。</p>
+<p>无论同步还是异步，父 Run 都要记录谁创建了 child、哪个 Step 等待结果、取消如何传播，以及结果是否已经被消费。否则“后台执行”只是在进程里留下一个没人负责的 Task。</p>
+<h2 id="context-应按任务选择不应默认继承">Context 应按任务选择，不应默认继承</h2>
+<p>完整继承父对话最省事，却会带来三个问题：</p>
+<ul>
+<li>无关信息消耗 child 的 Context budget。</li>
+<li>用户资料、其他任务内容可能越过本不需要的边界。</li>
+<li>父 Context 变化后，同一个 delegation 难以复现。</li>
+</ul>
+<p>更稳妥的做法是传递有身份的 Context reference，并记录版本。对于数据库研究 child，它只需要需求、流量假设和允许使用的公开资料；部署 child 则收到部署约束，不必读取用户偏好或其他会话。</p>
+<p>必要时可以附一段父 Agent 生成的 briefing，但它应标明自己是派生摘要，并保留来源引用。不能让摘要脱离原始事实后变成新的无来源真相。</p>
+<h2 id="tool-与-credential-是两层边界">Tool 与 credential 是两层边界</h2>
+<p>给 child 注册 <code>read_file</code>，不等于允许它读取所有文件；给它注册 Connector，也不等于把父级 OAuth token 复制过去。</p>
+<p>应分别控制：</p>
+<ol>
+<li><strong>Tool Surface</strong>：模型能看到哪些动作。</li>
+<li><strong>Capability grant</strong>：哪个 actor 正在代表哪个 subject，能对哪些 audience/resource 使用哪些 scope，以及授权何时到期。</li>
+</ol>
+<p>例如 child 可以看到 <code>read_workspace</code>，grant 只允许 <code>/inputs</code>；可以看到 <code>web_search</code>，但不能访问内部网络；需要代表用户调用外部 API 时，使用短期 delegation reference，由后端再次验证 actor、subject、audience、scope 和 expiry。这里还要区分 delegation 与 impersonation：前者保留 child actor 身份，后者只呈现 subject，审计语义并不相同。</p>
+<p>Secret 不进入 prompt、RunSpec 或 result。即使 child 与父 Agent 在同一进程中，逻辑上的 credential boundary 仍应存在，否则未来迁移到独立 worker 时会暴露隐藏依赖。</p>
+<h2 id="workspace-隔离要从路径变成所有权">Workspace 隔离要从路径变成所有权</h2>
+<p>开场中的覆盖来自两个 child 都写 <code>report.md</code>。仅提醒模型“不要覆盖”不是隔离。</p>
+<p>可以为每次 delegation 分配独立目录：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>/inputs                         read-only shared inputs</span></span>
+<span class="line"><span>/outputs/delegation_7/          database child writes here</span></span>
+<span class="line"><span>/outputs/delegation_8/          deployment child writes here</span></span></code></pre>
+<p>父 Agent 只在 child 完成后读取声明过的 artifact。若多个 child 必须修改同一对象，需要单独的 merge protocol、版本前置条件或父级串行提交，不能依赖 last-write-wins。</p>
+<p>把开场例子改成隔离目录后，两个 child 分别返回：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"completed"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "summary"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "artifacts"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/outputs/delegation_7/comparison.md"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "evidence"</span><span style="color:#24292E">: [{</span><span style="color:#005CC5">"claim"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span><span style="color:#24292E">, </span><span style="color:#005CC5">"source"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://..."</span><span style="color:#24292E">}],</span></span>
+<span class="line"><span style="color:#005CC5">  "limitations"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"未验证真实工作负载"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>父 Agent 不再从共享目录猜哪个文件是最终结果。</p>
+<h2 id="budget-与取消需要父子关系">Budget 与取消需要父子关系</h2>
+<p>Child 自己的 timeout 不能代替父级预算。父 Run 只剩 60 秒时，不应再启动一个 deadline 为 5 分钟的 child，除非它已经被升级为独立 durable task。</p>
+<p>有效 child deadline 通常是：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>min(parent_deadline, delegation_deadline, system_limit)</span></span></code></pre>
+<p>Token、Tool Call 和成本属于可累计消耗，需要向父级 roll up。并发不是累计预算，而是某一时刻的 capacity/admission 上限；nesting depth 和 rate limit 也分别检查。否则主 Agent 仍可能通过不断 spawn child 绕过自己的限制。</p>
+<p>父级取消时，Runtime 应向 child 传播 cancellation request，并等待到约定边界。取消首先是协作式请求：只有 child 运行在可单独终止的 process、worker 或 sandbox 中，Runtime 才能在 grace period 后强制停止计算；同一进程中的 coroutine 可能延迟甚至压制取消。</p>
+<p>无论计算是否停止，都不能从 <code>cancelled</code> 推断外部副作用没有发生。被终止的 child 也可能根本来不及返回结果，因此应由可信 Runtime 或外部 effect owner 根据执行记录与 reconciliation 形成单独的 effect outcome：<code>confirmed</code>、<code>not_applied</code> 或 <code>unknown</code>。</p>
+<h2 id="结果必须可验证而不是一句自然语言">结果必须可验证，而不是一句自然语言</h2>
+<p>父 Agent 最终仍对用户答案负责。SubAgent 返回“研究完成”并没有完成责任转移。</p>
+<p>Result schema 至少应区分：</p>
+<ul>
+<li><code>completed</code>、<code>partial</code>、<code>failed</code>、<code>cancelled</code>。</li>
+<li>与 Child Run 状态分离的 effect outcome：<code>confirmed</code>、<code>not_applied</code>、<code>unknown</code>。</li>
+<li>可直接使用的结论与仍需验证的推断。</li>
+<li>Artifact reference 与内容摘要。</li>
+<li>每个关键 claim 的 evidence/provenance。</li>
+<li>已知限制和未完成项。</li>
+</ul>
+<p>父 Agent 可以检查 schema、读取 artifact、抽查引用，并在多个 child 冲突时决定采用、排除或请求补充。若结果会触发高风险动作，还需要重新通过父级授权或用户确认，不能把 child 的自然语言结论当作批准。</p>
+<p>这些检查也不会把 Child 输出升级成可信 instruction。Child 的 summary、Artifact 和 evidence 都以不可信 data 进入父 Context，不能覆盖父级 instruction、policy、Tool Surface 或 authorization。Provenance、schema 和重新授权是附加控制，而不是把外部资料中的文字变成可执行命令。</p>
+<h2 id="部分失败怎样处理">部分失败怎样处理</h2>
+<p>两个 child 中一个成功、一个超时时，父级不能只看 <code>gather()</code> 是否抛异常。Delegation contract 应提前定义结果策略：</p>
+<ul>
+<li><code>all_required</code>：任何 child 失败都阻止继续。</li>
+<li><code>partial_allowed</code>：保留成功结果，并在最终答案中标明缺口。</li>
+<li><code>fallback</code>：失败后切换到父 Agent 自己处理或另一种能力。</li>
+</ul>
+<p>策略属于父级，因为它拥有最终目标。Child 只报告自己的状态和证据，不自行宣布整个 Run 成功。</p>
+<h2 id="隔离的是所有权不是容器数量">隔离的是所有权，不是容器数量</h2>
+<p>隔离并不意味着所有数据都要复制。只读、版本固定的输入可以安全共享；同一进程里的连接池也可以作为 Runtime mechanism 复用。需要隔离的是语义所有权和授权，而不是为了形式创建更多容器。</p>
+<p>如果一个 child 只做几秒钟的纯文本分类，没有 Tool、workspace 或敏感 Context，一段目标明确的 prompt 加结构化输出可能已经足够。Delegation contract 应与风险成比例。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>SubAgent 不是由模型直接生成的完整 Agent，也不是多一次孤立的模型调用。模型产生 Spawn Request；可信 Runtime 用 request identity 去重，完成 admission 和 definition resolution，reserve Child Run identity，再编译 delegation、激活并调度执行。</p>
+<p>显式 envelope 让目标、Context、Tool、credential、workspace、预算、取消和结果各有边界；稳定的父子 identity 连接创建请求、Child Run 和父 Step；结构化结果把证据与限制交回父级。父 Agent 继续承担验证与最终决策责任，并行协作也不再通过默认共享换来不可归因的结果。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>多个 SubAgent 修改同一资源时，如何使用 OCC、merge 或串行提交。</li>
+<li>Delegation identity 如何贯穿 Trace、成本归因和审计日志。</li>
+<li>Spawn admission、并发上限和父子预算怎样进入统一资源 policy。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel">Python asyncio：Task cancellation</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8693.html">RFC 8693：OAuth 2.0 Token Exchange</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

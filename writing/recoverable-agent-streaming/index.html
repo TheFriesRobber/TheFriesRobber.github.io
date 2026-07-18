@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Separate recoverable execution events from low-latency notifications so that SSE or WebSocket is not mistaken for a source of truth."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why an Agent's Live Output Cannot Serve as Its Execution Record | Xiaoyuan"><meta property="og:description" content="Separate recoverable execution events from low-latency notifications so that SSE or WebSocket is not mistaken for a source of truth."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why an Agent&#39;s Live Output Cannot Serve as Its Execution Record | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/recoverable-agent-streaming/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why an Agent&#39;s Live Output Cannot Serve as Its Execution Record</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Streaming/">Streaming</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user asks an Agent to generate a report. The browser displays model output and Tool progress, then loses its network connection just after the file write completes. When the connection returns, the page still says “Generating”:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Runtime     file.created(seq=27) → run.completed(seq=28)</span></span>
+<span class="line"><span>Browser     last saw seq=26, then disconnected</span></span></code></pre>
+<p>Here, “live output” means more than token-by-token model output. It also includes Tool progress, Run state changes, and the final result continuously reaching the client.</p>
+<p>SSE usually reconnects automatically, and an application can reestablish a WebSocket connection. Why does neither mechanism guarantee that the user will see seq 27 and 28?</p>
+<p>Reestablishing a connection proves only that the client can receive new data again. It does not prove that anything from the disconnected interval was retained. A streaming transport handles live delivery; execution recovery needs a separate source of facts.</p>
+<h2 id="reconnection-is-not-replay">Reconnection is not replay</h2>
+<p>SSE’s <code>Last-Event-ID</code> lets a browser send the ID of the event most recently dispatched by EventSource when it reconnects. But this is a transport cursor: it does not prove that the application successfully applied the event to the UI or local state. The protocol also does not retain history for the server or tell the server where missing events must be replayed from.</p>
+<p>WebSocket provides a bidirectional connection, but it also has no built-in persistent event log. If the server writes in-memory token deltas and state changes directly to the socket, those updates have no second read path after the connection closes.</p>
+<p>Redis Pub/Sub does not change this result. Redis documents Pub/Sub as at-most-once: after a subscriber disconnects or fails to process a message, Redis will not send that published message again. Pub/Sub is suitable for low-latency fanout, but not as the only recovery mechanism.</p>
+<p>The system therefore needs to distinguish two kinds of data:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Type</th><th>Purpose</th><th>What happens if it is lost?</th></tr></thead><tbody><tr><td>Durable Event</td><td>Prove which execution fact was committed</td><td>Resume reading from a stable cursor</td></tr><tr><td>Lossy Signal</td><td>Tell an online consumer that new facts are available</td><td>It may be lost; the consumer reads the source of facts again</td></tr></tbody></table>
+<p>A signal may carry the complete event to avoid one read, but receiving that payload still does not make the transport a source of truth.</p>
+<h2 id="a-recoverable-read-path">A recoverable read path</h2>
+<figure>
+  <img src="/posts/en/recoverable-agent-streaming/durable-event-lossy-signal.svg" alt="The Runtime first commits an event to a durable log, then sends a real-time signal to the gateway and client. After reconnecting, the client uses a cursor to recover missing events from the log." loading="lazy">
+  <figcaption>Signals reduce latency; the cursor and durable log provide recovery.</figcaption>
+</figure>
+<p>When the Runtime commits an event, the order should be:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. append the durable event and obtain a stable seq</span></span>
+<span class="line"><span>2. commit</span></span>
+<span class="line"><span>3. publish signal(session_id, high_watermark=seq)</span></span></code></pre>
+<p>Here, <code>high_watermark</code> is the largest committed Session sequence in the same Event Log. It is not the latest signal observed by a gateway or the local progress of one connection. Only a watermark from the source of facts can tell the client how far catch-up may proceed.</p>
+<p>Do not publish the signal before writing the event. A client could wake up before the fact is readable and, if no later signal arrives, never know that it should query again.</p>
+<p>The first page load and every reconnection should use an explicit application cursor. It advances only after events have been applied successfully, idempotently, and in order. If the cursor and local state cannot be saved atomically, the client should replay from an earlier position rather than skip an event merely because EventSource dispatched it.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>GET /sessions/session_17/events?after=26</span></span>
+<span class="line"><span>→ seq 27 file.created</span></span>
+<span class="line"><span>→ seq 28 run.completed</span></span>
+<span class="line"><span>→ next_cursor=28</span></span></code></pre>
+<p>After catching up to the current high watermark, the client continues receiving real-time signals. Each signal triggers a read after the client’s applied cursor rather than blind trust in the signal payload. Duplicate signals may cause redundant empty reads, but they do not change already applied state; a gateway or client that wants to reduce those reads can coalesce equal or lower watermarks. A missed signal can be repaired by reconnection, periodic reconciliation, or a later signal with a higher watermark.</p>
+<h2 id="catch-up-and-subscription-have-a-race-too">Catch-up and subscription have a race too</h2>
+<p>One easy-to-miss window remains: the client reads through seq 28, but seq 29 appears before the subscription starts. If the signal for seq 29 is also published before subscription, the client still misses it.</p>
+<p>Several approaches can close that window:</p>
+<ul>
+<li>Establish the subscription first, then read the durable log and deduplicate by cursor.</li>
+<li>During subscription setup, return a watermark in the same handshake after the subscription is active, then read through that watermark.</li>
+<li>Treat signals only as wake-ups and keep a low-frequency reconciliation loop.</li>
+</ul>
+<p>The common principle is not a particular API: <strong>correctness comes from cursor-based reads against the source of facts; subscription only reduces discovery latency.</strong></p>
+<p>Return to the opening example. Even if the browser misses every real-time notification for seq 27 and 28, it can reconnect and recover both from cursor 26. Recovery no longer depends on the exact millisecond when the network failed.</p>
+<p>That catch-up guarantee holds only within the Event Log’s retention window. If the client’s cursor predates the oldest retained sequence, the server should return an explicit <code>cursor_expired</code> response or gap instead of silently starting from a later position. The client then rebuilds the page from a current Snapshot or complete Message projection. That response must carry its own <code>as_of_seq</code>, and the client catches up from <code>seq > as_of_seq</code>. It must not read a Snapshot and then use a separately fetched, later high watermark as its new cursor, because an event committed between those reads would be skipped permanently.</p>
+<h2 id="token-streaming-and-execution-events-have-different-grains">Token streaming and execution events have different grains</h2>
+<p>Model tokens can be numerous, and many intermediate deltas do not need permanent storage. They can remain lossy while the Runtime periodically commits coarser durable events:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>assistant.output.started</span></span>
+<span class="line"><span>assistant.output.delta      # lossy real-time fragment</span></span>
+<span class="line"><span>assistant.message.completed # durable final message</span></span></code></pre>
+<p>If the product must restore output character by character after a disconnect, it needs to persist chunked deltas and accept the additional storage and replay cost. Otherwise, a more common boundary is recovery to the latest complete message or Tool event rather than reconstruction of every token the user once saw.</p>
+<p>This is a product semantic choice. Using SSE does not decide it automatically.</p>
+<h2 id="slow-consumers-need-bounded-buffers">Slow consumers need bounded buffers</h2>
+<p>A durable log prevents lost facts, but it does not justify unbounded buffering in the real-time path. If the model generates deltas quickly while a mobile client reads slowly, an unbounded queue turns backpressure into unbounded memory growth.</p>
+<p>The real-time layer needs explicit answers to these questions:</p>
+<ul>
+<li>How many messages or bytes can one connection buffer?</li>
+<li>Which deltas may be coalesced or dropped?</li>
+<li>How far may a consumer fall behind before the server disconnects it and requires cursor-based recovery?</li>
+<li>Must terminal events and approval requests enter the durable log first?</li>
+</ul>
+<p>A full bounded queue should not block the entire Agent Runtime while it waits for one slow browser. If the event is already durable, the server can disconnect that subscriber. If the update is only a lossy delta, the server can coalesce or drop it and make the UI degradation explicit.</p>
+<h2 id="cancellation-cannot-depend-on-the-connection-either">Cancellation cannot depend on the connection either</h2>
+<p>A closed WebSocket does not necessarily mean that the user cancelled the Run; the network may simply have changed. Conversely, if the socket closes after the user clicks Stop, the cancellation intent must not disappear with the connection.</p>
+<p>Cancellation should therefore use an independent, confirmable control path that writes durable state before notifying the executor. A transport disconnect may trigger resource cleanup or a short grace period, but it must not be interpreted directly as business cancellation.</p>
+<p>Likewise, propagating cancellation from the Runtime to a Provider proves only that the local system requested a stop. Whether the Provider or Tool has already produced output or a side effect still has to be confirmed through its own protocol.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>SSE, WebSocket, and Redis Pub/Sub can all make updates visible to online users faster. Reestablishing a connection, however, does not replay history.</p>
+<p>A recoverable Agent Streaming design first commits a Durable Event with a stable sequence, then sends a lossy real-time signal. The client maintains an applied cursor, catches up incrementally within the retention window, and rebuilds from a complete view after the cursor expires. The real-time path can then optimize for latency while the fact path independently provides recovery; neither has to pretend to be the other.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">HTML Standard: Server-sent events</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc6455">RFC 6455: The WebSocket Protocol</a></li>
+<li><a href="https://redis.io/docs/latest/develop/pubsub/">Redis Pub/Sub delivery semantics</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

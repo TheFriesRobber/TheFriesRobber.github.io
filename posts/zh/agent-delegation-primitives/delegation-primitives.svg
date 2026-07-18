@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" role="img" aria-labelledby="title desc">
+  <title id="title">三种委派原语的生命周期所有者</title>
+  <desc id="desc">SubAgent 由父 Run 持有，Child Task 由持久任务系统持有，Workflow Fanout 由 Workflow Controller 管理分支和汇合。</desc>
+  <style>text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#202124}.title{font-size:25px;font-weight:700}.label{font-size:18px;font-weight:650}.small{font-size:15px;fill:#4b5563}.box{stroke-width:2}.sub{fill:#eaf2ff;stroke:#4674bd}.task{fill:#eef8f1;stroke:#43835a}.flow{fill:#fff4e8;stroke:#bc6b2c}.inner{fill:#fff;stroke:#9aa0a6}</style>
+  <rect width="960" height="430" rx="18" fill="#fafafa"/><text x="38" y="48" class="title">是否并行不是边界，谁负责收尾才是</text><text x="38" y="76" class="small">生命周期 owner 决定恢复、取消和结果汇合</text>
+  <rect x="38" y="112" width="278" height="270" rx="16" class="box sub"/><text x="177" y="151" text-anchor="middle" class="label">Parent Run</text><rect x="77" y="190" width="200" height="80" rx="12" class="box inner"/><text x="177" y="224" text-anchor="middle" class="label">SubAgent</text><text x="177" y="250" text-anchor="middle" class="small">跟随父级生命周期</text>
+  <rect x="341" y="112" width="278" height="270" rx="16" class="box task"/><text x="480" y="151" text-anchor="middle" class="label">Durable Task System</text><rect x="380" y="190" width="200" height="80" rx="12" class="box inner"/><text x="480" y="224" text-anchor="middle" class="label">Child Task</text><text x="480" y="250" text-anchor="middle" class="small">独立调度与 retry</text>
+  <rect x="644" y="112" width="278" height="270" rx="16" class="box flow"/><text x="783" y="151" text-anchor="middle" class="label">Workflow Controller</text><rect x="683" y="190" width="200" height="80" rx="12" class="box inner"/><text x="783" y="224" text-anchor="middle" class="label">Fanout + Join</text><text x="783" y="250" text-anchor="middle" class="small">显式依赖和汇合</text>
+  <text x="177" y="329" text-anchor="middle" class="small">动态子问题</text><text x="480" y="329" text-anchor="middle" class="small">Task system 收敛状态</text><text x="783" y="329" text-anchor="middle" class="small">确定性控制流</text>
+</svg>

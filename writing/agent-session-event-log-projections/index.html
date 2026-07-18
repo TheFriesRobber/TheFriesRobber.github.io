@@ -1,0 +1,154 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="An ordered Session Event Log unifies execution facts while messages, task state, and realtime events become rebuildable projections."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="The Session Event Log Is the Source of Truth; Messages and State Are Projections | Xiaoyuan"><meta property="og:description" content="An ordered Session Event Log unifies execution facts while messages, task state, and realtime events become rebuildable projections."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>The Session Event Log Is the Source of Truth; Messages and State Are Projections | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-session-event-log-projections/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">The Session Event Log Is the Source of Truth; Messages and State Are Projections</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Event%20Log/">Event Log</a><a class="pill" href="/tags/Data%20Modeling/">Data Modeling</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Suppose an Agent has generated its final reply: “The report is complete.” Finishing the execution must reflect that result in three places:</p>
+<ol>
+<li>Mark the task as <code>succeeded</code> in the Run table.</li>
+<li>Insert the final reply into the message list that a refreshed page will read.</li>
+<li>Send a realtime <code>run.completed</code> notification to the browser that is currently open.</li>
+</ol>
+<p>These write paths are independent and are not guaranteed to finish in list order. Now suppose this timeline occurs:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  Run state is updated to succeeded</span></span>
+<span class="line"><span>T2  the realtime channel sends run.completed</span></span>
+<span class="line"><span>T3  the database write for the final assistant message fails</span></span></code></pre>
+<p>The system is left with:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>backend Run state   succeeded</span></span>
+<span class="line"><span>message list        missing “The report is complete”</span></span>
+<span class="line"><span>current browser     received run.completed once</span></span></code></pre>
+<p>The user may briefly see “complete” on the current page, but after a refresh the realtime notification is gone and the message list still lacks the final reply. The backend sees a successful Run and will not automatically execute it again. The system cannot answer a basic question: was the final reply saved reliably?</p>
+<p>Retrying the message write once does not solve the underlying problem. The same execution result was written independently into Run state, the message list, and the realtime channel. After any write fails, no unified record exists from which the other copies can be repaired.</p>
+<h2 id="more-tables-do-not-create-consistency">More tables do not create consistency</h2>
+<p>A common implementation performs several writes when the Runtime finishes. The order below matches the opening timeline, but the actual problem is that the writes do not share one atomic boundary:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#24292E">update_run_state(</span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">publish_realtime_event(</span><span style="color:#032F62">"run.completed"</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#24292E">insert_assistant_message(final_text)</span></span>
+<span class="line"><span style="color:#24292E">increment_success_metric()</span></span></code></pre>
+<p>If these operations are not atomic together, the process may exit between any two of them. Even when Run state and the message list share a database and can use one transaction, Redis, WebSocket, and a metric sink usually do not participate in that transaction.</p>
+<p>More importantly, they serve different read requirements:</p>
+<ul>
+<li>Run state supports a fast current-state lookup.</li>
+<li>The Message view renders a conversation.</li>
+<li>A Realtime signal refreshes an online interface with low latency.</li>
+<li>A Metric supports aggregate analysis.</li>
+</ul>
+<p>Treating every write as an independent fact turns one execution into several Sources of Truth that must be reconciled with each other.</p>
+<h2 id="record-facts-first-then-build-views">Record facts first, then build views</h2>
+<p>A clearer boundary is for the Runtime to append execution facts to one Event Log with a stable order. Other data is generated from those facts.</p>
+<p>A <strong>Projector</strong> is a background process that reads the Event Log and builds one query view. The resulting <strong>Projection</strong> may be a message list, Run state, or another read model. Different Projectors can interpret the same facts for different read requirements.</p>
+<figure>
+  <img src="/posts/en/agent-session-event-log-projections/event-log-projections.svg" alt="The Runtime appends events to the Session Event Log. Separate projectors generate the Message view, Run state, realtime notifications, and metrics." loading="lazy">
+  <figcaption>The Event Log records what happened; each projection interprets the same facts for a particular read requirement.</figcaption>
+</figure>
+<p>A minimal event might contain:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "session_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"session_17"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "seq"</span><span style="color:#24292E">: </span><span style="color:#005CC5">42</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "event_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"event_9a2"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant.message.completed"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "turn_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"turn_6"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "payload"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "message_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"message_31"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "content_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"content_31"</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "occurred_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T08:30:00Z"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">2</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><code>seq</code> records the committed order within this Session. <code>event_id</code> identifies an event. They are not interchangeable: a global UUID can support deduplication but cannot tell a projector what to read next; a sequence establishes a read position but still needs an explicit scope.</p>
+<p>The first lifecycle fact for a Run should also connect its execution contract, for example <code>run.created(run_8, runspec_ref, fingerprint)</code>. The Event Log records which contract started the Run. The RunSpec remains an immutable contract that can be read independently, while the Run snapshot is current state derived from subsequent facts.</p>
+<p>The <code>content_ref</code> in the example must also point to content that has already been persisted. If content and event share a database, they should commit in the same transaction. Across storage boundaries, write immutable content first, then append an event that references it, and retain reconciliation for cleanup after failure. An Event Log cannot become authoritative by referencing an object that has not committed.</p>
+<h2 id="repairing-the-opening-failure">Repairing the opening failure</h2>
+<p>Return to the missing final reply. Instead of letting Run state, the message list, and the realtime channel each record the result, the Runtime first appends two events:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>seq 41  assistant.message.completed(message_31)</span></span>
+<span class="line"><span>seq 42  run.completed(run_8)</span></span></code></pre>
+<p>First consider the case where both events committed and only a projection is behind. If the Runtime exits between the two appends, it should resume finalization from the last committed event instead of invoking the model again. The two events may also be submitted as one atomic batch.</p>
+<p>One more term matters here: a <strong>Cursor</strong> is the read position of one Projector. A cursor of 40 means it has finished processing <code>seq 40</code> and should read <code>seq 41</code> next.</p>
+<p>Suppose the system looks like this after the failure:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Event Log              committed through seq 42</span></span>
+<span class="line"><span>Run-state projector    processed through seq 42</span></span>
+<span class="line"><span>Message projector      processed only through seq 40</span></span></code></pre>
+<p>The Agent execution itself has completed; only the message list is two events behind. Recovery does not invoke the model again or move the Run back to <code>running</code>. The Message projector resumes after cursor 40:</p>
+<ol>
+<li>It reads <code>seq 41</code>, writes <code>message_31</code> to the message list, and advances its cursor to 41.</li>
+<li>It reads <code>seq 42</code>, determines that the event affects only Run state, leaves the message list unchanged, and advances its cursor to 42.</li>
+</ol>
+<p>The first step should ideally use one database transaction:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>begin transaction</span></span>
+<span class="line"><span>→ write message_31 with message_id as a unique key</span></span>
+<span class="line"><span>→ update the Message projector cursor to 41</span></span>
+<span class="line"><span>→ commit transaction</span></span></code></pre>
+<p>If the process exits before commit, neither message nor cursor takes effect, so restart processes <code>seq 41</code> again. If it exits after commit, both changes are durable and restart continues from <code>seq 42</code>. There is no intermediate state in which the message was written but the cursor remains 40.</p>
+<p>This example also assumes that one valid owner processes events for each <code>(projection, session)</code> in order. A partition or Session may be assigned to one projector owner with a lease and fencing token. Alternatively, the cursor may use monotonic compare-and-set, such as allowing only <code>UPDATE ... WHERE cursor = 40</code> to advance it to 41. Under the CAS design, the projection mutation and cursor update must share a transaction; otherwise a slow replica may write stale state into the view before discovering that its cursor CAS failed. Across stores, retain a single fenced owner or give every view record its own version check against event sequence. In every design, a slow replica must not move 42 back to 41, and <code>seq 42</code> must not overtake an uncommitted <code>seq 41</code>.</p>
+<p>If the message list and cursor live in different stores and cannot share a transaction, repeated processing of the same event must be safe. Processing follows a fixed order:</p>
+<ol>
+<li>Write the message by <code>message_id</code>. If it already exists, also confirm that its stored <code>content_ref</code> matches the current event.</li>
+<li>Advance the cursor from 40 to 41 only after the message write is confirmed.</li>
+<li>If the message-write result is unknown, do not advance the cursor; process <code>seq 41</code> again after restart.</li>
+<li>If the cursor-update result is unknown, read it again after restart. If it remains 40, process <code>seq 41</code> again. If it is already 41, continue from <code>seq 42</code>.</li>
+</ol>
+<p>The first pass inserts <code>message_31</code>. If the message commits but the cursor does not advance, the second pass only confirms that the same message already exists before advancing the cursor. The unique key prevents a duplicate message, and the fixed processing order prevents the cursor from passing a message that has not been saved. That is the idempotent write in this example.</p>
+<p>The Event Log provides the ability to read an event again. Each projector remains responsible for ensuring that repeated reads do not create duplicate results.</p>
+<h2 id="the-append-boundary-must-be-more-trustworthy-than-a-projector">The append boundary must be more trustworthy than a projector</h2>
+<p>“The Event Log is the source of truth” is valid only when append itself is reliable. Concurrent writers for one Session must obtain an explicit order. They cannot each compute <code>seq + 1</code> in memory and then write independently.</p>
+<p>One conceptual database operation is:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#D73A49"> sessions</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> next_seq </span><span style="color:#D73A49">=</span><span style="color:#24292E"> next_seq </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> session_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :session_id</span></span>
+<span class="line"><span style="color:#24292E">RETURNING next_seq;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">INSERT INTO</span><span style="color:#24292E"> session_events(session_id, seq, event_id, </span><span style="color:#D73A49">type</span><span style="color:#24292E">, payload)</span></span>
+<span class="line"><span style="color:#D73A49">VALUES</span><span style="color:#24292E"> (:session_id, :seq, :event_id, :</span><span style="color:#D73A49">type</span><span style="color:#24292E">, :payload);</span></span></code></pre>
+<p>Sequence allocation and event insertion must share one atomic boundary, with unique constraints on <code>(session_id, seq)</code> and <code>event_id</code>. An implementation may instead use a log system that supports ordered append. The important point is that the fact store decides the order; a short-lived worker does not guess it.</p>
+<p>An established order does not by itself make every event a valid fact. A Run lifecycle event must be submitted by its authoritative transition owner. In the same atomic boundary, the owner checks the expected state and version, the writer’s fencing token, the legal transition, and invariants such as “a Run converges to only one terminal state” before it allocates <code>seq</code> and appends. Otherwise, competing cancellation and completion writers could append both <code>run.cancelled</code> and <code>run.completed</code>, leaving contradictory outcomes in the source of truth.</p>
+<p>Requests must also remain distinct from facts that have taken effect. A user cancellation can first append <code>run.cancel.requested</code>; only after the current owner resolves the race may it append <code>run.cancelled</code> or <code>run.completed</code>. A Projector may prevent an older event from overwriting a newer read view, but it cannot decide after the fact whether an authoritative event was legal.</p>
+<p><code>event_id</code> must be assigned stably before the first append and reused after an append timeout or lost response. If the ID already exists, the append boundary should compare a digest of the complete immutable event envelope: Session, Run, Turn, type, schema version, payload, and content references, excluding only fields assigned by the server such as <code>seq</code> and commit time. Matching content returns the original <code>seq</code>; any difference in scope or content returns a conflict. When the commit result is unknown, query by the original ID rather than generating a new one and appending again.</p>
+<p>External side effects remain outside this transaction. If a Tool wrote to an external system but the Runtime did not receive a definite result, it should record an unknown outcome or effect identity and later converge through idempotent lookup and reconciliation. It must not fabricate a success event.</p>
+<h2 id="a-projection-is-not-second-class-data">A projection is not second-class data</h2>
+<p>The message list and Run snapshot are not the source of truth, but they remain formal product interfaces. Projection does not move consistency problems into an asynchronous task. It gives each read model an explicit latency and repair strategy.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Projection</th><th>Optimization goal</th><th>Acceptable recovery path</th></tr></thead><tbody><tr><td>Message view</td><td>Read content in conversation order</td><td>Replay from a cursor and upsert idempotently</td></tr><tr><td>Run snapshot</td><td>Read current state quickly</td><td>Apply state transitions and reject invalid regression</td></tr><tr><td>Realtime signal</td><td>Notify online clients quickly</td><td>May be lost; the client catches up by cursor</td></tr><tr><td>Metrics</td><td>Aggregate trends</td><td>Replay in batches with an explicit deduplication grain</td></tr><tr><td>Audit view</td><td>Explain who did what and when</td><td>Preserve identity and provenance</td></tr></tbody></table>
+<p>If the product requires a new message to be visible immediately after event commit, it may update a core projection synchronously or provide a read-your-write overlay. That is a read-consistency choice; it should not turn the message row back into another independent fact.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The opening contradiction arose because three write paths all claimed to record the result. Once the Runtime’s persistence boundary becomes an ordered append to the Session Event Log, Run state, messages, realtime notifications, and metrics share one input.</p>
+<p>When a projection fails, the system repairs a read view instead of executing the Agent again. One logical fact is submitted idempotently under a stable <code>event_id</code>, and views may be generated repeatedly. That is the source of recoverability.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>After a Durable Event enters SSE, WebSocket, or Redis Pub/Sub, how should a client fill gaps after disconnecting?</li>
+<li>Which sequences should a Checkpoint reference, and how should recovery reconcile external side effects?</li>
+<li>When several writers compete for one Session, how should ownership, versioning, or fencing protect append?</li>
+<li>How should event schema evolution, projection rebuilds, snapshots, and log retention interact?</li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" role="img" aria-labelledby="title desc">
+  <title id="title">RunSpec 分隔 policy 与 Runtime mechanism</title>
+  <desc id="desc">请求和 Profile 进入 policy compiler，生成不可变 RunSpec；Runtime 消费 RunSpec 并把执行事实写入 Event Log。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#6b7280"/></marker>
+    <style>
+      text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#202124}.title{font-size:25px;font-weight:700}.label{font-size:18px;font-weight:650}.small{font-size:15px;fill:#4b5563}.edge{stroke:#6b7280;stroke-width:2.2;fill:none;marker-end:url(#arrow)}.box{stroke-width:2;rx:14}.policy{fill:#fff4e8;stroke:#bc6b2c}.spec{fill:#eaf2ff;stroke:#4674bd}.runtime{fill:#eef8f1;stroke:#43835a}.fact{fill:#f3edff;stroke:#7652b2}
+    </style>
+  </defs>
+  <rect width="960" height="360" rx="18" fill="#fafafa"/>
+  <text x="38" y="48" class="title">Policy 先收敛，Runtime 再执行</text>
+  <text x="38" y="76" class="small">当前 Run 不会在执行中途重新解释可变 Profile</text>
+  <rect x="42" y="130" width="170" height="100" class="box policy"/>
+  <text x="127" y="169" text-anchor="middle" class="label">Request + Profile</text>
+  <text x="127" y="199" text-anchor="middle" class="small">场景、授权、实验</text>
+  <path d="M212 180H292" class="edge"/>
+  <rect x="292" y="130" width="170" height="100" class="box policy"/>
+  <text x="377" y="169" text-anchor="middle" class="label">Policy Compiler</text>
+  <text x="377" y="199" text-anchor="middle" class="small">解析并冻结选择</text>
+  <path d="M462 180H542" class="edge"/>
+  <rect x="542" y="130" width="160" height="100" class="box spec"/>
+  <text x="622" y="169" text-anchor="middle" class="label">RunSpec</text>
+  <text x="622" y="199" text-anchor="middle" class="small">不可变执行契约</text>
+  <path d="M702 180H782" class="edge"/>
+  <rect x="782" y="130" width="140" height="100" class="box runtime"/>
+  <text x="852" y="169" text-anchor="middle" class="label">Runtime</text>
+  <text x="852" y="199" text-anchor="middle" class="small">执行 mechanism</text>
+  <path d="M852 230V286H630" class="edge"/>
+  <rect x="430" y="268" width="200" height="58" class="box fact"/>
+  <text x="530" y="303" text-anchor="middle" class="label">Execution Events</text>
+</svg>

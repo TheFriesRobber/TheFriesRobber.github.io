@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">从 Spawn Request 创建受控 Child Run</title>
+  <desc id="desc">父 Agent 只提出 Spawn Request；可信 Runtime 为请求分配 identity 并去重，再校验请求、解析定义、预留 Child Run identity、编译 delegation，并激活一条持久 ready record。Scheduler 随后 claim 这条 ready record，再在受限上下文与能力中执行对应 Child Run，并把结构化结果和证据交还父 Agent。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#667085"/></marker>
+    <style>text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#202124}.title{font-size:27px;font-weight:700}.label{font-size:18px;font-weight:650}.small{font-size:15px;fill:#475467}.tiny{font-size:14px;fill:#475467}.edge{stroke:#667085;stroke-width:2.2;fill:none;marker-end:url(#arrow)}.box{stroke-width:2}.parent{fill:#eaf2ff;stroke:#4674bd}.request{fill:#fff4e8;stroke:#bc6b2c}.runtime{fill:#f4f0ff;stroke:#7652b2}.phase{fill:#ffffff;stroke:#9b87c9}.child{fill:#eef8f1;stroke:#43835a}.result{fill:#fff8db;stroke:#a98216}</style>
+  </defs>
+  <rect width="1200" height="500" rx="18" fill="#fafafa"/>
+  <text x="42" y="50" class="title">模型提出创建请求，Runtime 创建并约束 Child Run</text>
+  <text x="42" y="80" class="small">Spawn Request 不是 SubAgent 本身；可信边界决定定义、权限、预算和父子关系</text>
+
+  <rect x="42" y="170" width="160" height="104" rx="14" class="box parent"/>
+  <text x="122" y="210" text-anchor="middle" class="label">Parent Agent</text>
+  <text x="122" y="238" text-anchor="middle" class="small">发现子问题</text>
+
+  <path d="M202 222H240" class="edge"/>
+  <rect x="240" y="158" width="190" height="128" rx="14" class="box request"/>
+  <text x="335" y="196" text-anchor="middle" class="label">Spawn Request</text>
+  <text x="335" y="226" text-anchor="middle" class="small">type · goal · mode</text>
+  <text x="335" y="252" text-anchor="middle" class="tiny">不可信提议</text>
+
+  <path d="M430 222H466" class="edge"/>
+  <rect x="466" y="110" width="566" height="224" rx="16" class="box runtime"/>
+  <text x="711" y="143" text-anchor="middle" class="label">Trusted Runtime Creation Boundary</text>
+
+  <rect x="486" y="168" width="78" height="112" rx="12" class="box phase"/>
+  <text x="525" y="205" text-anchor="middle" class="small">分配 ID</text>
+  <text x="525" y="232" text-anchor="middle" class="tiny">并去重</text>
+  <text x="525" y="254" text-anchor="middle" class="tiny">request identity</text>
+
+  <path d="M564 224H576" class="edge"/>
+  <rect x="576" y="168" width="78" height="112" rx="12" class="box phase"/>
+  <text x="615" y="205" text-anchor="middle" class="small">Admit</text>
+  <text x="615" y="232" text-anchor="middle" class="tiny">surface</text>
+  <text x="615" y="254" text-anchor="middle" class="tiny">limits</text>
+
+  <path d="M654 224H666" class="edge"/>
+  <rect x="666" y="168" width="78" height="112" rx="12" class="box phase"/>
+  <text x="705" y="205" text-anchor="middle" class="small">Resolve</text>
+  <text x="705" y="232" text-anchor="middle" class="tiny">definition</text>
+  <text x="705" y="254" text-anchor="middle" class="tiny">revision</text>
+
+  <path d="M744 224H756" class="edge"/>
+  <rect x="756" y="168" width="78" height="112" rx="12" class="box phase"/>
+  <text x="795" y="205" text-anchor="middle" class="small">Reserve</text>
+  <text x="795" y="232" text-anchor="middle" class="tiny">child ID</text>
+  <text x="795" y="254" text-anchor="middle" class="tiny">state</text>
+
+  <path d="M834 224H846" class="edge"/>
+  <rect x="846" y="168" width="88" height="112" rx="12" class="box phase"/>
+  <text x="890" y="205" text-anchor="middle" class="small">Compile</text>
+  <text x="890" y="232" text-anchor="middle" class="tiny">context</text>
+  <text x="890" y="254" text-anchor="middle" class="tiny">grant</text>
+
+  <path d="M934 224H946" class="edge"/>
+  <rect x="946" y="168" width="72" height="112" rx="12" class="box phase"/>
+  <text x="982" y="205" text-anchor="middle" class="tiny">Activate</text>
+  <text x="982" y="232" text-anchor="middle" class="tiny">envelope</text>
+  <text x="982" y="254" text-anchor="middle" class="tiny">ready</text>
+
+  <path d="M1032 222H1042" class="edge"/>
+  <rect x="1042" y="158" width="116" height="128" rx="14" class="box child"/>
+  <text x="1100" y="196" text-anchor="middle" class="label">Child Run</text>
+  <text x="1100" y="220" text-anchor="middle" class="tiny">claim ready</text>
+  <text x="1100" y="244" text-anchor="middle" class="tiny">execute child</text>
+  <text x="1100" y="268" text-anchor="middle" class="tiny">由父 Run 拥有</text>
+
+  <path d="M1100 286V392H848" class="edge"/>
+  <rect x="520" y="350" width="328" height="88" rx="13" class="box result"/>
+  <text x="684" y="381" text-anchor="middle" class="label">Result · Artifact · Evidence</text>
+  <text x="684" y="410" text-anchor="middle" class="small">父级验证后继续</text>
+  <path d="M520 394H122V274" class="edge"/>
+</svg>

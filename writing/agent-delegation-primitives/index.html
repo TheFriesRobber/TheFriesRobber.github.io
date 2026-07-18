@@ -1,0 +1,179 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Choose an execution primitive for a subproblem from a Plan or Agent Loop by examining state ownership, durability, cancellation, and result consumption."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="When an Agent Creates a Subtask, Who Should Execute It? | Xiaoyuan"><meta property="og:description" content="Choose an execution primitive for a subproblem from a Plan or Agent Loop by examining state ownership, durability, cancellation, and result consumption."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>When an Agent Creates a Subtask, Who Should Execute It? | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-delegation-primitives/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">When an Agent Creates a Subtask, Who Should Execute It?</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Workflow/">Workflow</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user asks an Agent to compare three technical approaches. The primary Agent may split its Plan into three research directions, or discover them dynamically while reasoning:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subproblem A  research approach A</span></span>
+<span class="line"><span>subproblem B  research approach B</span></span>
+<span class="line"><span>subproblem C  research approach C</span></span></code></pre>
+<p>Three terms need stable meanings up front. A <strong>SubAgent</strong> is a Child Run started dynamically and still owned by the parent Agent’s current Run. A <strong>Child Task</strong> is a unit of work owned by a durable task system and claimable by another worker. <strong>Workflow Fanout</strong> means that a workflow controller starts several nodes according to known dependencies and owns their join. Frameworks may use different names; this article compares their state owners.</p>
+<p>These records say only that three subproblems remain. They have not created a SubAgent or background task. A Plan item does not own an execution lifecycle, and a delegation proposed by the model is still only a request. The Runtime or business controller must decide whether the current parent Run will wait for a child, a durable task system will take ownership, or a workflow controller will manage the branches and their join.</p>
+<p>All three implementations can be drawn as parallel arrows. Yet they require completely different behavior when the parent process exits, the user cancels, or only two branches complete.</p>
+<p>“Can run in parallel” is therefore not enough to choose an execution primitive. The real questions are: who converges the child work’s state, who consumes its result and completes delivery, and where is its content stored?</p>
+<h2 id="the-source-of-a-subproblem-does-not-choose-the-execution-primitive">The source of a subproblem does not choose the execution primitive</h2>
+<p>A subproblem can originate in three places:</p>
+<ul>
+<li>The Agent Loop discovers that more research is needed during the current reasoning process.</li>
+<li>A revisable Plan adds another unfinished item.</li>
+<li>A deterministic business process declares a set of branches in advance.</li>
+</ul>
+<p>The source explains why the work exists, but not who is responsible for completing it. Before comparing execution primitives, compress the request into a few ownership-related conditions:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>goal                  what must be delivered</span></span>
+<span class="line"><span>needed_within_parent  whether the parent Run must consume the result before becoming terminal</span></span>
+<span class="line"><span>survive_restart       whether recovery across workers or processes is required</span></span>
+<span class="line"><span>independent_lifecycle whether the parent Run may finish first, or the work may be cancelled, retried, or delivered independently</span></span>
+<span class="line"><span>known_dependencies    whether branches and joins are known in advance</span></span>
+<span class="line"><span>delivery_owner        who consumes the result and completes the user-facing delivery</span></span></code></pre>
+<p>At this point, the delegation proposal is still a request for child work that does not depend on a particular execution primitive. Only after the system chooses SubAgent should the model or parent Runtime create a SubAgent-specific <code>spawn_agent</code> request. A trusted Runtime must still validate the Tool Surface, budget, and authorization before it creates the actual Child Run. The next article, <a href="/writing/subagent-delegation-isolation/">How a SubAgent Spawn Request Becomes a Controlled Child Run</a>, covers that process. This article first decides which state owner should receive the proposal.</p>
+<h2 id="the-core-differences-among-three-delegation-primitives">The core differences among three delegation primitives</h2>
+<p>These names are semantic categories. Workflow Fanout provides recovery across processes only when its history or state is durable. The decision rests on the following dimensions:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Dimension</th><th>SubAgent</th><th>Child Task</th><th>Workflow Fanout</th></tr></thead><tbody><tr><td>Owner of work state</td><td>parent Run</td><td>task system</td><td>workflow execution or controller</td></tr><tr><td>Recovery across processes</td><td>not necessarily</td><td>a primary goal</td><td>depends on whether workflow history or state is durable</td></tr><tr><td>Source of branches</td><td>decided dynamically by the model</td><td>submitted by the application or parent execution</td><td>usually explicit workflow logic</td></tr><tr><td>Result consumption and final delivery</td><td>parent Agent aggregates and delivers</td><td>task caller or later Run consumes</td><td>workflow caller or product layer delivers</td></tr><tr><td>Result storage</td><td>parent Run result or Artifact</td><td>task result or Artifact store</td><td>node output, business database, or Artifact store</td></tr></tbody></table>
+<p>This is a semantic classification, not a product feature comparison. An Artifact store provides storage and retention; it does not decide whether work is complete and does not necessarily deliver results to the user. A SubAgent framework may also persist its Child Runs. That persistence adds recovery responsibility, but the work becomes a Child Task in the sense used here only when state ownership explicitly moves to a durable task system.</p>
+<figure>
+  <img src="/posts/en/agent-delegation-primitives/delegation-primitives.svg" alt="A SubAgent follows its parent Run, a durable task system owns a Child Task, and a workflow controller manages the branches and join of Workflow Fanout." loading="lazy">
+  <figcaption>The primitives differ not in whether they run in parallel, but in who converges work state, consumes results, and completes delivery.</figcaption>
+</figure>
+<h2 id="when-to-choose-a-subagent">When to choose a SubAgent</h2>
+<p>Suppose the primary Agent discovers during reasoning that it needs a temporary specialist. If the parent Run will consume the result before becoming terminal and remains responsible for converging child state, a SubAgent is usually the most natural choice:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Agent: I need to compare database options first</span></span>
+<span class="line"><span>→ start a database-research SubAgent</span></span>
+<span class="line"><span>→ wait for structured conclusions and evidence</span></span>
+<span class="line"><span>→ parent Agent validates them and continues the response</span></span></code></pre>
+<p>This work has three defining properties: the model creates the goal dynamically, the child result serves the current Run, and the parent Agent remains responsible for the final answer. Cancelling the parent Run should usually cancel the child as well. Once the parent Run has ended, an orphaned child result often has no consumer. A parent Step can wait synchronously, or save a handle and collect the result later; synchronous versus asynchronous collection changes how the result is gathered, not who owns the state.</p>
+<p>If the child is only an in-process async task, it disappears when the worker crashes. That is not an error if the API never promised recovery. A durable Runtime can instead persist the parent Run, Child Run, and handle, then recover them in a new worker while the parent Run continues to own the child. Recovery across processes determines persistence responsibilities; it does not automatically determine lifecycle ownership.</p>
+<h2 id="when-to-promote-work-to-a-child-task">When to promote work to a Child Task</h2>
+<p>Suppose one branch must crawl a large collection of public documents, generate a PDF, and remain available for the user to inspect after the parent Run has already become terminal. That work now has an independent lifecycle:</p>
+<ul>
+<li>The parent Run may return “task created” first.</li>
+<li>The work must continue after the parent Run ends.</li>
+<li>The task needs its own retry budget, state, and Artifact.</li>
+<li>The user may cancel or retry it independently.</li>
+<li>A later Run or product page may consume its result independently.</li>
+</ul>
+<p>A durable Child Task is a better fit. The parent Run stores the <code>task_id</code>, but it does not own the task’s complete runtime state. The task system owns claiming, leases, recovery, and terminal state. The result is returned through a stable Artifact or completion event.</p>
+<p>A Child Task is not complete merely because it was placed on a queue. A queue may deliver more than once, external side effects still need idempotency, and parent and child need explicit cancellation and result-retention policies.</p>
+<h2 id="when-to-use-durable-workflow-fanout">When to use durable Workflow Fanout</h2>
+<p>If the business process defines all three branches before execution and a fixed aggregation step can begin only after they finish, workflow fanout is the better fit:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>prepare input</span></span>
+<span class="line"><span>├─ analyze A</span></span>
+<span class="line"><span>├─ analyze B</span></span>
+<span class="line"><span>└─ analyze C</span></span>
+<span class="line"><span>   ↓</span></span>
+<span class="line"><span>compare results</span></span>
+<span class="line"><span>   ↓</span></span>
+<span class="line"><span>publish report</span></span></code></pre>
+<p>The point is not to let three Agents negotiate freely. The controller needs to understand dependencies, retries, partial completion, and join conditions. If it persists workflow history or state and defines a replay and recovery contract, those records can become recoverable control-flow facts. A fanout-and-join shape by itself does not create durability. Branch results may still live in a business database or Artifact store.</p>
+<p>A model may participate in one node, but it should not rewrite workflow terminal semantics that have already been promised. For example, “continue when two branches succeed” should be an explicit join policy, not a decision improvised by the aggregation Agent.</p>
+<h2 id="choosing-for-the-same-example">Choosing for the same example</h2>
+<p>Return to the request to compare three technical approaches and ask these questions in order:</p>
+<ol>
+<li><strong>Who owns the child work’s state, retries, and terminal outcome?</strong> It is a SubAgent in this article only when the parent Runtime converges a Child Run for the current Run. It is a Child Task when a task system claims, retries, and terminates the work independently, even if the parent Run waits for it.</li>
+<li><strong>Must the parent Run consume the result before it ends?</strong> This determines whether the parent waits and who completes final delivery; it does not determine the work-state owner by itself.</li>
+<li><strong>Must the work continue, be cancelled separately, or deliver independently after the parent Run ends?</strong> That is a strong signal for a Child Task or durable workflow node, but it is not a requirement for every Child Task.</li>
+<li><strong>Are the branches and dependencies defined in advance by a deterministic business process?</strong> If yes, prefer Workflow Fanout.</li>
+<li><strong>Who consumes the branch results and completes final delivery?</strong> That object must define join, cancellation, and failure policies. It is not necessarily the component that stores the Artifact or owns the child execution state.</li>
+</ol>
+<p>For a single interactive response where all three research branches finish within tens of seconds and their results do not need to survive user cancellation, three SubAgents managed by the parent Run are enough.</p>
+<p>Suppose one branch converts <code>report.md</code> to PDF. The parent Run waits for the result, but a durable task system owns queue delivery, worker claims, retries, and the Task terminal state. It is still a Child Task. The parent Run consumes the result; it does not own the work state.</p>
+<p>If every branch produces an independent report, the parent Run may finish first, and later Runs or product pages consume those reports separately, create three Child Tasks and let a later aggregation task wait for their Artifacts. Long duration by itself is not the promotion criterion; independent lifecycle and delivery responsibility are.</p>
+<p>If the same analysis pipeline runs every day with a branch set and aggregation rules known in advance, use workflow fanout. The primary Agent does not need to “invent” the scheduling structure again.</p>
+<h2 id="failure-and-cancellation-expose-the-boundary">Failure and cancellation expose the boundary</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Scenario</th><th>SubAgent</th><th>Child Task</th><th>Workflow Fanout</th></tr></thead><tbody><tr><td>Parent Run is cancelled</td><td>usually propagate cancellation</td><td>cancel or continue according to explicit policy</td><td>determined by parent-close or cancellation policy</td></tr><tr><td>Worker crashes</td><td>an in-process child may be lost</td><td>a new worker takes over</td><td>a durable workflow can recover from history or state; a non-durable implementation cannot guarantee recovery</td></tr><tr><td>One branch fails</td><td>parent Agent decides whether to degrade</td><td>task retries independently or becomes terminal</td><td>join policy decides fail-fast, partial success, or compensation</td></tr><tr><td>Parent has ended</td><td>result usually loses its consumer</td><td>retain result according to policy</td><td>Parent Close Policy determines child behavior</td></tr></tbody></table>
+<p>Do not record “cancellation request sent” as “child work stopped.” Every primitive must distinguish the request, its acknowledgement, and final convergence.</p>
+<p>Workflow systems such as Temporal even expose a Parent Close Policy that can terminate a child, request cancellation, or let it continue when the parent ends. That is direct evidence that parent-child lifecycle is not determined automatically by a nested call.</p>
+<h2 id="composition-is-usually-better-than-unification">Composition is usually better than unification</h2>
+<p>A complex system does not have to choose exactly one primitive. A durable workflow node may start an Agent Run, and that Agent may use a SubAgent inside one Turn. If the SubAgent discovers long-running work, it may create a Child Task through a controlled Tool.</p>
+<p>Composition must preserve identity:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>workflow_execution_id</span></span>
+<span class="line"><span>→ task_id</span></span>
+<span class="line"><span>→ run_id</span></span>
+<span class="line"><span>→ child_run_id</span></span></code></pre>
+<p>These IDs represent different grains and cannot all collapse into one <code>parent_id</code>. A Trace may connect them, but retry, state, and cost still belong to their respective owners.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Three subproblems produced by a Plan or Agent Loop do not mean that three SubAgents already exist. They reveal only three units of work that still need completion.</p>
+<p>SubAgent fits dynamic collaboration whose state the parent Run converges. Child Task fits work whose claims, retries, and terminal outcome belong to a durable task system. Durable Workflow Fanout fits control flow with explicit dependencies and join rules managed by a persistent controller. Choose only after deciding who converges the work state, who consumes and delivers the result, and where the content is stored. Otherwise the system may wait until the parent process exits to discover that nobody was ever responsible for finishing the work.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>After choosing SubAgent, how should the Runtime turn a spawn request into a constrained Child Run and collect a verifiable result?</li>
+<li>How should a Child Task define queue delivery, leases, idempotency, and Artifact retention?</li>
+<li>How should workflow state divide responsibility with real business state in the application database?</li>
+</ul>
+<p>Reference:</p>
+<ul>
+<li><a href="https://github.com/temporalio/api/blob/master/temporal/api/enums/v1/workflow.proto#L41-L50">Temporal API: ParentClosePolicy definition</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="New input during execution and the race at Run completion show why an Agent Runtime needs a durable steering inbox with explicit consumption."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Agent Steering Needs a Durable Inbox | Xiaoyuan"><meta property="og:description" content="New input during execution and the race at Run completion show why an Agent Runtime needs a durable steering inbox with explicit consumption."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Agent Steering Needs a Durable Inbox | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/durable-agent-steering-inbox/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why Agent Steering Needs a Durable Inbox</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Streaming/">Streaming</a><a class="pill" href="/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent is calling a Tool that takes two minutes when the user sees an intermediate result and adds, “Keep only data from the last month.” The server immediately replies “received” and places the message in the in-memory queue of the background process executing the Run, referred to below as the worker.</p>
+<p>A few seconds later, the Tool returns just as the worker restarts. A new worker resumes from the existing messages, but the additional instruction is gone. The user was explicitly told that the system had received it; to the Runtime, the input never became a recoverable fact.</p>
+<p>Appending the message directly to the current <code>messages</code> array does not solve the problem. A model request may already be in flight, making it impossible to tell whether the current Turn saw the message. Mutating Context while it is being assembled or iterated also makes behavior depend on timing.</p>
+<h2 id="received-contains-three-promises">“Received” contains three promises</h2>
+<p>New input that arrives during execution is usually called steering, but that term can blur several distinct stages:</p>
+<ol>
+<li><strong>accepted</strong>: the system has durably admitted the input, so it survives a restart.</li>
+<li><strong>consumed</strong>: the input has been bound to the canonical input of a specific Turn; this does not prove that the Provider accepted the request or that the model “read” it.</li>
+<li><strong>applied</strong>: the model or a Tool actually changed its behavior in response.</li>
+</ol>
+<p>The Runtime can record the first two. The third usually has to be established from later execution facts or result validation. Returning <code>accepted</code> after only an in-memory enqueue makes a promise the system cannot keep.</p>
+<p>Steering therefore needs a durable Inbox. It is not another copy of chat history. It owns the state “admitted by the system but not yet included in a Turn.” <code>accepted</code> also carries an important condition: both the input body and the Inbox record are durable. Persisting only a <code>payload_ref</code> that points to missing content still cannot satisfy the promise after recovery.</p>
+<h2 id="a-minimal-inbox-model">A minimal Inbox model</h2>
+<p>An input can retain these logical fields:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input_id</span></span>
+<span class="line"><span>tenant_id</span></span>
+<span class="line"><span>subject_ref</span></span>
+<span class="line"><span>session_id</span></span>
+<span class="line"><span>target_run_id</span></span>
+<span class="line"><span>inbox_seq</span></span>
+<span class="line"><span>payload_ref</span></span>
+<span class="line"><span>payload_digest</span></span>
+<span class="line"><span>payload_canonicalization</span></span>
+<span class="line"><span>state              pending | consumed | rejected_terminal</span></span>
+<span class="line"><span>accepted_at</span></span>
+<span class="line"><span>consumed_by_turn_id</span></span>
+<span class="line"><span>consumed_at</span></span></code></pre>
+<p><code>input_id</code> prevents a client retry from creating a duplicate only when a database constraint enforces that identity—for example, with a unique key on <code>(tenant_id, subject_ref, input_id)</code>. The ID names one operation within the submitting subject’s namespace, so different subjects may use the same ID independently. On conflict, the system must also compare <code>target_run_id</code>, <code>payload_canonicalization</code>, and <code>payload_digest</code>. It returns the original admission result only when the target and content match. Reusing the same ID for a different target or payload under the same subject must return an explicit conflict.</p>
+<p>Before writing anything, a trusted ingress layer must derive <code>tenant_id</code> and <code>subject_ref</code> from the authenticated session and confirm that the subject may steer the target Run. It must not trust those values from the request body; otherwise an attacker who guesses a <code>run_id</code> could inject input into someone else’s execution.</p>
+<p><code>inbox_seq</code> is a monotonically increasing admission order within one Run. It is more stable than ordering only by <code>accepted_at</code>: two inputs can receive the same timestamp, and different service instances can write concurrently. <code>consumed_by_turn_id</code> identifies the Turn whose canonical input received the message instead of reducing the state to an ambiguous <code>processed=true</code> flag.</p>
+<p>When the payload and Inbox share a database, immutable content and the Inbox row can commit in one transaction. When the content lives in object storage, a safer order is to write an immutable, content-addressed object before committing the Inbox row. The two kinds of unknown outcome require different reconciliation. If the object write is uncertain, look up the content address and verify its digest. If the Inbox commit is uncertain, query the admission record by the idempotency key above. Retention can clean up an orphaned payload that has no Inbox row; object existence alone must never be treated as proof that the input was accepted. The Runtime should verify the digest again before consumption so that damaged or replaced content does not enter the model request.</p>
+<figure>
+  <img src="/posts/en/durable-agent-steering-inbox/steering-inbox-lifecycle.svg" alt="User input first passes authorization and an admission-window check. An open window durably writes it to the Inbox, where the Runtime atomically marks it consumed at a Turn boundary; a closed window rejects it or routes it to a follow-up Run." loading="lazy">
+  <figcaption>Durable admission and Turn consumption are separate boundaries; in-process notifications only wake an owner.</figcaption>
+</figure>
+<p>After receiving <code>accepted</code>, a client knows only that the input entered the Inbox. A more precise interface can display “assigned to Turn” after the input is bound. A model request being sent and a model response arriving belong in later Turn events.</p>
+<h2 id="why-consumption-belongs-at-a-turn-boundary">Why consumption belongs at a Turn boundary</h2>
+<p>A Turn boundary is a point before the next model request has been assembled or after the previous round has ended. At that boundary, the Runtime can:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. read pending inputs in inbox_seq order</span></span>
+<span class="line"><span>2. generate input messages in a stable order</span></span>
+<span class="line"><span>3. create the next Turn</span></span>
+<span class="line"><span>4. mark those inputs as consumed_by_turn</span></span></code></pre>
+<p>“Creating the Turn” means more than allocating a <code>turn_id</code>. It also persists the immutable canonical input used for that model request, or a stable content reference, plus the Inbox <code>input_id</code> values included in it. That work and the <code>consumed_by_turn_id</code> updates need one atomic boundary. Otherwise, a worker may create only the Turn identity and crash, leaving a consumed record whose input cannot be reconstructed; recovery may also inject the same steering input into another Turn.</p>
+<p>If a model request is already in flight, new input goes to the next Turn by default. A system may explicitly interrupt the current model call and open a new round, but that is an interruption policy—not a reason to mutate an array already in use.</p>
+<p>Return to the opening example. The additional instruction first becomes <code>pending</code>. The old worker crashes after the Tool returns, but the new worker can still see the input and bind it while creating the next Turn. The message no longer disappears with the process that received it.</p>
+<h2 id="completion-creates-the-hardest-race">Completion creates the hardest race</h2>
+<p>A subtler problem appears when the Run is about to complete. Assume first that the Run owner has already verified the completion evidence, all owned child work has converged, and the current state permits a terminal transition. An empty Inbox does not prove that the task is complete. The following protocol only linearizes an already-valid terminal decision against steering that arrives at the last moment.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1 Runtime checks the Inbox: empty</span></span>
+<span class="line"><span>T2 user sends new input</span></span>
+<span class="line"><span>T3 Runtime marks the Run completed</span></span>
+<span class="line"><span>T4 the new input is accepted, but no executor remains to consume it</span></span></code></pre>
+<p>Checking the Inbox “one more time” before completion is not enough because the check and admission can still interleave. The system needs a terminal admission boundary, and <strong>the admission transaction and finalization transaction must contend on the same serialization point</strong>.</p>
+<p>A rebuildable Run snapshot for a product page should not act as that coordinator. A small command-side <code>run_control</code> record is a better fit:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_id</span></span>
+<span class="line"><span>admission_epoch</span></span>
+<span class="line"><span>admission_state       open | closing | closed</span></span>
+<span class="line"><span>owner_fencing_token</span></span>
+<span class="line"><span>next_inbox_seq</span></span></code></pre>
+<p>This record owns only the admission window and current execution owner; it does not store the complete user-facing Run state. Decisions such as <code>steering.accepted</code>, <code>steering.consumed</code>, <code>run.continued</code>, and <code>run.completed</code> still enter the Event Log, and query-facing Run snapshots are built from those facts.</p>
+<p>For example, the admission path first authorizes the subject and queries for an existing record by the complete idempotency key. If one exists, it compares the subject, target, canonicalization, and digest, then returns the original admission result—even if the window has since closed. That first lookup is only a fast path: two identical retries may both miss the other’s uncommitted row. After locking <code>run_control</code>, the path must query the idempotency key again. Only when that second lookup still proves the key is new may it check the current epoch, allocate <code>inbox_seq</code>, persist the payload and Inbox row, and append the admission event:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">BEGIN</span><span style="color:#24292E">;</span></span>
+<span class="line"><span style="color:#6A737D">-- After authorization, look up the idempotency record first. If it exists</span></span>
+<span class="line"><span style="color:#6A737D">-- with matching content, return the original accepted result.</span></span>
+<span class="line"><span style="color:#D73A49">SELECT</span><span style="color:#24292E"> admission_epoch, admission_state</span></span>
+<span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> run_control</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49">FOR</span><span style="color:#D73A49"> UPDATE</span><span style="color:#24292E">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">-- Recheck the idempotency key under the lock. If it exists, validate its</span></span>
+<span class="line"><span style="color:#6A737D">-- content and return the original result. INSERT ... ON CONFLICT DO NOTHING</span></span>
+<span class="line"><span style="color:#6A737D">-- followed by a read and comparison is another valid implementation.</span></span>
+<span class="line"><span style="color:#6A737D">-- Validate tenant, subject, and steering permission.</span></span>
+<span class="line"><span style="color:#6A737D">-- Allocate inbox_seq and insert a pending input only while the current epoch is open.</span></span>
+<span class="line"><span style="color:#D73A49">INSERT INTO</span><span style="color:#24292E"> steering_inbox(...);</span></span>
+<span class="line"><span style="color:#6A737D">-- Append steering.accepted.</span></span>
+<span class="line"><span style="color:#D73A49">COMMIT</span><span style="color:#24292E">;</span></span></code></pre>
+<p>The finalization path takes the same lock. It first moves the current epoch to <code>closing</code>, preventing new input from silently entering the round that is about to end, and then reads pending input:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">BEGIN</span><span style="color:#24292E">;</span></span>
+<span class="line"><span style="color:#D73A49">SELECT</span><span style="color:#24292E"> admission_epoch, admission_state, owner_fencing_token</span></span>
+<span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> run_control</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49">FOR</span><span style="color:#D73A49"> UPDATE</span><span style="color:#24292E">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> run_control</span></span>
+<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> admission_state </span><span style="color:#D73A49">=</span><span style="color:#032F62"> 'closing'</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> admission_state </span><span style="color:#D73A49">=</span><span style="color:#032F62"> 'open'</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> owner_fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :owner_token;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49">SELECT</span><span style="color:#24292E"> input_id</span></span>
+<span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> steering_inbox</span></span>
+<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> target_run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> 'pending'</span></span>
+<span class="line"><span style="color:#D73A49">FOR</span><span style="color:#D73A49"> UPDATE</span><span style="color:#24292E">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">-- Pending input: create and bind the next Turn, mark the inputs consumed,</span></span>
+<span class="line"><span style="color:#6A737D">--                advance admission_epoch, and reopen the window.</span></span>
+<span class="line"><span style="color:#6A737D">-- No pending input: append run.completed and set the window to closed.</span></span>
+<span class="line"><span style="color:#D73A49">COMMIT</span><span style="color:#24292E">;</span></span></code></pre>
+<p>This SQL is a conceptual model. Creating the Turn, marking Inbox rows consumed, and appending the decision event must also participate in one commit protocol, and the application must inspect the actual result of every statement. A serializable transaction retried as a whole or an equivalent versioned CAS protocol can provide the same boundary. The particular database syntax is not the point. The two paths must not each read <code>admission_state</code> once from an ordinary snapshot and then commit independently.</p>
+<p>The race now has only two deterministic outcomes:</p>
+<ul>
+<li>The input commits first: the finalizer sees the pending input, atomically creates the next Turn, advances the epoch, and reopens admission for later input.</li>
+<li>The finalizer commits the terminal state first: the window becomes <code>closed</code>, so later input is not incorrectly marked as belonging to the current Run. The product can reject it explicitly or create a follow-up Run.</li>
+</ul>
+<p>There is no third outcome in which the current Run accepts an input that nobody owns.</p>
+<p>If Run control, the Inbox, and the Event Log live in different stores, the system cannot claim that these steps commit atomically. The admission decision must converge on one Source of Truth, with an outbox or reconciliation driving the other stores.</p>
+<p>This protocol also assumes that only one Run owner with a valid lease may consume the Inbox and submit a terminal state at a time. <code>owner_fencing_token</code> rejects late writes from a stale worker. Lease renewal and takeover belong to the broader execution-ownership problem, but the assumption must be explicit here; otherwise two workers can still create competing next Turns.</p>
+<h2 id="wake-up-signals-still-help">Wake-up signals still help</h2>
+<p>A durable Inbox does not require every worker to poll at high frequency. After a successful write, an in-process queue, Redis Pub/Sub, or another notification mechanism can wake the current owner.</p>
+<p>A signal means only “new input may exist.” A woken worker still queries the Inbox as the authority. Guaranteeing eventual processing after a lost signal requires an explicit re-drive mechanism. For example, the Inbox transaction can write an outbox record whose relay publishes to a durable queue, which retries delivery; alternatively, a heartbeat or scheduled scan can rediscover pending input within a defined maximum interval. A duplicate signal does not bind the same input twice because consumption is recorded in Inbox state and ordered by <code>inbox_seq</code>.</p>
+<p>This is similar to the boundary for output streaming: notifications reduce latency, while durable records provide correctness. The owners differ, however. Output events prove what the Runtime has done; the Inbox proves whether user input was admitted and consumed.</p>
+<h2 id="stop-steer-and-follow-up-are-different-actions">Stop, steer, and follow-up are different actions</h2>
+<p>All three can enter through the same input box, but they have different semantics:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Input type</th><th>Target</th><th>Common handling</th></tr></thead><tbody><tr><td>steer</td><td>The next inference in an active Run</td><td>Enter the Inbox and consume at a Turn boundary</td></tr><tr><td>stop</td><td>Current execution control state</td><td>Persist a cancellation request and wake the executor</td></tr><tr><td>follow-up</td><td>New intent against a completed target</td><td>Create a new Run that references prior Session facts</td></tr></tbody></table>
+<p>Treating stop as a natural-language message can delay it until the model’s next round. Forcing a follow-up into an already terminal Run breaks terminality. A shared ingress layer can reuse identity and idempotency infrastructure, but each action needs its own state transition.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Input that arrives during execution cannot live only in the current worker, and it cannot safely mutate <code>messages</code> while a model request is in progress.</p>
+<p>A clearer protocol authorizes the request at a trusted ingress layer, writes the content and input idempotently to a durable Inbox, and creates a consumption record at an explicit Turn boundary. Signals only reduce wake-up latency; durable re-drive provides eventual discovery. Before a Run completes, the Runtime closes the current admission epoch and forces the race to resolve as either “atomically create the next Turn and reopen admission” or “commit the terminal state and route the input explicitly.”</p>
+<p>The distinction keeps <code>accepted</code>, <code>consumed</code>, and “actually executed” from disappearing behind one ambiguous “received” status.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should the Run owner’s lease, fencing token, and takeover protocol work?</li>
+<li>How should a Checkpoint preserve the Turn and Inbox cursor after consumption?</li>
+<li>Should high-risk steering require renewed authorization or user approval?</li>
+</ul>
+<p>Reference:</p>
+<ul>
+<li><a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL: Transaction Isolation</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
