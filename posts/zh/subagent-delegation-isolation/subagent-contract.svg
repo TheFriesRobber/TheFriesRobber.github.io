@@ -26,7 +26,7 @@
   <rect x="486" y="168" width="78" height="112" rx="12" class="box phase"/>
   <text x="525" y="205" text-anchor="middle" class="small">分配 ID</text>
   <text x="525" y="232" text-anchor="middle" class="tiny">并去重</text>
-  <text x="525" y="254" text-anchor="middle" class="tiny">request identity</text>
+  <text x="525" y="254" text-anchor="middle" class="tiny">稳定 ID</text>
 
   <path d="M564 224H576" class="edge"/>
   <rect x="576" y="168" width="78" height="112" rx="12" class="box phase"/>
@@ -59,13 +59,13 @@
   <text x="982" y="254" text-anchor="middle" class="tiny">ready</text>
 
   <path d="M1032 222H1042" class="edge"/>
-  <rect x="1042" y="158" width="116" height="128" rx="14" class="box child"/>
-  <text x="1100" y="196" text-anchor="middle" class="label">Child Run</text>
-  <text x="1100" y="220" text-anchor="middle" class="tiny">claim ready</text>
-  <text x="1100" y="244" text-anchor="middle" class="tiny">execute child</text>
-  <text x="1100" y="268" text-anchor="middle" class="tiny">由父 Run 拥有</text>
+  <rect x="1042" y="158" width="142" height="128" rx="14" class="box child"/>
+  <text x="1113" y="196" text-anchor="middle" class="label">Child Run</text>
+  <text x="1113" y="220" text-anchor="middle" class="tiny">claim ready</text>
+  <text x="1113" y="244" text-anchor="middle" class="tiny">execute child</text>
+  <text x="1113" y="268" text-anchor="middle" class="tiny">由父 Run 拥有</text>
 
-  <path d="M1100 286V392H848" class="edge"/>
+  <path d="M1113 286V392H848" class="edge"/>
   <rect x="520" y="350" width="328" height="88" rx="13" class="box result"/>
   <text x="684" y="381" text-anchor="middle" class="label">Result · Artifact · Evidence</text>
   <text x="684" y="410" text-anchor="middle" class="small">父级验证后继续</text>
