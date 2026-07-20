@@ -1,0 +1,195 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A canonical contract and Provider Adapter keep prompt, Tool Schema, message, and streaming-event differences out of Runtime business logic."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Provider Differences Belong Behind an Adapter | Xiaoyuan"><meta property="og:description" content="A canonical contract and Provider Adapter keep prompt, Tool Schema, message, and streaming-event differences out of Runtime business logic."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Provider Differences Belong Behind an Adapter | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/provider-shaping-model-routing/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Provider Differences Belong Behind an Adapter</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Model%20Routing/">Model Routing</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Suppose the Runtime has already selected a model and is about to perform a document search. Internally, it records the same logical interaction:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user request</span></span>
+<span class="line"><span>→ assistant tool call: search_documents(call_17)</span></span>
+<span class="line"><span>→ tool result: call_17</span></span>
+<span class="line"><span>→ assistant final answer</span></span></code></pre>
+<p>Providers may represent this interaction differently. Some expose Tool Calls and Tool Results as separate items; others place them in content blocks inside assistant and user messages. Tool names, supported Schema subsets, streaming events, and finish reasons may also follow different constraints.</p>
+<p>If business code exposes only one <code>generate()</code> method but scatters branches around each call:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> provider </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "a"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#6A737D">    # change roles and attach the tool result</span></span>
+<span class="line"><span style="color:#D73A49">elif</span><span style="color:#24292E"> provider </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "b"</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#6A737D">    # change content blocks and transform the schema</span></span></code></pre>
+<p>then the provider difference has not been abstracted. It has merely leaked out of the HTTP client and into Context Assembly, the Agent Loop, and the Tool Runtime.</p>
+<p>The system needs to standardize semantics, not merely a method name: <strong>which instructions, messages, and Tools a request contains; which complete items came back; and how a Tool Call is associated with its Tool Result.</strong></p>
+<h2 id="a-canonical-contract-is-not-the-smallest-common-provider-subset">A canonical contract is not the smallest common Provider subset</h2>
+<p>The Runtime can first define its own canonical contract:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "operation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_op_17"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "continuation_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"conversation_9@item_24"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "instructions"</span><span style="color:#24292E">: [{</span><span style="color:#005CC5">"kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"runtime_policy"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"content_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"policy_8"</span><span style="color:#24292E">}],</span></span>
+<span class="line"><span style="color:#005CC5">  "input_items"</span><span style="color:#24292E">: [</span></span>
+<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"user_message"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"content"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Find the retry policy in the design documents"</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#24292E">    {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant_tool_call"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "call_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"call_16"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"search_documents"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "arguments_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"args_16"</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#24292E">    {</span></span>
+<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_result"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "call_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"call_16"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">      "content_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"artifact_42"</span></span>
+<span class="line"><span style="color:#24292E">    }</span></span>
+<span class="line"><span style="color:#24292E">  ],</span></span>
+<span class="line"><span style="color:#005CC5">  "tools"</span><span style="color:#24292E">: [{</span><span style="color:#005CC5">"definition_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"search_documents@revision_5"</span><span style="color:#24292E">}],</span></span>
+<span class="line"><span style="color:#005CC5">  "required_features"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"tool_call_identity"</span><span style="color:#24292E">, </span><span style="color:#032F62">"streaming"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "required_provider_guarantees"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"preserve_required_fields"</span><span style="color:#24292E">]</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>The canonical contract should not copy one provider’s API, nor should it collapse into the smallest set of fields every provider can express. It should represent the capabilities the Runtime actually requires. When a route cannot express one of them, its Adapter returns an explicit incompatibility instead of silently dropping fields.</p>
+<p>Upstream code then handles only canonical <code>user_message</code>, <code>assistant_tool_call</code>, <code>tool_result</code>, and a stable <code>call_id</code>. Whether a provider places them in a particular role or content block belongs to the Adapter.</p>
+<figure>
+  <img src="/posts/en/provider-shaping-model-routing/provider-adapter-boundary.svg" alt="A canonical request passes through different Provider Adapters into native protocols, and each response is normalized back into canonical Runtime events." loading="lazy">
+  <figcaption>The Adapter maintains a two-way boundary: it renders provider protocols outward and restores canonical events inward.</figcaption>
+</figure>
+<h2 id="an-adapter-declares-capability-before-transforming-a-request">An Adapter declares capability before transforming a request</h2>
+<p>An Adapter should not receive a request and guess about compatibility while it converts fields. It can first run a preflight against the route’s capability profile:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical request</span></span>
+<span class="line"><span>→ capability check</span></span>
+<span class="line"><span>→ schema and message transform</span></span>
+<span class="line"><span>→ provider request</span></span>
+<span class="line"><span>→ provider response / stream</span></span>
+<span class="line"><span>→ canonical items and events</span></span></code></pre>
+<p>Preflight needs at least three outcomes:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Result</th><th>Meaning</th><th>Upstream action</th></tr></thead><tbody><tr><td><code>supported</code></td><td>The required semantics are representable</td><td>Continue rendering the request</td></tr><tr><td><code>lossy</code></td><td>The request can be sent, but some semantics weaken</td><td>Continue only when policy explicitly permits the loss</td></tr><tr><td><code>unsupported</code></td><td>Required semantics cannot be represented</td><td>Return control to the Router to select another route</td></tr></tbody></table>
+<p>The Adapter does not infer business risk from a field name. The canonical request or an upstream policy should state which provider-side generation guarantees are required, such as <code>preserve_required_fields</code>; the Adapter only reports whether the corresponding constraint can be represented. An unavailable required guarantee produces <code>unsupported</code>, while loss of a nonessential constraint produces <code>lossy</code>. An Adapter must not weaken a contract merely to make an HTTP request succeed, nor should it decide whether a particular Schema keyword is important to the business.</p>
+<h2 id="tool-call-identity-must-survive-conversion">Tool Call identity must survive conversion</h2>
+<p>Continue with <code>search_documents</code>. The Runtime needs a stable way to know which Tool Call produced a Tool Result:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical call_id: call_17</span></span>
+<span class="line"><span>provider call identity: provider_call_xyz</span></span></code></pre>
+<p>The Adapter may persist a mapping, but it must restore the canonical <code>call_id</code> before returning data to the Runtime. Matching only on the Tool name becomes ambiguous as soon as two <code>search_documents</code> calls execute in parallel with different arguments.</p>
+<p>This mapping cannot be an in-process pair of values. A provider continuation may resume in another process, and the same logical model operation may create another Attempt after fallback. At minimum, the mapping needs:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical call_id</span></span>
+<span class="line"><span>route and provider</span></span>
+<span class="line"><span>model attempt_id</span></span>
+<span class="line"><span>provider response / conversation identity</span></span>
+<span class="line"><span>provider-native call identity</span></span></code></pre>
+<p>It should be persisted with the canonical event or provider continuation state. A Tool round trip that continues the same provider conversation is usually route-sticky and sends back the native call identity. After fallback to another provider, the target Adapter may render a new pair from the canonical Tool Call and Tool Result only when it can completely express every required, portable piece of continuation state. A native ID from the first provider must never be copied into the second.</p>
+<p>A canonical <code>call_id</code> solves business association; it does not make the whole continuation portable. Provider-native reasoning items, opaque compaction items, and mandatory message ordering may remain bound to the original route. If the target protocol cannot express them, the Adapter should return <code>incompatible_continuation</code>. The Runtime then starts a new model operation from confirmed facts at a stable boundary instead of pretending to preserve one conversation without loss.</p>
+<p>A request-side transformation might be:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical tool_result(call_17)</span></span>
+<span class="line"><span>→ provider-specific message role / content block</span></span>
+<span class="line"><span>→ provider_call_xyz</span></span></code></pre>
+<p>The response side normalizes in the other direction:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>provider tool-use item(provider_call_xyz)</span></span>
+<span class="line"><span>→ canonical tool_call(call_17, name, arguments)</span></span></code></pre>
+<p>This mapping belongs to the execution protocol; it is not merely a diagnostic field. Losing it breaks Tool Calls, retries, and result consumption.</p>
+<h2 id="prompt-shaping-must-not-change-authority-or-fact-boundaries">Prompt shaping must not change authority or fact boundaries</h2>
+<p>Providers may require different placements for system instructions, different message roles, or different Tool description formats. An Adapter may change representation, but it must not reinterpret authority or content roles.</p>
+<p>Suppose Context Assembly has already classified a file fragment as untrusted data. The Adapter may render it as a text block, but it cannot promote the file into a system instruction merely because a provider has a convenient message role. The Tool Surface should likewise be determined by policy before it reaches the Adapter. The Adapter transforms only the definitions that have already been allowed.</p>
+<p>The division of responsibility can be explicit:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Layer</th><th>Responsible for</th><th>Not responsible for</th></tr></thead><tbody><tr><td>Context Assembly</td><td>Selecting content, enforcing permissions, resolving conflicts</td><td>Provider role formats</td></tr><tr><td>Router</td><td>Selecting a route that satisfies the constraints</td><td>Message and Schema transformation</td></tr><tr><td>Adapter</td><td>Expressing the canonical contract and reporting loss</td><td>Rewriting business policy</td></tr><tr><td>Runtime</td><td>Consuming canonical items and events</td><td>Parsing every provider’s raw response</td></tr></tbody></table>
+<h2 id="streaming-can-unify-event-semantics-not-chunk-shapes">Streaming can unify event semantics, not chunk shapes</h2>
+<p>Providers may stream tokens, content blocks, Tool argument deltas, or complete items. Mapping every raw chunk one-to-one into the same shape would make the Runtime depend on one provider’s segmentation.</p>
+<p>A safer design standardizes the events the Runtime actually uses:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>response.started</span></span>
+<span class="line"><span>text.delta</span></span>
+<span class="line"><span>tool_call.delta</span></span>
+<span class="line"><span>item.assembled</span></span>
+<span class="line"><span>tool_call.validated / tool_call.invalid_arguments</span></span>
+<span class="line"><span>response.completed</span></span>
+<span class="line"><span>response.failed</span></span></code></pre>
+<p>A <code>delta</code> is useful for live display but may not be independently replayable. <code>item.assembled</code> means only that the provider ended transmission of the item and the Adapter assembled its chunks. It does not guarantee that Tool arguments can be parsed, much less that they satisfy the Schema. Only after the Runtime parses the arguments and applies canonical validation does it emit <code>tool_call.validated</code> or <code>tool_call.invalid_arguments</code>; only the former may enter the handler.</p>
+<p>Standardizing events also does not imply identical token boundaries, timing, or finish reasons across providers. The Adapter should preserve the native reason for diagnostics while mapping it into a finite Runtime classification. When no accurate mapping exists, it should emit <code>unknown</code>, not invent a plausible-looking category.</p>
+<h2 id="walk-one-request-through-the-adapter">Walk one request through the Adapter</h2>
+<p>The document search request might pass through the Adapter as follows:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. The Router selects route_b and fixes Adapter profile revision 9.</span></span>
+<span class="line"><span>2. The Adapter checks Tool Call identity, streaming, and Schema capabilities.</span></span>
+<span class="line"><span>3. It renders the canonical messages and Tool definition as a provider request.</span></span>
+<span class="line"><span>4. When a Tool Call identity first appears in the stream, the Adapter allocates or</span></span>
+<span class="line"><span>   restores a canonical `call_id` and persists the mapping by route, Attempt, and</span></span>
+<span class="line"><span>   provider response.</span></span>
+<span class="line"><span>5. It converts the remaining raw stream into text.delta and tool_call.delta events.</span></span>
+<span class="line"><span>6. When Tool argument transmission ends, it emits</span></span>
+<span class="line"><span>   item.assembled(tool_call call_17).</span></span>
+<span class="line"><span>7. The Runtime parses the arguments and validates them against the canonical Schema;</span></span>
+<span class="line"><span>   only after emitting tool_call.validated does it execute the Tool.</span></span>
+<span class="line"><span>8. On the next Model Turn, the same Adapter renders tool_result(call_17) back into</span></span>
+<span class="line"><span>   the provider protocol.</span></span></code></pre>
+<p>The Agent Loop never needs to know which role route_b uses, and the Tool Runtime never needs to parse that provider’s content blocks. If step 2 finds that a required Schema constraint cannot be represented, the flow returns <code>unsupported</code> before sending the request and leaves the Router to decide whether another eligible route exists.</p>
+<h2 id="contract-tests-should-verify-semantic-round-trips">Contract tests should verify semantic round trips</h2>
+<p>Testing only whether a request returns 200 cannot detect a lost Tool Call identity, a dropped Schema constraint, or a false finish-reason mapping. Adapter contract tests should cover at least:</p>
+<ul>
+<li>Whether a provider-accepted structure can be rendered from the canonical request.</li>
+<li>Whether Tool Calls, Tool Results, and parallel calls maintain stable associations across restart, continuation, and model Attempt boundaries.</li>
+<li>Whether a request containing provider-native reasoning or opaque continuation items resumes correctly on the same route and explicitly returns <code>incompatible_continuation</code> when another provider cannot express them.</li>
+<li>Whether required Schema constraints are preserved, explicitly degraded, or explicitly rejected.</li>
+<li>Whether streaming chunks converge into complete canonical items.</li>
+<li>Whether provider errors map into a finite but faithful failure classification.</li>
+<li>Whether a canonical → provider → canonical round trip preserves the semantics on which the Runtime depends.</li>
+</ul>
+<p>These tests should bind the provider API version, Adapter revision, and capability profile revision. When provider behavior changes, the system can update its conversion rules instead of adding another temporary branch to business code.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>A unified <code>generate()</code> method hides only the call site. It does not automatically hide protocol differences.</p>
+<p>The Runtime should first define the canonical contract it depends on, then let each Provider Adapter perform capability preflight, message and Schema shaping, Tool Call identity mapping, and response and streaming-event normalization. Any part that cannot be represented without loss should be reported explicitly.</p>
+<p>This keeps responsibilities separate: the Router decides which route to use, Context Assembly decides what the model may see, and the Adapter decides how to express it. Only then do provider differences remain behind the boundary.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How can the same Tool Schema reveal validation drift after transformation by different Adapters?</li>
+<li>How should an Eval manifest fix the provider, prompt, and Tool Surface configuration?</li>
+<li>How should an Adapter capability profile be continuously recalibrated as providers change?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://developers.openai.com/api/docs/guides/function-calling">OpenAI: Function calling</a></li>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls">Anthropic: Handle tool calls</a></li>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/fine-grained-tool-streaming">Anthropic: Fine-grained tool streaming</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

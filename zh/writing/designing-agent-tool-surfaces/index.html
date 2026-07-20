@@ -1,17 +1,17 @@
 <!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从完整 Tool registry 中按权限和任务选择 eager、deferred 与 disabled 能力，并评估 token、延迟和漏召回的取舍。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Tool Surface：Eager、Deferred 与按需加载 | Xiaoyuan"><meta property="og:description" content="从完整 Tool registry 中按权限和任务选择 eager、deferred 与 disabled 能力，并评估 token、延迟和漏召回的取舍。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/designing-agent-tool-surfaces/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/designing-agent-tool-surfaces/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/designing-agent-tool-surfaces/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/designing-agent-tool-surfaces/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/designing-agent-tool-surfaces/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Tool Surface：Eager、Deferred 与按需加载 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/designing-agent-tool-surfaces/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Tool Surface：Eager、Deferred 与按需加载</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一个 Agent 刚上线时可能只有五个 Tool：搜索网页、读取文件、写入文件、查询日历和发送消息。随着 connector（连接外部系统的适配器）、设备能力、业务操作和管理动作不断加入，registry 很快会增长到几十甚至上百个定义。</p>
-<p>把所有 Tool 的 name、description 和 parameter schema（参数规则）每轮都交给模型，至少会产生三个问题：</p>
+<p>把所有 Tool 的 name、description 和 parameter schema（参数规则）在每个 Model Turn 都交给模型，至少会产生三个问题：</p>
 <ul>
 <li>Tool definition 本身占用输入 token。Token 是模型计量输入文本的基本单位，schema 越复杂，这部分输入通常越长。</li>
 <li>相似能力同时出现，模型需要在更大的选择空间中路由。</li>
 <li>当前任务不需要、甚至当前用户无权调用的能力，也可能进入模型上下文。</li>
 </ul>
 <p>但简单地把低频 Tool 全部隐藏也不成立。模型看不见一项能力，就无法主动选择它；如果 discovery 失败，系统会把“能力存在”变成“实际不可达”。</p>
-<p>Tool surface 的核心问题不是怎样装下更多 Tool，而是：<strong>针对当前 run，哪些能力应该立即可调用，哪些可以按需发现，哪些根本不应出现。</strong></p>
+<p>Tool surface 的核心问题不是怎样装下更多 Tool，而是：<strong>针对当前 Run，哪些能力应该立即可调用，哪些可以按需发现，哪些根本不应出现。</strong></p>
 <blockquote>
 <p>可以把 registry 想成仓库里的全部工具，把 Tool surface 想成这次任务摆在模型桌面上的工具。仓库可以很大，但桌面上只应放当前任务允许且可能用到的那一小部分。</p>
 </blockquote>
-<p>这里的 run 指一次完整的 Agent 执行：从收到用户请求开始，到给出结果或进入等待状态结束。</p>
+<p>这里的 Run 指一次 Agent Loop：从收到用户输入或恢复动作开始，到给出最终结果、明确暂停为可恢复状态，或者失败、取消时结束。</p>
 <h2 id="先把几个集合说清楚">先把几个集合说清楚</h2>
 <p>先区分四个集合：</p>
 
@@ -44,16 +44,16 @@
 
 
 
-<table><thead><tr><th>集合</th><th>含义</th><th>典型决定者</th></tr></thead><tbody><tr><td>Registry</td><td>系统已安装、能够构造的全部 Tool</td><td>代码、插件、connector catalog</td></tr><tr><td>Allowed set</td><td>当前用户、场景和资源范围内被允许的 Tool</td><td>身份认证、权限策略、功能开关、依赖可用性</td></tr><tr><td>Initial surface</td><td>本轮开始时模型可以直接调用的完整定义</td><td>Surface policy</td></tr><tr><td>Unlocked set</td><td>运行中通过 discovery 新加载的 Tool</td><td>搜索结果与再次授权</td></tr></tbody></table>
-<p>这四个集合不能合并成一个 <code>allTools</code> 数组。Registry 回答“系统有什么”，allowed set 回答“当前 run 能用什么”，surface 回答“模型现在看见什么”。</p>
+<table><thead><tr><th>集合</th><th>含义</th><th>典型决定者</th></tr></thead><tbody><tr><td>Registry</td><td>系统已安装、能够构造的全部 Tool</td><td>代码、插件、connector catalog</td></tr><tr><td>Allowed set</td><td>当前用户、场景和资源范围内被允许的 Tool</td><td>身份认证、权限策略、功能开关、依赖可用性</td></tr><tr><td>Initial surface</td><td>当前 Run 开始时模型可以直接调用的完整定义</td><td>Surface policy</td></tr><tr><td>Unlocked set</td><td>运行中通过 discovery 新加载的 Tool</td><td>搜索结果与再次授权</td></tr></tbody></table>
+<p>这四个集合不能合并成一个 <code>allTools</code> 数组。Registry 回答“系统有什么”，allowed set 回答“当前 Run 能用什么”，surface 回答“模型现在看见什么”。</p>
 <p>最重要的顺序是：<strong>先做权限和场景过滤，再把允许集合分成 eager（立即加载）和 deferred（按需加载）。</strong> Discovery 只能帮助模型找到能力，不能成为授权机制。</p>
 <figure>
-  <img src="/posts/zh/designing-agent-tool-surfaces/tool-surface-selection.svg" alt="完整 Tool registry 先经过身份权限、场景策略和依赖可用性过滤，得到当前 run 的 allowed set；没有进入 allowed set 的能力被禁用。Allowed set 再分成 eager 与 deferred，模型可以直接调用 eager Tool，或通过 discovery 从 deferred index 解锁 Tool。" loading="lazy">
+  <img src="/posts/zh/designing-agent-tool-surfaces/tool-surface-selection.svg" alt="完整 Tool registry 先经过身份权限、场景策略和依赖可用性过滤，得到当前 Run 的 allowed set；没有进入 allowed set 的能力被禁用。Allowed set 再分成 eager 与 deferred，模型可以直接调用 eager Tool，或通过 discovery 从 deferred index 解锁 Tool。" loading="lazy">
   <figcaption>权限过滤发生在 discovery 之前；按需加载只在 allowed set 内缩小初始 surface。</figcaption>
 </figure>
 <p>如果先对完整 registry 建 search index，再在调用时鉴权，模型仍可能从搜索结果中看到未授权 Tool 的名字和描述。这既泄露能力信息，也会诱导模型规划一条注定失败的路径。</p>
 <h2 id="eagerdeferred-和-disabled-是三种不同状态">Eager、deferred 和 disabled 是三种不同状态</h2>
-<p>一个 Tool 在某个 run 中可以处于三种状态：</p>
+<p>一个 Tool 在某个 Run 中可以处于三种状态：</p>
 
 
 
@@ -83,10 +83,10 @@
 
 
 
-<table><thead><tr><th>状态</th><th>模型最初看到什么</th><th>适合的能力</th><th>主要代价</th></tr></thead><tbody><tr><td>eager</td><td>完整 name、description 和 schema，可立即调用</td><td>高频、当前任务明确需要、召回失败代价高</td><td>持续占用上下文，扩大直接选择空间</td></tr><tr><td>deferred</td><td>一个可搜索的摘要、namespace 或索引条目；完整定义按需加载</td><td>低频、大 schema、垂直 connector 能力</td><td>增加 discovery 步骤，可能漏召回</td></tr><tr><td>disabled</td><td>什么都看不到，也不能通过 discovery 获得</td><td>未授权、依赖缺失、场景不允许或已停用</td><td>能力在当前 run 完全不可达</td></tr></tbody></table>
+<table><thead><tr><th>状态</th><th>模型最初看到什么</th><th>适合的能力</th><th>主要代价</th></tr></thead><tbody><tr><td>eager</td><td>完整 name、description 和 schema，可立即调用</td><td>高频、当前任务明确需要、召回失败代价高</td><td>持续占用上下文，扩大直接选择空间</td></tr><tr><td>deferred</td><td>一个可搜索的摘要、namespace 或索引条目；完整定义按需加载</td><td>低频、大 schema、垂直 connector 能力</td><td>增加 discovery 步骤，可能漏召回</td></tr><tr><td>disabled</td><td>什么都看不到，也不能通过 discovery 获得</td><td>未授权、依赖缺失、场景不允许或已停用</td><td>能力在当前 Run 完全不可达</td></tr></tbody></table>
 <p><code>disabled</code> 不是“更深一层的 deferred”。如果当前用户不能发送外部消息，这项能力就不应进入可搜索集合；不能指望模型搜到后自己克制。</p>
 <p>同一个 Tool 也不需要永久属于某一类。<code>search_web</code> 在研究任务中可能 eager，在纯本地格式转换中可以 disabled；<code>export_spreadsheet</code> 在通用对话中可以 deferred，在明确的数据导出任务中则应 eager。</p>
-<p>因此，分类取决于“这个 Tool 在这一次 run 中是否合适”，不是 Tool class 上永远不变的属性。</p>
+<p>因此，分类取决于“这个 Tool 在这一次 Run 中是否合适”，不是 Tool class 上永远不变的属性。</p>
 <h2 id="怎样决定一个-tool-是否-eager">怎样决定一个 Tool 是否 eager</h2>
 <p>“高频 eager、低频 deferred”只是起点。实际分类至少要看五个维度。</p>
 <h3 id="从任务类型就能预判的需要">从任务类型就能预判的需要</h3>
@@ -98,7 +98,7 @@
 <h3 id="discovery-是否容易表达">Discovery 是否容易表达</h3>
 <p>模型需要根据当前上下文生成搜索语句。如果用户说“把这份结果同步到我的知识库”，<code>knowledge_base</code> namespace（把一组相关 Tool 放在一起的命名空间）很容易被发现；如果能力名称与用户语言差异很大，或必须先知道内部术语才能搜索，deferred 会显著提高漏召回风险。</p>
 <h3 id="额外-round-trip-是否可接受">额外 round trip 是否可接受</h3>
-<p>按需发现通常会增加一次搜索、加载，或者下一轮模型调用，也就是多一次系统与模型之间的往返（round trip）。对于交互式短任务，这段延迟可能比节省的 token 更重要；对于长任务，减少长期重复携带的大 schema 可能更有价值。</p>
+<p>按需发现通常会增加一次搜索、加载，或者一个 Model Turn，也就是多一次系统与模型之间的往返（round trip）。对于交互式短任务，这段延迟可能比节省的 token 更重要；对于长任务，减少后续 Model Turn 重复携带的大 schema 可能更有价值。</p>
 <p>可以把分类写成一个显式 review 表，而不是靠感觉：</p>
 
 
@@ -139,7 +139,7 @@
 <p>这张表没有给出固定阈值。分类应由 eval 和 trace 校准，而不是把所有“大 Tool”机械地设为 deferred。</p>
 <h2 id="按需-discovery-的完整生命周期">按需 discovery 的完整生命周期</h2>
 <p>一个不依赖某家 provider 的流程可以这样设计：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Resolve run context</span></span>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Resolve Run context</span></span>
 <span class="line"><span>   user identity + scenario + policy + available dependencies</span></span>
 <span class="line"><span></span></span>
 <span class="line"><span>2. Build allowed set</span></span>
@@ -158,8 +158,8 @@
 <span class="line"><span>6. Call</span></span>
 <span class="line"><span>   model invokes the unlocked Tool -> handler and backend validate again</span></span></code></pre>
 <p>这里有几个不能省略的关键检查点。</p>
-<p>首先，搜索结果不是执行许可。Tool 在解锁前要再次检查当前身份、功能开关和依赖，因为长 run 中这些条件可能已经变化。</p>
-<p>其次，要明确“解锁后何时可调用”。有的 runtime 可以在同一次模型响应中完成搜索、注入定义并继续调用；有的实现要等到下一轮才把搜索结果加入上下文。应用必须记录这个过程，不能假设所有模型平台都有相同的轮次行为。</p>
+<p>首先，搜索结果不是执行许可。Tool 在解锁前要再次检查当前身份、功能开关和依赖，因为长 Run 中这些条件可能已经变化。</p>
+<p>其次，要明确“解锁后何时可调用”。有的 runtime 可以在同一次模型响应中完成搜索、注入定义并继续调用；有的实现要等到下一个 Model Turn 才把搜索结果加入上下文。应用必须记录这个过程，不能假设所有模型平台都有相同的 Model Turn 行为。</p>
 <p>第三，Tool name 在最终 surface 中必须唯一。Registry 中不同 connector 可能都提供 <code>search</code> 或 <code>list_items</code>；加载后如果名称冲突，模型和 gateway 都无法可靠路由。Namespace、稳定前缀或显式 transform 应在把定义交给模型前解决冲突。</p>
 <p>OpenAI 当前的 Tool search 同时提供 hosted（平台代为搜索）和 client-executed（应用自己搜索）两种路径：前者适合请求开始时已经知道候选集合，后者允许应用根据自己的状态执行 discovery。本文更新时，官方文档把这项能力限定在 GPT-5.4 及以后模型；应用仍应在使用前核对当前支持范围。这个产品接口会演进，但它揭示的系统边界是通用的：搜索可以由模型平台或应用执行，<strong>候选能力和授权责任仍需要应用明确管理</strong>。</p>
 <h2 id="discovery-index-应该保存什么">Discovery index 应该保存什么</h2>
@@ -181,20 +181,20 @@
 <p>搜索结果也不宜无限返回。一次加载过多 Tool 会让 surface 在运行中重新膨胀，并削弱 discovery 的意义。通常只返回得分最高的前 k 个结果（Top-k），但具体数量需要根据 Tool 相似度、任务复杂度和 eval 结果决定，不能照搬一个通用常数。</p>
 <h2 id="失败和-fallback降级路径必须显式设计">失败和 fallback（降级路径）必须显式设计</h2>
 <p>Discovery 可能因为搜索无结果、索引陈旧、provider 不支持、网络失败或模型没有发起搜索而失败。</p>
-<p>常见但危险的 fallback 是：Tool search 不可用时，把所有 deferred Tool 全部展开。这样虽然提高了召回，却可能突然增加 token、破坏 prompt cache，并把原本经过容量控制的 surface 变成另一套行为。</p>
+<p>常见但危险的 fallback 是：Tool search 不可用时，把所有 deferred Tool 全部展开。这样可能提高召回，但也可能突然增加 token、破坏 prompt cache，并把原本经过容量控制的 surface 变成另一套行为。</p>
 <p>更明确的 fallback 可以是：</p>
 <ul>
 <li>保留一组经过预算评估的 core eager Tool。</li>
 <li>对高价值 namespace 提供有限的静态 fallback。</li>
 <li>Search 无结果时返回可修复提示，让模型改写 query 或说明缺少的能力。</li>
-<li>当前 provider 不支持 dynamic loading 时，在 run 开始前由 application router（按任务选择 Tool surface 的应用路由层）选择一个较小的静态 surface。</li>
+<li>当前 provider 不支持 dynamic loading 时，在 Run 开始前由 application router（按任务选择 Tool surface 的应用路由层）选择一个较小的静态 surface。</li>
 <li>无论采用哪种 fallback，都继续应用同一份 allowed set，绝不因为 discovery 故障放宽权限。</li>
 </ul>
 <p>还需要定义解锁后的有效期。通常可以选择：</p>
 <ul>
-<li><strong>Turn-scoped（单轮有效）</strong>：下一轮重新计算，最严格，但重复 discovery 较多。</li>
-<li><strong>Run-scoped（单次执行有效）</strong>：当前 Agent run 内持续可见，适合多步任务。</li>
-<li><strong>Session-scoped（会话内有效）</strong>：跨多个 run 缓存，延迟更低，但更容易遇到权限、版本和依赖漂移。</li>
+<li><strong>Model-Turn-scoped（单轮有效）</strong>：下一个 Model Turn 重新计算，最严格，但重复 discovery 较多。</li>
+<li><strong>Run-scoped（单次执行有效）</strong>：当前 Agent Run 内持续可见，适合多步任务。</li>
+<li><strong>Session-scoped（会话内有效）</strong>：跨多个 Run 缓存，延迟更低，但更容易遇到权限、版本和依赖漂移。</li>
 </ul>
 <p>生命周期越长，越需要记录 Tool definition version、当时生效的 policy snapshot（策略快照）和失效条件。不能因为模型在十分钟前解锁过某项能力，就假设它现在仍然允许调用。</p>
 <h2 id="surface-不是安全边界的全部">Surface 不是安全边界的全部</h2>
@@ -257,7 +257,7 @@
 
 
 
-<table><thead><tr><th>指标</th><th>回答的问题</th></tr></thead><tbody><tr><td>Initial tool-definition tokens</td><td>初始 surface 实际减少了多少输入</td></tr><tr><td>Discovery recall</td><td>需要某项 deferred 能力时，是否成功找到</td></tr><tr><td>Tool selection accuracy</td><td>加载后是否选对 Tool，而不是相似能力</td></tr><tr><td>Extra model turns</td><td>discovery 增加了多少轮交互</td></tr><tr><td>Time to first useful call</td><td>从用户请求到第一次有效 Tool call 的延迟</td></tr><tr><td>Task success rate</td><td>token 优化是否损害最终任务完成</td></tr><tr><td>Unauthorized exposure rate</td><td>未授权名称或 schema 是否进入搜索结果或 surface</td></tr><tr><td>Fallback rate</td><td>正常 discovery 多久失败一次，失败后走了哪条路径</td></tr></tbody></table>
+<table><thead><tr><th>指标</th><th>回答的问题</th></tr></thead><tbody><tr><td>Initial tool-definition tokens</td><td>初始 surface 实际减少了多少输入</td></tr><tr><td>Discovery recall</td><td>需要某项 deferred 能力时，是否成功找到</td></tr><tr><td>Tool selection accuracy</td><td>加载后是否选对 Tool，而不是相似能力</td></tr><tr><td>Extra Model Turns</td><td>discovery 增加了多少个模型轮次</td></tr><tr><td>Time to first useful Tool Call</td><td>从用户请求到第一次有效 Tool Call 的延迟</td></tr><tr><td>Task success rate</td><td>token 优化是否损害最终任务完成</td></tr><tr><td>Unauthorized exposure rate</td><td>未授权名称或 schema 是否进入搜索结果或 surface</td></tr><tr><td>Fallback rate</td><td>正常 discovery 多久失败一次，失败后走了哪条路径</td></tr></tbody></table>
 <p>比较实验应固定模型、任务集、Tool 版本和权限上下文，至少包含四类案例：</p>
 <ol>
 <li>只需要 core eager Tool。</li>
@@ -278,7 +278,7 @@
 <li>Deferred loading 优化的是定义暴露与选择空间，不会自动缩短 Tool result、conversation history 或其他上下文。</li>
 <li>Namespace 能改善发现，但不能修复单个 Tool 内部含糊的 name、description 和 schema。</li>
 <li>高风险 Tool 不应仅因为“很少使用”而 deferred；未授权时必须 disabled，需要确认时还要有独立 confirmation/policy。</li>
-<li>Dynamic loading 的具体 API、同轮或跨轮行为、缓存方式都可能因 provider 而异，应用应在自己的 surface contract（对工具可见性和加载时机的约定）中封装这些差异。</li>
+<li>Dynamic loading 的具体 API、当前或后续 Model Turn 的生效方式、缓存行为都可能因 provider 而异，应用应在自己的 surface contract（对工具可见性和加载时机的约定）中封装这些差异。</li>
 </ul>
 <h2 id="回到问题">回到问题</h2>
 <p>Tool 数量增长后，不能只在“全部给模型”和“全部藏起来”之间二选一。</p>
@@ -289,7 +289,7 @@
 <li>在 allowed set 内，把核心且召回敏感的能力设为 eager。</li>
 <li>把低频、大 schema、易于发现的能力组织成 deferred namespace 或 index。</li>
 <li>把未授权或当前无效的能力设为 disabled，确保 discovery 也看不到。</li>
-<li>用 token、recall、额外轮次、延迟、任务成功率和权限暴露共同评估。</li>
+<li>用 token、recall、额外 Model Turn、延迟、Task 成功率和权限暴露共同评估。</li>
 </ol>
 <p>按需 discovery 的价值，不是让一个 Agent 在理论上连接无限多个 Tool，而是让它在每个具体任务中只看到足够完成工作的那一小部分。</p>
 <p>参考：</p>

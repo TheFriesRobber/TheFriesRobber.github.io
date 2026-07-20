@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A file update that crosses a queue shows how an agent can still prove who is acting for whom when execution resumes asynchronously."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Identity Must Flow Through the Agent Call Chain | Xiaoyuan"><meta property="og:description" content="A file update that crosses a queue shows how an agent can still prove who is acting for whom when execution resumes asynchronously."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Identity Must Flow Through the Agent Call Chain | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-identity-propagation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Identity Must Flow Through the Agent Call Chain</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Security/">Security</a><a class="pill" href="/tags/Identity/">Identity</a> </div> </header>  <h2 id="the-problem">The problem</h2>
-<p>A user asks an agent to update a report. When the API receives the request, it knows who is signed in and confirms that the user may edit the file. The agent then places the task on a queue, and another worker executes it several minutes later.</p>
+<p>A user asks an agent to update a report. When the API receives the request, it knows who is signed in and confirms that the user may edit the file. The agent then creates a Job for the background work and places it on a queue; another worker executes it several minutes later.</p>
 <p>When the file is finally written, the worker uses its own service credential. The file service sees the worker as the caller, not the original user.</p>
 <p>If the queue stores only a <code>user_id</code>, downstream services cannot prove who placed that ID there or what the user authorized. If it stores the user’s access token instead, the token may expire while waiting, be revoked, or leak into an execution environment that should never receive it.</p>
 <p>This is the actual identity-propagation problem: <strong>after execution crosses process and time boundaries, how can the system still prove which actor is acting for which subject, under which delegation, against which resource, and for which action?</strong></p>
@@ -42,7 +42,7 @@
 <span class="line"><span>Agent Runtime</span></span>
 <span class="line"><span>  ↓ create a constrained delegation reference</span></span>
 <span class="line"><span>queue</span></span>
-<span class="line"><span>  ↓ worker claims the task with its own workload identity</span></span>
+<span class="line"><span>  ↓ worker claims the Job with its own workload identity</span></span>
 <span class="line"><span>worker</span></span>
 <span class="line"><span>  ↓ validate delegation again and obtain a short-lived file-service credential</span></span>
 <span class="line"><span>file service</span></span>
@@ -50,7 +50,7 @@
 <span class="line"><span>write and record an audit event</span></span></code></pre>
 <p>The queue stores a verifiable reference, not a long-lived bearer token:</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "task_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"task_42"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "job_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"job_42"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "subject_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"user_7"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "actor_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"agent_run_19"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "tenant_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tenant_3"</span><span style="color:#24292E">,</span></span>
@@ -58,14 +58,14 @@
 <span class="line"><span style="color:#005CC5">  "action"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file.update"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "resource_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file_12"</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
-<p>After claiming the task, the worker still checks whether the delegation has expired or been revoked, whether the user retains permission, and whether the target file version has changed. A queue makes later execution possible; it does not freeze authorization facts in the outside world.</p>
+<p>After claiming the Job, the worker still checks whether the delegation has expired or been revoked, whether the user retains permission, and whether the target file version has changed. A queue makes later execution possible; it does not freeze authorization facts in the outside world.</p>
 <h2 id="delegation-should-narrow-along-the-call-chain">Delegation should narrow along the call chain</h2>
 <p>Allowing an agent to modify a project directory does not mean every downstream component needs the same permission.</p>
 <p>A SubAgent that only summarizes documents may need read access to <code>/project/docs/**</code>. Only the Tool that writes <code>report.md</code> needs write access to that file. Delegation can narrow along several dimensions:</p>
 <ul>
 <li>action: from read-write to read-only;</li>
 <li>resource: from a workspace to one directory or file;</li>
-<li>time: valid only for the current Run or a short interval;</li>
+<li>time: valid only for a specific Run, Job, or short interval;</li>
 <li>audience: usable only by the target service;</li>
 <li>depth: whether further delegation is allowed.</li>
 </ul>
@@ -93,12 +93,12 @@
 <li>A Connector uses its client identity and the user’s authorization to access an external API without exposing the access token to the model.</li>
 <li>A Sandbox uses a workload identity to mount a workspace or write an Artifact instead of directly holding a user credential.</li>
 </ul>
-<p>They do not need to share one token. They need to share a verifiable relationship: which Run owns the current execution identity, which subject that Run represents, and whether the delegation permits this action on this resource.</p>
+<p>They do not need to share one token. They need a verifiable relationship: which execution identity the current Tool Execution or Job uses, which Run and Task originated that work, which subject the Task represents, and whether the delegation permits this action on this resource. That relationship remains attributable after the originating Run ends, but the worker must still revalidate the delegation and current authorization before a later Job acts.</p>
 <p>A <code>trace_id</code> can correlate calls but cannot prove caller identity. Trace context and identity context may be linked; they cannot replace each other.</p>
 <h2 id="back-to-the-problem">Back to the problem</h2>
 <p>Identity propagation is not copying a <code>user_id</code> or access token from the entry point to the end of the call chain.</p>
 <p>It preserves an authorization relationship: whose goal is being executed, who the current actor and execution identity are, how authority was delegated, and which tenant, action, and resource are affected.</p>
-<p>When that relationship can be validated again after a task crosses a queue—and each layer receives only the authority needed for its current action—the agent system can support authorization, isolation, and auditability at the same time.</p>
+<p>When that relationship can be validated again after a Job crosses a queue—and each layer receives only the authority needed for its current action—the agent system can support authorization, isolation, and auditability at the same time.</p>
 <h2 id="follow-up-questions">Follow-up questions</h2>
 <ul>
 <li>Which identity model should be used for Subjects, Actors, Tools, and Sandboxes?</li>

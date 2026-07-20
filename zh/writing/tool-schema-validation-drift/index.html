@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="解释同一 Tool Schema 经 provider adapter 和 executor 后为什么会接受不同参数，并用 contract test 固定语义。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Tool Validation 在不同 Runtime 间为何会漂移 | Xiaoyuan"><meta property="og:description" content="解释同一 Tool Schema 经 provider adapter 和 executor 后为什么会接受不同参数，并用 contract test 固定语义。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/tool-schema-validation-drift/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Tool Validation 在不同 Runtime 间为何会漂移 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/tool-schema-validation-drift/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Tool Validation 在不同 Runtime 间为何会漂移</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>假设 Agent 有一个批量归档笔记的 Tool：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"archive_notes"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "parameters"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "$schema"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://json-schema.org/draft/2020-12/schema"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"object"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "properties"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">      "note_ids"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">        "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"array"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">        "items"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#005CC5">        "minItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">        "uniqueItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span></span>
+<span class="line"><span style="color:#24292E">      }</span></span>
+<span class="line"><span style="color:#24292E">    },</span></span>
+<span class="line"><span style="color:#005CC5">    "required"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"note_ids"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">    "additionalProperties"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
+<span class="line"><span style="color:#24292E">  }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>它表达的意图很简单：至少归档一条笔记，不接受未知字段，同一次 Tool Call 的 <code>note_ids</code> 数组也不能包含重复 ID。</p>
+<p>Runtime A 将这份 Schema 原样交给支持相应约束的 binding；Runtime B 的 Adapter 保留 <code>type</code>、<code>properties</code>、<code>required</code> 与 <code>additionalProperties</code>，删除了不支持的 array 约束。模型在 Runtime B 返回：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: []}</span></span></code></pre>
+<p>同一份 canonical Tool definition，在一条路径上会被拒绝，在另一条路径上却可能进入 handler。如果 handler 恰好把空列表理解成“归档全部”，一次看似普通的兼容性差异就可能变成高风险副作用。</p>
+<p>这就是 validation drift：<strong>Tool 参数在不同转换与执行路径上，实际遵循的约束不再相同。</strong></p>
+<h2 id="符合-schema可能指三件不同的事">“符合 Schema”可能指三件不同的事</h2>
+<p>Tool Call 经常被笼统描述成“已经过 Schema 校验”，但这句话可能混合了三个阶段：</p>
+<ol>
+<li>Provider 是否接受这份 Tool definition。</li>
+<li>模型生成的参数是否符合 provider 实际执行的约束。</li>
+<li>Runtime 在调用 handler 前是否按 canonical contract 再次校验。</li>
+</ol>
+<p>Provider 接受 Schema，不一定表示支持其中每个 keyword；非 strict 模式下，模型输出看起来像 JSON，也不表示满足 required、range 或 array 约束。部分 provider 的 strict tool mode 会对自己支持的 Schema 子集提供 conformance 保证，但这个保证仍受 mode、model 与支持子集限制。Runtime 本地校验通过，也不表示调用者有权限修改当前资源。</p>
+<p>因此，Schema validity、authorization 和业务状态校验需要分开。本文只讨论第一到第三步之间的结构校验，不把它扩展成完整的 Tool 安全模型。</p>
+<h2 id="drift-出现在一条转换链上">Drift 出现在一条转换链上</h2>
+<p>同一 Tool definition 通常会经过：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical schema</span></span>
+<span class="line"><span>→ provider adapter</span></span>
+<span class="line"><span>→ provider tool binding</span></span>
+<span class="line"><span>→ model arguments</span></span>
+<span class="line"><span>→ parser / coercion</span></span>
+<span class="line"><span>→ runtime validator</span></span>
+<span class="line"><span>→ handler</span></span></code></pre>
+<p>每一段都可能改变语义：</p>
+<ul>
+<li>Provider 只支持 JSON Schema 的一个子集。</li>
+<li>Adapter 为兼容 provider 删除、展开或重写 keyword。</li>
+<li>Parser 把字符串 <code>"3"</code> 自动转成数字 <code>3</code>。</li>
+<li>Validator 使用不同 draft，或把 <code>format</code> 只当 annotation。</li>
+<li>Bridge 自动填充默认值，而另一条路径保持字段缺失。</li>
+<li>Handler 使用单独维护的 DTO，已经与 Tool definition 不一致。</li>
+</ul>
+<p>其中一些转换可以接受，但必须是显式契约。例如，Runtime 可以决定所有入口都允许安全的字符串到枚举规范化；它不能让这种 coercion 只在某个 provider 路径中偶然发生。</p>
+<h2 id="canonical-schema-先要固定-dialect">Canonical Schema 先要固定 Dialect</h2>
+<p>只保存一份没有 dialect 的 Schema，还不能成为跨 Runtime 契约。不同 JSON Schema draft 和 vocabulary 对 keyword 的解释可能不同；<code>format</code> 是只做 annotation，还是也执行 assertion，也需要明确。</p>
+<p>因此 canonical binding contract 至少要固定：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>schema dialect: https://json-schema.org/draft/2020-12/schema</span></span>
+<span class="line"><span>required vocabularies: as declared by the dialect</span></span>
+<span class="line"><span>format policy: annotation only</span></span>
+<span class="line"><span>coercion policy: disabled</span></span>
+<span class="line"><span>default application: runtime-defined, disabled by default</span></span></code></pre>
+<p>根 Schema 中的 <code>$schema</code> 让实现知道应该采用哪个 dialect，contract 还要固定 <code>$schema</code> 无法单独表达的 parser、<code>format</code>、coercion 与 default 规则。本文示例至少依赖 Core、Applicator 与 Validation vocabulary：<code>properties</code>、<code>items</code> 和 <code>additionalProperties</code> 属于 Applicator，而 <code>type</code>、<code>required</code>、<code>minItems</code> 与 <code>uniqueItems</code> 属于 Validation。某个 Runtime 不支持这份 dialect 声明的 required vocabulary 时，应在加载 Tool definition 时失败，而不是换成自己的默认 draft 继续执行。</p>
+<h2 id="canonical-validator-才是统一结构校验边界">Canonical Validator 才是统一结构校验边界</h2>
+<p>Provider-facing Schema 的作用，是约束模型生成 Tool Call。Strict mode 可以在 provider 支持的子集内给出更强的 Schema conformance；非 strict 模式或 lossy transform 则更接近生成提示。两种情况下，它都不适合作为多 provider 可信执行边界的唯一 validator，因为 Runtime 还要统一 dialect、转换和 handler 入口。</p>
+<p>Runtime 应保留原始 canonical Schema，并在 arguments 完整后、handler 执行前按同一套规则校验：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>provider says complete tool call</span></span>
+<span class="line"><span>→ parse without hidden coercion</span></span>
+<span class="line"><span>→ canonical validation</span></span>
+<span class="line"><span>→ repairable error or structurally validated handler input</span></span></code></pre>
+<p>回到空数组例子。即使 Runtime B 的 Provider Adapter 删除了 <code>minItems</code>，本地 canonical validator 仍会拒绝：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"invalid_arguments"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "tool"</span><span style="color:#24292E">: </span><span style="color:#032F62">"archive_notes"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/note_ids"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "constraint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"minItems"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "message"</span><span style="color:#24292E">: </span><span style="color:#032F62">"至少需要一个 note_id"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>这个错误可以作为下一个 Model Turn 的修复输入，但 handler 不会被调用。Provider 约束减少可能降低模型生成的 arguments 一次通过 canonical validation 的概率，却不会悄悄扩大结构校验边界。</p>
+<h2 id="adapter-必须报告自己改了什么">Adapter 必须报告自己改了什么</h2>
+<p>如果转换后只保存最终 Provider Schema，系统很难判断某次失败来自模型，还是 Adapter 已经删除了约束。每次编译 Tool Surface 时，可以产出 transform report：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "tool"</span><span style="color:#24292E">: </span><span style="color:#032F62">"archive_notes"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "canonical_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">7</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "canonical_dialect"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://json-schema.org/draft/2020-12/schema"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "adapter_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">12</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "provider_profile_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "preserved"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"type"</span><span style="color:#24292E">, </span><span style="color:#032F62">"properties"</span><span style="color:#24292E">, </span><span style="color:#032F62">"required"</span><span style="color:#24292E">, </span><span style="color:#032F62">"additionalProperties"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "dropped"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"minItems"</span><span style="color:#24292E">, </span><span style="color:#032F62">"uniqueItems"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "classification"</span><span style="color:#24292E">: </span><span style="color:#032F62">"lossy"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>不是所有 dropped keyword 都要求拒绝 route。关键在于它是否改变可接受参数集合，以及 Runtime 是否仍在执行前可靠地实施该约束。对于影响副作用范围、数据类型或必填字段的差异，policy 可以要求 Adapter 直接返回 <code>unsupported</code>；对于只影响模型生成质量的提示性信息，可以允许 lossy transform，但必须可观察。</p>
+<h2 id="contract-test-应从样例集合开始">Contract test 应从样例集合开始</h2>
+<p>只比较两份 Schema 文本无法证明行为相同。更直接的方法是为每个 Tool contract 保存一组 provider-neutral cases：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">[</span></span>
+<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"one id"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"n1"</span><span style="color:#24292E">]}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"empty"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: []}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"duplicate"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"n1"</span><span style="color:#24292E">, </span><span style="color:#032F62">"n1"</span><span style="color:#24292E">]}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"unknown field"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"n1"</span><span style="color:#24292E">], </span><span style="color:#005CC5">"all"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"wrong type"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: </span><span style="color:#032F62">"n1"</span><span style="color:#24292E">}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">}</span></span>
+<span class="line"><span style="color:#24292E">]</span></span></code></pre>
+<p>测试分成两层：</p>
+<ol>
+<li><strong>Canonical validator test</strong>：所有 Runtime 必须加载同一 dialect 与 validator policy，并对这些 cases 得到相同结果；不支持该 dialect 的实现直接失败。</li>
+<li><strong>Binding contract test</strong>：每个 Adapter 说明当前 mode 与 provider 子集提供什么保证、哪些约束被保留、拒绝或降级，并验证转换不会意外改名或漏掉 required field。</li>
+</ol>
+<p>如果要调用真实模型做测试，还要把它当作生成行为 Eval，而不是确定性的 validator test。模型可能在相同 Schema 下生成不同参数；测试应统计 case × configuration × trial 的结果，不能用一次成功证明约束永远有效。</p>
+<h2 id="不要把默认值与-coercion-藏在-adapter-里">不要把默认值与 Coercion 藏在 Adapter 里</h2>
+<p>JSON Schema 把 <code>default</code> 定义为 annotation；它本身不要求 validator 把缺失字段补出来。某些 SDK 或 DTO layer 会额外填充默认值，另一些不会；类似地，自动把字符串转成数字也会扩大可接受输入。这些行为必须由上面的 canonical validator policy 固定。</p>
+<p>如果产品确实需要这些行为，应在 canonical binding contract 中明确：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>missing optional field → runtime applies declared default</span></span>
+<span class="line"><span>string "3" for integer → rejected</span></span>
+<span class="line"><span>unknown property → rejected</span></span></code></pre>
+<p>这样所有 provider 都先回到同一规则，再进入 handler。否则，切换 SDK、validator 或语言实现就可能改变 Tool 的真实输入边界。</p>
+<h2 id="handler-仍然要做防御性校验">Handler 仍然要做防御性校验</h2>
+<p>Canonical Schema 只能验证当前 arguments 的结构，不能掌握最新资源状态。即使 <code>note_ids</code> 是非空、唯一的字符串数组，handler 和 backend 仍要检查：</p>
+<ul>
+<li>这些 note 是否存在且属于当前 tenant。</li>
+<li>当前 subject 是否有归档权限。</li>
+<li>note revision 是否已经变化。</li>
+<li>一次最多允许归档多少条。</li>
+<li>当前重试的 Attempt 是否仍属于同一个稳定 identity 的 Tool Execution，以及 idempotency key、结果查询或对账机制能否阻止重复副作用。</li>
+</ul>
+<p>这些不是对 JSON Schema 的重复实现，而是由不同 owner 掌握的事实。Provider binding 帮助模型生成；Runtime validator 固定结构契约；handler/backend 保护权限、业务状态和副作用。</p>
+<h2 id="版本必须进入-trace-与-eval">版本必须进入 Trace 与 Eval</h2>
+<p>当 validation drift 只在某条 route 出现时，Trace 至少要关联：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool definition revision</span></span>
+<span class="line"><span>tool surface revision</span></span>
+<span class="line"><span>adapter revision</span></span>
+<span class="line"><span>provider capability profile revision</span></span>
+<span class="line"><span>canonical schema dialect and validator policy revision</span></span>
+<span class="line"><span>canonical validator version</span></span>
+<span class="line"><span>handler version</span></span></code></pre>
+<p>不需要把每份 Schema 全文复制到每条 log，但必须能从稳定引用重建当时的转换链。否则 Provider 更新、Adapter 修改或 handler 发布后，旧失败会与新失败混在一起，回归测试也无法复现。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>同一 Tool Schema 在不同 Runtime 中表现不同，通常不是 Schema 文件突然变了，而是它经过的 provider subset、Adapter transform、parser、validator 和 DTO 各自改变了可接受输入。</p>
+<p>解决方法不是否认 provider strict mode 的保证，也不是只相信某一层已经“严格校验”，而是把 dialect、vocabulary 与 validator policy 一起固定为 canonical contract：Adapter 显式报告当前 mode 的保证、降级或不支持；所有完整 Tool arguments 在进入 handler 前经过同一 validator；contract test 用正反样例验证行为，而不是只比较 Schema 文本。</p>
+<p>这样，provider binding 可以在支持范围内提供严格生成保证，却不会成为决定 Tool 是否安全执行的唯一边界。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>Tool Error 怎样以可修复形式返回模型。</li>
+<li>Selection、parameter validity、repair 与 mutation precision 怎样组成端到端 Tool Eval。</li>
+<li>Provider capability profile 怎样通过持续 contract test 更新。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://json-schema.org/specification">JSON Schema：Specification</a></li>
+<li><a href="https://json-schema.org/draft/2020-12/json-schema-core">JSON Schema Draft 2020-12：Core</a></li>
+<li><a href="https://json-schema.org/draft/2020-12/json-schema-validation">JSON Schema Draft 2020-12：Validation</a></li>
+<li><a href="https://developers.openai.com/api/docs/guides/function-calling#strict-mode">OpenAI：Function calling strict mode</a></li>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/strict-tool-use">Anthropic：Strict tool use</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

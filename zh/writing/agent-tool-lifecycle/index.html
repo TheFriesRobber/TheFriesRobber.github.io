@@ -9,12 +9,12 @@
 <span class="line"><span style="color:#005CC5">    "content"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span></span>
 <span class="line"><span style="color:#24292E">  }</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
-<p>即使 handler 本身没有 bug，这次调用仍可能在其他位置出错：当前用户其实不能写这个目录；模型看到的是旧版 Tool definition；文件已经写入，但 Runtime 只收到 timeout；handler 返回了完整文件对象，下一轮模型却看不出写入是否成功。</p>
+<p>即使 handler 本身没有 bug，这次调用仍可能在其他位置出错：当前用户其实不能写这个目录；模型看到的是旧版 Tool definition；文件已经写入，但 Runtime 只收到 timeout；handler 返回了完整文件对象，下一个 Model Turn 却看不出写入是否成功。</p>
 <p>这些问题无法只在函数体里解决，因为它们分别发生在模型看到 Tool 之前、执行动作之前、外部副作用发生时和结果回到模型之后。</p>
 <p>所以 Tool Lifecycle 的意义不是罗列更多阶段，而是让同一个逻辑动作穿过这些边界时，身份、权限和结果不会断开。</p>
 <h2 id="tool-已注册不代表模型现在应该看见它">Tool 已注册，不代表模型现在应该看见它</h2>
-<p>Registry 回答“系统里有哪些能力”，当前 Tool surface 回答“这一轮模型可以使用哪些能力”。两者不是同一个集合。</p>
-<p><code>write_file</code> 已注册，仍可能因为当前用户只有读取权限、项目 workspace 尚未挂载，或这一轮任务只允许分析而不能修改，而不应进入模型输入。</p>
+<p>Registry 回答“系统里有哪些能力”，当前 Tool surface 回答“这个 Model Turn 可以使用哪些能力”。两者不是同一个集合。</p>
+<p><code>write_file</code> 已注册，仍可能因为当前用户只有读取权限、项目 workspace 尚未挂载，或当前 Model Turn 只允许分析而不能修改，而不应进入模型输入。</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>registered tools</span></span>
 <span class="line"><span>      ↓  identity、permission、environment</span></span>
 <span class="line"><span>allowed tools</span></span>
@@ -70,13 +70,13 @@
 <p>Tool Schema 为什么是 model-facing API，可参考 <a href="/zh/writing/tool-schemas-model-facing-apis/">Agent Tool Schema 是面向模型的 API</a>。</p>
 <h2 id="handler-返回异常不等于外部动作失败">Handler 返回异常，不等于外部动作失败</h2>
 <p>如果文件服务已经保存 <code>report.md</code>，但响应在返回途中丢失，Runtime 最终只看到 timeout。此时再次调用可能覆盖文件、产生新版本或重复触发后续流程。</p>
-<p>因此，一次写操作需要稳定的逻辑身份。多次 attempt 可以属于同一个写入，但不能因为 retry 就悄悄变成新的用户动作：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>write operation_7</span></span>
+<p>因此，一次获准执行的写操作需要稳定的 Tool Execution identity。多次 Attempt 可以属于同一个 Tool Execution，但不能因为 retry 就悄悄变成新的用户动作：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_write_7</span></span>
 <span class="line"><span>  ├─ attempt 1：timeout，结果未知</span></span>
 <span class="line"><span>  └─ attempt 2：确认 file_version_12 已存在</span></span></code></pre>
-<p>这要求 Runtime 保留 operation identity，也要求下游在可能时提供幂等或结果查询能力。Lifecycle 在这里记录的是 <code>succeeded</code>、明确 <code>failed</code> 或 <code>unknown</code>，而不是把所有 exception 都解释成“没有发生”。</p>
+<p>这要求 Runtime 保留 Tool Execution identity，也要求下游在可能时提供幂等或结果查询能力。Lifecycle 在这里记录的是 <code>succeeded</code>、明确 <code>failed</code> 或 <code>unknown</code>，而不是把所有 exception 都解释成“没有发生”。</p>
 <h2 id="成功响应也不能原样塞回-context">成功响应也不能原样塞回 Context</h2>
-<p>外部文件 API 可能返回权限列表、内部存储字段、历史版本和几 MB 内容。handler 调用成功，不代表这些数据都适合成为下一轮模型输入。</p>
+<p>外部文件 API 可能返回权限列表、内部存储字段、历史版本和几 MB 内容。handler 调用成功，不代表这些数据都适合成为下一个 Model Turn 的输入。</p>
 <p>Runtime 应把 backend response 转换成有界、可解释的 Tool Result，例如：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
 <span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">,</span></span>
@@ -89,11 +89,11 @@
 <p>结果需要明确是否完整、是否截断、事实来自哪里，以及大内容应到哪个 Artifact 读取。否则模型可能把局部结果当作完整结果，或让外部数据中的文字变成新的 instruction。</p>
 <h2 id="lifecycle-连接的是同一个动作">Lifecycle 连接的是同一个动作</h2>
 <p>到这里，一次 <code>write_file</code> 已经经过了几个不同 owner：Registry 提供 definition，policy 决定是否可见，模型生成参数，Runtime 注入可信 context，backend 确认副作用，result normalizer 再决定模型看到什么。</p>
-<p>Lifecycle 不要求把所有实现放进一个服务。它只要求这些决定仍能关联到同一个逻辑调用：模型看到了哪个 definition、谁授权了什么动作、发生了哪些 attempt，以及最后确认了哪个结果。</p>
+<p>Lifecycle 不要求把所有实现放进一个服务。它只要求这些决定仍能关联到同一个 Tool Call 和获准执行后创建的 Tool Execution：模型看到了哪个 definition、谁授权了什么动作、发生了哪些 Attempt，以及最后确认了哪个结果。</p>
 <p>如果这些关系断开，系统只能看到“函数调用过”和“某处报错”，无法判断问题发生在 Tool 选择、参数生成、authorization、执行还是结果消费。</p>
 <h2 id="回到问题">回到问题</h2>
 <p>Tool handler 被调用成功，只能说明执行入口走通了一次。</p>
-<p>一个可解释的 Tool Runtime 还要保证：模型看到的是当前允许的 definition；模型参数不会伪造可信身份；Schema、authorization 与 backend state 各自检查自己掌握的事实；结果未知时不会盲目生成新动作；成功结果经过归一化后再进入下一轮模型输入。</p>
+<p>一个可解释的 Tool Runtime 还要保证：模型看到的是当前允许的 definition；模型参数不会伪造可信身份；Schema、authorization 与 backend state 各自检查自己掌握的事实；结果未知时不会盲目生成新动作；成功结果经过归一化后再进入下一个 Model Turn。</p>
 <p>把这些边界连接起来，Tool 才不只是一个函数，而是一项能够被安全执行并确认结果的 Agent 能力。</p>
 <h2 id="后续问题">后续问题</h2>
 <ul>

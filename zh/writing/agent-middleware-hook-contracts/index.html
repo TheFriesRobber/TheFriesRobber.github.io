@@ -111,14 +111,14 @@
 <span class="line"><span>after A</span></span></code></pre>
 <p>如果 <code>after</code> 仍按注册顺序执行，A 可能先关闭 B 仍在使用的资源。是否采用反向顺序，应由 Runtime contract 明确，而不是让每个 Hook 作者猜测。</p>
 <p>Cancellation 也必须遵循同一套 unwind contract：已经进入的 scope 按反向顺序清理，temporary credential 等资源不能因为取消而遗留；cleanup error 应单独记录，不能覆盖原始 cancellation。带外部副作用的 after hook 是否允许 replay，则继续遵循后文定义的 delivery contract。</p>
-<p>并非所有 after hook 都属于同一个 nesting。记录 metric 的 observer 可以消费已经完成的 event；结果 policy 则必须在内容交给用户或进入下一轮 context 前运行。把它们都放进一个 <code>afterModel</code> 数组，只会再次把不同语义交给注册顺序。</p>
+<p>并非所有 after hook 都属于同一个 nesting。记录 metric 的 observer 可以消费已经完成的 event；结果 policy 则必须在内容交给用户或进入下一个 Model Turn 的 context 前运行。把它们都放进一个 <code>afterModel</code> 数组，只会再次把不同语义交给注册顺序。</p>
 <h2 id="hook-失败不能改写已经发生的-tool-结果">Hook 失败不能改写已经发生的 Tool 结果</h2>
 <p>顺序问题在 happy path 已经可见，retry 会让失败契约更加重要。</p>
 <p>假设 <code>write_file</code> 已经成功保存报告，随后一个 <code>afterTool</code> Hook 要把 tracing event 写入远端 collector，但 collector timeout。如果 middleware 把整个 chain 都当成 failed，外层 retry 可能再次执行 <code>write_file</code>：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt 1：write_file succeeded → trace delivery timeout</span></span>
 <span class="line"><span>attempt 2：write_file succeeded again</span></span></code></pre>
 <p>第二次写入不是 tracing 的 retry，而是业务副作用被重复执行。Runtime 必须保留两个独立事实：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Step：succeeded，artifact = report.md@v3</span></span>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Execution：succeeded，artifact = report.md@v3</span></span>
 <span class="line"><span>Trace delivery：failed，等待单独重试或降级</span></span></code></pre>
 <p>因此，每类 Hook 都需要预先决定失败策略：</p>
 <ul>
@@ -133,7 +133,7 @@
 <p>例如 Hook 在 Tool 完成后发送通知。进程在通知成功后、记录 checkpoint 前崩溃，恢复时会再次进入 <code>afterTool</code>。如果通知使用新的 message ID，用户会收到两条消息。</p>
 <p>这类动作不应隐藏在“顺便执行”的 callback 中。更稳妥的选择有两个：</p>
 <ol>
-<li>把通知提升为显式 Step，由 Runtime 保存 logical identity、Attempt 和结果。</li>
+<li>把通知提升为显式 Tool Execution，由 Runtime 保存 logical identity、Attempt 和结果。</li>
 <li>如果它确实属于基础设施 Hook，就使用稳定 <code>event_id</code>，让下游去重，并记录 delivery 状态。</li>
 </ol>
 <p>这样，replay 的单位是同一个 Hook event，而不是一次全新的业务意图。Metric、tracing、billing 和 audit 等 observer 也都需要明确自己接受 at-least-once delivery、幂等 upsert，还是必须由 durable outbox 交付。稳定 <code>event_id</code> 本身不能阻止重复副作用；只有下游执行去重或幂等 upsert 时，重复交付才会收敛为一个结果。</p>
@@ -146,7 +146,7 @@
 <li>cached response 仍经过 normalization 和 output policy；</li>
 <li>成对 scope 的 after 以反向顺序收敛；</li>
 <li>cancellation 触发已进入 scope 的反向清理，cleanup error 不改写原始取消结果；</li>
-<li>observer 失败不会把已成功的 Tool Step 改成 failed；</li>
+<li>observer 失败不会把已成功的 Tool Execution 改成 failed；</li>
 <li>replay 符合声明的 delivery contract：at-least-once 复用同一个 <code>event_id</code> 并允许重复投递，只有声明幂等或去重时才验证不会产生重复副作用；</li>
 <li>trace 能区分原始候选、policy decision 与最终请求。</li>
 </ul>

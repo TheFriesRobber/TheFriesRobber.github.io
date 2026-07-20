@@ -36,7 +36,7 @@
 
 
 
-<table><thead><tr><th>对象</th><th>回答的问题</th><th>典型内容</th></tr></thead><tbody><tr><td>Event Log</td><td>已经提交过哪些执行事实</td><td>Tool intent、result、Turn completed</td></tr><tr><td>Snapshot</td><td>当前派生状态是什么</td><td>Run state、当前 Turn、预算余额</td></tr><tr><td>Checkpoint</td><td>从哪里、按什么条件恢复</td><td>snapshot reference、event cursor、waiting condition、version</td></tr><tr><td>Artifact</td><td>执行产生了什么交付物</td><td>文件、报告、代码、引用</td></tr></tbody></table>
+<table><thead><tr><th>对象</th><th>回答的问题</th><th>典型内容</th></tr></thead><tbody><tr><td>Event Log</td><td>已经提交过哪些执行事实</td><td>Tool intent、result、Model Turn completed</td></tr><tr><td>Snapshot</td><td>当前派生状态是什么</td><td>Run state、当前 Model Turn、预算余额</td></tr><tr><td>Checkpoint</td><td>从哪里、按什么条件恢复</td><td>snapshot reference、event cursor、waiting condition、version</td></tr><tr><td>Artifact</td><td>执行产生了什么交付物</td><td>文件、报告、代码、引用</td></tr></tbody></table>
 <p>Event Log 偏历史，snapshot 偏快速读取，artifact 是用户可见结果。Checkpoint 则是一份恢复协议：它不仅指向一个位置，还要说明恢复代码需要验证哪些外部条件。</p>
 <p>把 ORM connection、async task、socket 或 framework 内部对象序列化进去，看起来更完整，却通常无法跨进程、版本或机器恢复。这些临时对象应在恢复时重新创建。</p>
 <p>对于外部副作用，Runtime 还需要在调用前持久化 effect intent：稳定 <code>effect_key</code>、参数摘要、目标系统和初始状态。只有 intent 提交成功后才能发起调用。这样，worker 若在调用后硬崩溃，恢复时至少知道“这个逻辑动作可能已经发生”，而不会生成一个新身份重新执行。</p>
@@ -62,12 +62,12 @@
 <span class="line"><span style="color:#24292E">    }</span></span>
 <span class="line"><span style="color:#24292E">  ],</span></span>
 <span class="line"><span style="color:#005CC5">  "artifact_refs"</span><span style="color:#24292E">: [],</span></span>
-<span class="line"><span style="color:#005CC5">  "budget"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"turns_used"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#005CC5">  "budget"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"model_turns_used"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span><span style="color:#24292E">},</span></span>
 <span class="line"><span style="color:#005CC5">  "created_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:00:00Z"</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
 <p>这里的 <code>snapshot_ref</code> 指向截至 Session stream <code>session:session_17</code> 中 <code>seq=73</code> 的完整可恢复派生状态；恢复器可以验证 Snapshot、stream 与 sequence 的绑定关系，再从 73 之后补事件。裸数字 73 在另一条 Session stream 中没有意义。恢复当前 Run 时仍按顺序读取这个 Session stream，再只把与当前 Run 有因果关系的事件应用到恢复状态。如果不保存 Snapshot，也可以从 Event Log 起点完整重放，但不能既没有基础状态，又从中间 cursor 开始。</p>
 <p>RunSpec 说明这次执行采用什么契约，<code>resume_contract_revision</code> 说明当前 <code>resume_at</code> 依赖哪一版恢复语义。Effect contract 还要说明下游 provider、幂等作用域和 key 的有效期；只有 <code>effect_key</code> 本身不足以证明几天后重试仍会去重。</p>
-<p><code>resume_at</code> 也不应该是任意代码行号。它应指向代码能够长期理解的逻辑边界，例如某个 Step 已提交、正在等待 approval，或者需要 reconciliation 的 effect。</p>
+<p><code>resume_at</code> 也不应该是任意代码行号。它应指向代码能够长期理解的逻辑边界，例如某个 Tool Execution 已提交、正在等待 approval，或者需要 reconciliation 的 effect。</p>
 <h2 id="恢复不是反序列化而是-reconciliation">恢复不是反序列化，而是 reconciliation</h2>
 <figure>
   <img src="/posts/zh/agent-checkpoint-recovery-contract/checkpoint-recovery.svg" alt="恢复流程先加载 Checkpoint 并验证它引用的 Snapshot 覆盖到 event cursor，再重放 cursor 之后的事件，查询结果未知的外部副作用，最后生成新的 Runtime state 并继续。" loading="lazy">
@@ -116,8 +116,8 @@
 <h2 id="checkpoint-的生成频率">Checkpoint 的生成频率</h2>
 <p>每个 token 都写 Checkpoint 成本过高，只在 Run 结束时写又失去恢复价值。比较自然的边界包括：</p>
 <ul>
-<li>一个有副作用的 Step 收敛后。</li>
-<li>一个 Turn 完成后。</li>
+<li>一个有副作用的 Tool Execution 收敛后。</li>
+<li>一个 Model Turn 完成后。</li>
 <li>进入人工等待或长 timer 前。</li>
 <li>已产生重要 artifact 后。</li>
 <li>Event Log 累积到需要缩短重建时间时。</li>

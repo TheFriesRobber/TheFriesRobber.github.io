@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Use checkpoint summaries, incremental compression, and source backlinks to manage long conversations."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Long Conversations Need Incremental Compression | Xiaoyuan"><meta property="og:description" content="Use checkpoint summaries, incremental compression, and source backlinks to manage long conversations."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Long Conversations Need Incremental Compression | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/incremental-conversation-compression/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Long Conversations Need Incremental Compression</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Memory/">Memory</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Suppose a user and an Agent complete a report over 100 user interactions: the first 30 establish scope, the next 40 search for evidence, and the final 30 revise the conclusions.</p>
+<p>By the seventieth user interaction, the complete history no longer fits in Context. Two direct responses are:</p>
+<ol>
+<li>Resummarize all earlier messages after every interaction.</li>
+<li>Maintain one summary and overwrite it with a new version whenever space runs out.</li>
+</ol>
+<p>The first approach repeatedly reads and summarizes the same content, so its cost grows with the conversation. The second is cheaper, but repeated rewrites can gradually move the summary away from the source. Worse, at interaction 82 the user may say, “The report should not cover every region. Keep Europe only.” The system must know which conclusions in the old summary depended on the corrected scope.</p>
+<p>If a summary is only an unsourced paragraph, the system cannot tell which messages it covers or whether it should apply a local correction, rebuild the whole summary, or let the latest statement override it temporarily.</p>
+<p>The central problem in long-conversation compression is therefore not “write a shorter summary.” It is: <strong>treat the summary as a rebuildable derived view and record which raw interval it covers.</strong></p>
+<h2 id="separate-raw-history-from-model-input">Separate raw history from model input</h2>
+<p>Compression itself should not rewrite or delete the conversation’s factual record. Independent retention and authorization policies may still delete a source or make it unreadable. Start by separating two concepts:</p>
+<ul>
+<li><strong>Raw history:</strong> User messages, model responses, Tool Calls, and Tool Results that remain readable under the current retention period and authorization policy.</li>
+<li><strong>Context view:</strong> The history view actually sent to the model for the current Model Turn. It may combine a summary with recent raw content.</li>
+</ul>
+<p>Raw history is the source of a summary. The summary is derived to satisfy a Context Budget. Keeping only the summary would replace source data with a cache: once compression is wrong, no reliable basis remains for repair. Conversely, when a source is deleted or its permission is revoked, a summary derived from that source must not bypass the original policy and continue exposing the content.</p>
+<p>The compression checkpoint in this article is a watermark that says “history has been compressed through this point.” It is not the Checkpoint used to recover Runtime execution. It does not restore a Tool Attempt, external side effect, or process state.</p>
+<h2 id="one-incremental-compression-spans-three-intervals">One incremental compression spans three intervals</h2>
+<p>Divide the current history into three parts:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>checkpoint summary | stable raw prefix | recent raw window</span></span>
+<span class="line"><span>   compressed          ready to compress       kept verbatim for now</span></span></code></pre>
+<ul>
+<li>The <code>checkpoint summary</code> covers older messages that have become stable.</li>
+<li>The <code>stable raw prefix</code> contains topics or execution phases that ended after the previous checkpoint.</li>
+<li>The <code>recent raw window</code> keeps active discussion, incomplete Tool Calls, and the user’s latest corrections verbatim.</li>
+</ul>
+<p>“Stable” does not mean merely old. It means the content no longer participates in an unresolved action. If the model has issued a Tool Call and the result has not returned, replacing the pair with “query in progress” may leave the next Model Turn without the call/result relationship.</p>
+<figure>
+  <img src="/posts/en/incremental-conversation-compression/compression-checkpoints.svg" alt="Raw records follow event sequence. Two stable intervals produce a summary with an explicit coverage range, while recent records enter Context verbatim." loading="lazy">
+  <figcaption>A checkpoint advances only to a stable boundary. The summary records its coverage, while the recent window remains verbatim.</figcaption>
+</figure>
+<h2 id="a-checkpoint-must-record-its-coverage">A checkpoint must record its coverage</h2>
+<p>A useful summary record contains more than the summary body:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_id: summary_3</span></span>
+<span class="line"><span>covers: event_seq 1..checkpoint_seq</span></span>
+<span class="line"><span>dependencies:</span></span>
+<span class="line"><span>  previous_summary_backlinks: [summary_2]</span></span>
+<span class="line"><span>  source_spans:</span></span>
+<span class="line"><span>    - event_seq 1..previous_checkpoint_seq</span></span>
+<span class="line"><span>    - event_seq previous_checkpoint_seq+1..checkpoint_seq</span></span>
+<span class="line"><span>  decision_refs: []</span></span>
+<span class="line"><span>policy_revision: 4</span></span>
+<span class="line"><span>authorization_revision: authz_19</span></span>
+<span class="line"><span>retention_revision: retention_6</span></span>
+<span class="line"><span>created_at: 2026-07-15T10:00:00Z</span></span></code></pre>
+<p>Here, <code>event_seq</code> is the order in the Session Event Log across user messages, model responses, Tool Calls, and Tool Results. It is different from a stable content identity such as <code>message_id=msg_evidence_42</code>. <code>covers</code> says only which event interval the summary represents, so Assembly can detect overlaps or gaps against the recent window. <code>dependencies</code> records the complete set of inputs that affect summary content: raw sources, Assembly Decisions, and any previous-summary backlinks actually reused during generation. Dependency checks recursively follow those backlinks, so a coverage interval cannot stand in for the dependency closure. <code>policy_revision</code> identifies the compression rules, while the authorization and retention revisions record the data-visibility boundary used during generation.</p>
+<p>The body should preserve structure instead of flattening everything into prose:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>current goal: complete the European market report</span></span>
+<span class="line"><span>confirmed constraints: use only public sources; every citation must be traceable</span></span>
+<span class="line"><span>completed: evidence search, data cleaning</span></span>
+<span class="line"><span>unresolved: whether the 2025 definition matches the 2024 definition</span></span>
+<span class="line"><span>critical evidence: message_id msg_evidence_42, tool_result_id result_17, file_id file_8@revision_8</span></span></code></pre>
+<p>Structure cannot guarantee that a summary is correct. It does let later compression and conflict resolution distinguish goals, constraints, completed work, and evidence instead of reducing all of them to generic background.</p>
+<h2 id="incremental-updates-must-not-summarize-summaries-forever">Incremental updates must not summarize summaries forever</h2>
+<p>At the stable event boundary corresponding to the seventieth user interaction, the system can create <code>summary_3</code> from <code>summary_2 + the stable raw prefix after the previous checkpoint</code>. It avoids reprocessing the complete earlier history on every pass, then advances from the new stable boundary next time.</p>
+<p>If the system always summarizes only the previous summary, however, early omissions become permanent and repeated rewrites accumulate semantic drift. The incremental path also needs a rebase path. While raw sources remain readable, the following changes should trigger regeneration from affected raw history instead of another incremental rewrite:</p>
+<ul>
+<li>The user explicitly corrects a fact or constraint stored in the summary.</li>
+<li>The compression policy, model, or structure changes incompatibly.</li>
+<li>Evaluation finds that repeated compression frequently loses a particular class of facts.</li>
+</ul>
+<p>Source deletion or permission revocation is not an ordinary rebase. First follow the complete dependency closure and mark every summary that directly or transitively depends on the source as unusable; a coverage-interval lookup is not sufficient. Then rebuild using only remaining records that are readable, still authorized, and independent of the invalid source. Later messages, Assembly Decisions, or Tool Results that repeat the source also belong to the dependency chain. If their independence cannot be established, conservatively exclude the related suffix. If a safe rebuild still cannot be produced, mark that Context as <code>needs_rebuild</code> and exclude the old summary. The existence of a cached summary must not continue exposing content from an invalid source.</p>
+<p>This resembles an incrementally maintained materialized view: consume new changes normally, then rebuild the affected range when a dependency becomes invalid. It is only a mental model; the implementation does not need to use a database view.</p>
+<h2 id="how-should-a-summary-change-after-a-user-correction">How should a summary change after a user correction?</h2>
+<p>The previous section lists conditions that trigger a rebuild, but “reread the sources that remain usable” is still abstract. Consider one complete user correction. Context Assembly first decides how the correction applies. If it should also affect later conversation, the compression layer rebuilds the summary from that decision.</p>
+<p>Suppose the active summary still says “Europe and North America,” and the user then explicitly says “keep Europe only”:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_3: report covers Europe and North America; covers event_seq 1..checkpoint_seq</span></span>
+<span class="line"><span>event_seq correction_seq: user.correction(message_id=msg_scope_correction)</span></span>
+<span class="line"><span>message payload: the user explicitly says “keep Europe only”</span></span></code></pre>
+<p>The system first appends the correction as a new event in Raw history, producing <code>correction_seq</code>. Its payload references the stable <code>msg_scope_correction</code> identity instead of rewriting an old message. The system also cannot append the correction to the end of the summary and leave two conflicting scopes in place. Context Assembly can first decide that the current Task uses the correction and that the decision must affect later conversation. Until a new summary is ready, <code>summary_3</code>, which contains the obsolete scope, is excluded from model input for the current Run. Assembly does not render a model request yet; it sends the decision to the compression layer.</p>
+<p>The compression layer then uses <code>covers</code> to identify the stable interval to rebuild, follows <code>dependencies</code> to find the affected sources, and generates a new version:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_4: covers event_seq 1..checkpoint_seq</span></span>
+<span class="line"><span>replaces: summary_3</span></span>
+<span class="line"><span>dependencies:</span></span>
+<span class="line"><span>  previous_summary_backlinks: [summary_3]</span></span>
+<span class="line"><span>  source_spans: still-authorized affected raw intervals</span></span>
+<span class="line"><span>  decision_refs: [event_seq correction_seq / message_id msg_scope_correction]</span></span>
+<span class="line"><span>current goal: complete only the European market report</span></span>
+<span class="line"><span>excluded: conclusions about North America, because msg_scope_correction changed the scope</span></span>
+<span class="line"><span>retained evidence: references to raw messages and Tool Results that support conclusions about Europe</span></span></code></pre>
+<p><code>summary_4</code> still covers only the original stable interval. The correction participates in the rebuild as decision provenance in the complete dependency set, but records after <code>checkpoint_seq</code>, including <code>correction_seq</code>, remain in the recent window. The latest instruction therefore continues to enter Context verbatim. Only after <code>summary_4</code> has been generated completely and passes coverage and dependency-closure checks does the system attempt to switch the active checkpoint. The CAS predicate binds the expected active-summary version, raw/event watermark, authorization revision, and retention revision. A change to any of them abandons the switch and rebuilds under the new boundary. Before Assembly actually renders the model request, it validates the current authorization and retention revisions once more so a revocation after the switch cannot be bypassed through an old snapshot. The old <code>summary_3</code> does not need to be overwritten physically. Preserving the version relationship lets the system explain why Context differed before and after the correction. Even if generating <code>summary_4</code> fails, raw history remains available for a future rebuild. The current Run ends with <code>state=failed, failure_reason=context_needs_rebuild</code> instead of sending either the conflicting old summary or an over-budget complete history to the model.</p>
+<p>If the user says only “hide North America for this presentation,” the system must not turn that request into a permanent scope change. Context Assembly produces a decision for the current Run and uses it to render a current-only Context view. The decision does not enter the compression layer and does not rewrite <code>summary_3</code>. Only a correction that should affect later conversation causes the compression layer to write an Assembly Decision and its source into a new summary.</p>
+<figure>
+  <img src="/posts/en/incremental-conversation-compression/correction-summary-rebuild-sequence.svg" alt="After a user correction enters Raw history, Context Assembly reads the old checkpoint and correction, then decides its scope. A persistent correction makes Compression rebuild summary_4 from still-valid sources and switch the active checkpoint after validation. Rebuild failure prevents a model call, while a correction for the current Run only does not rebuild the summary." loading="lazy">
+  <figcaption>Assembly decides scope first. Only a correction that affects later conversation rebuilds and switches the summary; a temporary correction stays in the current Run's Context view.</figcaption>
+</figure>
+<h2 id="the-recent-window-cannot-use-a-fixed-message-count">The recent window cannot use a fixed message count</h2>
+<p>Keeping “the last 20 messages” is simple, but the cutoff can split one execution unit: retain a Tool Result while removing its Tool Call, or retain the model’s “complete” response while removing the user’s subsequent correction.</p>
+<p>The left boundary of the recent window should at least preserve complete interaction units:</p>
+<ul>
+<li>Do not split a Tool Call and Tool Result pair.</li>
+<li>Do not split an unresolved confirmation or user correction.</li>
+<li>Do not move the boundary past evidence still referenced by the current planning or execution phase.</li>
+<li>Keep the latest explicit instruction verbatim instead of relying only on a summary.</li>
+</ul>
+<p>The system usually starts from a target token size and searches backward for a safe boundary rather than preserving exactly N messages.</p>
+<h2 id="how-to-evaluate-compression-reliability">How to evaluate compression reliability</h2>
+<p>Compression ratio only describes how much shorter the content became. It does not say whether important information survived. A test case for a long conversation can label:</p>
+<ul>
+<li>user constraints that must remain;</li>
+<li>facts that require a source reference;</li>
+<li>completion states that must not be rewritten;</li>
+<li>old information corrected by newer messages;</li>
+<li>Tool Call and Tool Result pairs that must stay together.</li>
+</ul>
+<p>Then evaluate factual retention, instruction retention, provenance completeness, conflict updates, and rebuild cost separately. Test repeated incremental compression rather than only the first summary; semantic drift often appears after several passes.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>A long conversation cannot rely only on repeated full-history summaries or one summary that is overwritten indefinitely.</p>
+<p>A more stable model uses raw history within retention and authorization boundaries, compresses stable intervals into a checkpoint summary with coverage and source backlinks, and keeps the recent window verbatim. It advances incrementally under normal conditions. After a correction or compression drift, it rebases from affected sources that remain readable. After source deletion or permission revocation, it first invalidates related summaries, then rebuilds from the remaining sources.</p>
+<p>The summary is then an inspectable and rebuildable Context view, not long-term Memory that gradually replaces the factual record.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should long-term Memory and conversation summaries be written and read separately?</li>
+<li>How should Context Evaluation measure factual retention, conflict handling, and provenance after compression?</li>
+<li>How should provider-native compaction integrate with one Runtime contract?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://platform.claude.com/docs/en/build-with-claude/context-editing">Anthropic: Context editing</a></li>
+<li><a href="https://developers.openai.com/api/docs/guides/compaction">OpenAI Responses API: Compaction</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

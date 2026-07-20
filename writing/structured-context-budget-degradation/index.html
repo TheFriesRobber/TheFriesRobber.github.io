@@ -1,0 +1,168 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Replace tail truncation with source quotas, priorities, and layered degradation when Context exceeds its budget."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Budgets Need Structured Degradation | Xiaoyuan"><meta property="og:description" content="Replace tail truncation with source quotas, priorities, and layered degradation when Context exceeds its budget."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Budgets Need Structured Degradation | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/structured-context-budget-degradation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Budgets Need Structured Degradation</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Suppose an Agent is updating a design document from project files. Before the next Model Turn, Context Assembly has collected:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Content</th><th align="right">Estimated tokens</th><th>Purpose</th></tr></thead><tbody><tr><td>System instructions and safety constraints</td><td align="right">2,500</td><td>Define behavioral boundaries</td></tr><tr><td>Current Task and latest user requirements</td><td align="right">1,500</td><td>State what this request must accomplish</td></tr><tr><td>Tool definitions</td><td align="right">3,000</td><td>Tell the model which Tools are available</td></tr><tr><td>Recent conversation</td><td align="right">5,000</td><td>Preserve active reasoning and corrections</td></tr><tr><td>File excerpts and Tool Results</td><td align="right">12,000</td><td>Provide evidence required to edit the document</td></tr><tr><td>Earlier history and Memory</td><td align="right">7,000</td><td>Supply background and prior decisions</td></tr></tbody></table>
+<p>This synthetic example totals 31,000 tokens. Suppose the model has a 32,000-token context window, but the system must reserve 4,000 tokens for output and another 2,000 for estimation error and protocol overhead. Only 26,000 tokens remain for input.</p>
+<p>The simplest response is to delete the oldest messages first or tail-truncate the final string. That deletion order reflects position in an array, not value to the current Task. The system may remove a compatibility requirement that the user confirmed earlier while retaining two copies of the same build log.</p>
+<p>Exceeding the context window is therefore not a string-length problem. It is an information-selection problem: <strong>which content must remain verbatim, which can be compressed, which can be retrieved on demand, and which can safely be dropped?</strong></p>
+<h2 id="calculate-the-usable-budget-before-assigning-the-whole-window-to-input">Calculate the usable budget before assigning the whole window to input</h2>
+<p>A model’s published context window usually accommodates both input and output. If the Runtime treats the full window as its input limit, generation may hit the boundary before it finishes. If local token estimates differ from the provider’s actual count, the request may not fail until after submission.</p>
+<p>Start with a simple relationship:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input budget</span></span>
+<span class="line"><span>= context window</span></span>
+<span class="line"><span>- reserved output</span></span>
+<span class="line"><span>- protocol and estimation margin</span></span></code></pre>
+<p><code>reserved output</code> is not a universal constant. A request that returns one classification label does not need the same reserve as one that generates a complete report. Tool definitions, images, and provider-injected control information may also consume input. The margin should therefore come from measurements of real requests, not from one permanent percentage.</p>
+<p>This calculation answers only “how much can fit?” It does not yet answer “what should fit?”</p>
+<h2 id="budget-candidates-need-semantics">Budget candidates need semantics</h2>
+<p>Once Assembly has flattened every source into one large string, the Budget layer can see token counts but cannot tell whether it is removing a safety constraint or a duplicate log.</p>
+<p>A better input preserves each candidate’s source and purpose:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file_chunk_27"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "source"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "role"</span><span style="color:#24292E">: </span><span style="color:#032F62">"evidence"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1800</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "priority"</span><span style="color:#24292E">: </span><span style="color:#005CC5">70</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "degradation"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"full"</span><span style="color:#24292E">, </span><span style="color:#032F62">"excerpt"</span><span style="color:#24292E">, </span><span style="color:#032F62">"reference"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "provenance"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"file_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"design_4"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">}</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>Here, <code>priority</code> is only one policy input; it must not determine the result by itself. A safety constraint with low task relevance still cannot be removed. Highly relevant file content may be ineligible because the current user lacks permission to read it. Context Assembly should resolve permissions, source roles, and conflicts first. Budgeting chooses only among eligible candidates.</p>
+<p>Candidates can be grouped by their degradation behavior:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Class</th><th>Meaning</th><th>Common examples</th></tr></thead><tbody><tr><td><code>pinned</code></td><td>Required for the current request to remain valid; cannot be removed silently</td><td>System instructions, current user requirements, output Schema</td></tr><tr><td><code>compressible</code></td><td>Can preserve its main meaning in a shorter form</td><td>Conversation from completed phases, repeated Tool logs</td></tr><tr><td><code>retrievable</code></td><td>Keep only a summary or reference now, then load the full content if needed</td><td>Large files, complete search results, Artifacts</td></tr><tr><td><code>droppable</code></td><td>Removing it does not change current Task constraints or primary evidence</td><td>Duplicate excerpts, low-relevance candidates, stale intermediate output</td></tr></tbody></table>
+<p>These are not permanent labels attached to each source type. A user-mandated passage in one file may be <code>pinned</code> while the remaining sections are <code>retrievable</code>. A Tool error under active repair should retain its original arguments, while an old log from a successful operation can be compressed.</p>
+<h2 id="source-quotas-are-caps-not-reserved-seats">Source quotas are caps, not reserved seats</h2>
+<p>Quotas for history, Memory, files, and Tool Results can prevent one source from filling the entire window. A quota should not mean “reserve this share even when the source has nothing useful to contribute.”</p>
+<p>If the current Task does not use Memory, there is no reason to include irrelevant preferences merely to fill <code>memory=10%</code>. Conversely, if editing the document requires two critical chapters, files may consume available shared capacity as long as they do not displace hard constraints or the output reserve.</p>
+<p>A more useful policy is:</p>
+<ol>
+<li>Satisfy every <code>pinned</code> candidate first.</li>
+<li>Apply hard caps to sources that can grow without bound.</li>
+<li>Let eligible candidates compete for the remaining space according to Task phase and evidence value.</li>
+<li>Return unused quota to a shared pool instead of filling it artificially.</li>
+</ol>
+<p>If <code>pinned</code> content alone exceeds the input budget, the system still must not truncate it silently. It should narrow the Tool Surface, ask the user to reduce the Task, or return an explicit error that Context cannot be assembled safely. <code>pinned</code> means “do not drop without saying so,” not “may grow without limit.”</p>
+<h2 id="degradation-should-follow-a-predefined-ladder">Degradation should follow a predefined ladder</h2>
+<p>Return to the 31,000-token example. The system must remove at least 5,000 tokens. It could proceed as follows:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>31,000  original candidates</span></span>
+<span class="line"><span> -2,000 remove duplicate Tool logs and duplicate file excerpts</span></span>
+<span class="line"><span> -4,000 replace 5,000 tokens of history from a completed phase</span></span>
+<span class="line"><span>        with a 1,000-token checkpoint summary</span></span>
+<span class="line"><span>=25,000 sent as model input</span></span></code></pre>
+<p>This path does not truncate an arbitrary string or remove a user requirement. The complete earlier history remains in the raw record; the next Model Turn uses only the summary with its source range. If file content later grows further, it can degrade from <code>full</code> to <code>excerpt</code>, then to a <code>reference</code> that can be resolved on demand.</p>
+<p>One general degradation ladder is:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>deduplicate</span></span>
+<span class="line"><span>→ narrow the Tool Surface or remove unused Schemas</span></span>
+<span class="line"><span>→ compress stable history</span></span>
+<span class="line"><span>→ replace large content with excerpts or references</span></span>
+<span class="line"><span>→ drop low-value candidates</span></span>
+<span class="line"><span>→ reject or reduce the Task</span></span></code></pre>
+<p>The exact order still depends on the Task. An Agent in the middle of a Tool invocation cannot save tokens by removing an unfinished Tool Call and Tool Result pair. A Task that requires source quotations cannot replace every file with a summary. Degradation policy must understand the current Task phase, not merely the source name.</p>
+<h2 id="record-every-degradation-decision">Record every degradation decision</h2>
+<p>When the model misses a constraint, the final prompt alone does not explain why. The constraint may never have been retrieved, may have passed permission checks but lost its budget allocation, or may have been distorted by a summary.</p>
+<p>The Budget layer can record a compact decision for each candidate:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "candidate_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_result_18"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "decision"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summarized"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "from_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3200</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "to_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"completed_phase"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "summary_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summary_9"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>These records allow the system to evaluate three separate questions: did important information become a candidate, did the Budget policy retain it, and did the model use it correctly after seeing it? Overall Task success alone makes it difficult to locate which layer failed.</p>
+<h2 id="how-to-evaluate-a-degradation-policy">How to evaluate a degradation policy</h2>
+<p>Lower token usage does not imply a better policy. A system that deletes every input uses the fewest tokens and cannot complete the Task.</p>
+<p>At minimum, evaluate together:</p>
+<ul>
+<li>whether required constraints and critical evidence enter the final input;</li>
+<li>whether facts, instructions, and provenance in compressed content remain recoverable;</li>
+<li>whether the model repeatedly reloads content that was just removed;</li>
+<li>how success rate, latency, and token usage change on the same Task set;</li>
+<li>which requests end in “reduce or reject the Task,” and whether those outcomes are justified.</li>
+</ul>
+<p>This evaluation covers a Budget policy across sources. How Memory classifies <code>pinned</code>, <code>hot</code>, and <code>cold</code> content, and how long history produces a reliable summary, still require their own policies.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>When Context exceeds its budget, the Runtime is not handling one oversized string. It is handling information with different purposes and different degradation options.</p>
+<p>Reserve output and estimation capacity first. Then let semantic candidates enter a degradation ladder according to whether they are <code>pinned</code>, <code>compressible</code>, <code>retrievable</code>, or <code>droppable</code>. Only then can the system explain what it retained and why it removed something else.</p>
+<p>Simple truncation only guarantees a shorter request. Structured degradation attempts to preserve a valid Task.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should stable long history produce an incrementally maintainable summary with source ranges?</li>
+<li>How should Memory divide its own content into <code>pinned</code>, <code>hot</code>, and <code>cold</code> tiers?</li>
+<li>How should Context recall, contamination, conflict handling, and budget efficiency be evaluated separately?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://platform.openai.com/docs/api-reference/realtime">OpenAI Realtime API: Context truncation</a></li>
+<li><a href="https://platform.claude.com/docs/en/build-with-claude/context-editing">Anthropic: Context editing</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>

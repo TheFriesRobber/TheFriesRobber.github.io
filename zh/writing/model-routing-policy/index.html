@@ -1,0 +1,146 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Model Routing 需要明确能力、成本与失败契约 | Xiaoyuan"><meta property="og:description" content="将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Model Routing 需要明确能力、成本与失败契约 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/model-routing-policy/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Model Routing 需要明确能力、成本与失败契约</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>假设一个 Agent 要读取截图，整理其中的问题，再调用 <code>create_ticket</code>。这里的 <code>create_ticket</code> 是由本地 Runtime 执行的 client Tool：provider request 只生成 Tool proposal，本身不能执行 provider-side Tool 或产生票据副作用。这次执行要求模型同时具备：</p>
+<ul>
+<li>图片输入能力。</li>
+<li>当前 Tool Schema 所需的结构化输出能力。</li>
+<li>足够容纳截图说明、最近对话和 Tool definitions 的 Context window。</li>
+<li>符合当前数据区域和成本预算。</li>
+</ul>
+<p>Runtime 先调用主模型，但请求 timeout。最直接的 fallback 是把请求中的 model name 换成备用模型，然后原样重发。</p>
+<p>这条路径可能再次失败：备用模型不接受图片，支持的 Schema 子集不同，Context window 更小，或者不满足这次任务的数据政策。即使请求成功，Runtime 也未必知道主模型在 timeout 前是否已经产生了完整 Tool Call，能否继续使用已经收到的 partial output。</p>
+<p>所以 Model Routing 不只是从一个字符串切换到另一个字符串。它需要先回答两件事：<strong>哪个模型满足本次执行契约，以及当前失败是否允许换模型继续。</strong></p>
+<h2 id="先过滤不合格模型再比较成本和延迟">先过滤不合格模型，再比较成本和延迟</h2>
+<p>如果先按单价或平均延迟给所有模型排序，Router 可能选出一个便宜但无法完成任务的候选。更稳妥的顺序是先从 RunSpec 或当前任务中提取硬约束：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>required modalities</span></span>
+<span class="line"><span>required tool / structured-output features</span></span>
+<span class="line"><span>estimated input and reserved output budget</span></span>
+<span class="line"><span>required context capacity and maximum output</span></span>
+<span class="line"><span>data policy and region</span></span>
+<span class="line"><span>allowed provider set</span></span>
+<span class="line"><span>provider-side effect policy</span></span></code></pre>
+<p>模型目录则为每个候选维护 capability profile。它描述已知能力、限制和当前健康状态，但不是永远正确的静态表；模型版本、provider 行为和组织配置发生变化时，profile 也要更新并带 revision。</p>
+<p>Router 先排除不满足硬约束的候选，再在剩余集合中根据延迟目标、成本预算、质量等级和实时可用性做选择：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>all candidates</span></span>
+<span class="line"><span>→ capability and policy eligibility</span></span>
+<span class="line"><span>→ latency / cost / quality ranking</span></span>
+<span class="line"><span>→ selected route with fallback set</span></span></code></pre>
+<p>这让“不可用”和“不优先”成为不同结果。一个不支持图片的模型不是得分较低，而是对当前请求不合格。</p>
+<h2 id="routing-decision-要能解释为什么选它">Routing Decision 要能解释为什么选它</h2>
+<p>回到截图任务。Router 可以生成一条概念性的 decision record：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "operation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_op_17"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "requirements"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "modalities"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"text"</span><span style="color:#24292E">, </span><span style="color:#032F62">"image"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">    "tool_contract"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ticket_tools@revision_8"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "estimated_input_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">18000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "reserved_output_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "required_context_capacity_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">22000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "minimum_max_output_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "provider_side_effects"</span><span style="color:#24292E">: </span><span style="color:#032F62">"none"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "data_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"region_a"</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "selected"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_primary"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "eligible_fallbacks"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"model_route_secondary"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "excluded"</span><span style="color:#24292E">: [</span></span>
+<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"route"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_fast"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"image_input_unsupported"</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"route"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_large"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"cost_budget_exceeded"</span><span style="color:#24292E">}</span></span>
+<span class="line"><span style="color:#24292E">  ],</span></span>
+<span class="line"><span style="color:#005CC5">  "policy_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><code>estimated_input_tokens</code> 是当前 Assembly 结果的估算，不是模型容量；Router 用它加上 <code>reserved_output_tokens</code> 得到所需 Context capacity，同时单独检查候选的 max output 是否至少满足 <code>minimum_max_output_tokens</code>。把这几个值压成一个 <code>min_input_tokens</code>，会让“请求有多大”和“模型能容纳多少”重新混在一起。</p>
+<p>这里记录的是 route，而不一定是一个裸 model name。Route 还可以固定 provider、模型版本、Adapter profile、区域和参数上限。这样 Trace 能区分“Router 做了错误选择”和“选中的模型调用失败”，Eval 也能按同一份 routing policy 比较结果。</p>
+<h2 id="fallback-取决于失败发生在哪里">Fallback 取决于失败发生在哪里</h2>
+<p>并不是所有 model failure 都适合换模型重试：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>观察到的失败</th><th>Router 可以怎样处理</th><th>不能直接推断什么</th></tr></thead><tbody><tr><td>请求前发现 capability 不匹配</td><td>改选另一个合格候选</td><td>原候选只是“质量稍差”</td></tr><tr><td>Provider 明确返回 rate limit 或 unavailable</td><td>在预算内切换合格 route</td><td>第一次调用产生了可用结果</td></tr><tr><td>Timeout，未收到完整响应</td><td>无 provider-side effect 时建立新 attempt；否则先查询或对账</td><td>Provider 一定没有完成生成或外部动作</td></tr><tr><td>已收到 partial text 或 partial Tool Call</td><td>丢弃不完整 item，再从稳定边界重试</td><td>partial JSON 可以安全续写</td></tr><tr><td>输出完整但质量检查失败</td><td>repair、补充 Context 或重新规划</td><td>多换几个模型必然会变好</td></tr><tr><td>数据政策或权限不允许</td><td>终止或缩小任务</td><td>可以用更便宜模型绕过 policy</td></tr></tbody></table>
+<p>这里的 timeout 只是 Runtime 的观察：它说明在 deadline 内没有拿到可确认结果，不证明 provider 端从未完成计算。对于本文只生成 client Tool proposal 的 route，model request 本身没有外部副作用；Runtime 仍要先确定哪些 item 已完整落入 Event Log，才能决定 fallback 从哪里继续。</p>
+<p>只有 route capability 明确保证 <code>provider_side_effects=none</code> 时，安全默认才是让新 route 在同一个 logical model operation 下建立新 attempt：只复用已经确认的输入事实，不拼接两个 attempt 的不完整输出。如果 route 允许由 provider 执行的 server Tool 或 remote MCP Tool，request timeout 还可能留下状态未知的外部动作；Runtime 必须根据 provider response identity 或 Tool Execution identity 查询和对账，或者依赖明确的幂等恢复。这里的分类依据是执行 owner 与副作用 contract，而不是 Tool 是否采用 MCP 协议。无法确认时保持 <code>unknown</code>，不能直接 fallback 再执行一次。跨 Tool 执行的总体 retry budget 和 failure recovery 仍由 Runtime 的分层恢复策略管理。</p>
+<h2 id="切换模型后输入也需要重新检查">切换模型后，输入也需要重新检查</h2>
+<p>两个模型都被标记为“支持图片和 Tool”，不代表同一份最终请求可以原样发送。Fallback 前至少要重新验证：</p>
+<ul>
+<li>新 route 的 Context 上限是否容纳当前 Assembly 结果。</li>
+<li>Tool Surface 经对应 Adapter 转换后是否仍保留必需约束。</li>
+<li>System instruction、message role 和 structured output 是否可以无损表达。</li>
+<li>已完成的 Tool Result 是否能在新协议中保持 call identity 和内容边界。</li>
+<li>输出预算、采样参数和停止条件是否仍然有效。</li>
+</ul>
+<p>如果 Context 过大，系统可以回到结构化降级；如果必需 Tool Schema 无法表达，应该返回 <code>incompatible_route</code>，而不是静默删除约束后继续。</p>
+<p>这一步解释了为什么 Router 与 Provider Adapter 必须分开：Router 决定“选哪个候选”，Adapter 负责回答“如何把 canonical request 表达成该 provider 的协议”。Adapter 报告不兼容后，Router 可以改选；Adapter 本身不应因为转换失败就私自换模型。</p>
+<h2 id="把开场例子走一遍">把开场例子走一遍</h2>
+<p>截图任务的完整选择与 fallback 可以是：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 从 RunSpec 读取图片、Tool contract、Context、数据政策与 provider-side effect 要求。</span></span>
+<span class="line"><span>2. 排除不支持图片、不满足区域政策或会在 provider 内执行 Tool 的 route。</span></span>
+<span class="line"><span>3. 在合格候选中选择 `provider_side_effects=none` 的主 route，并保存 Routing Decision。</span></span>
+<span class="line"><span>4. 主 attempt timeout，且没有完整 response item 被接受；该 route 本身不会执行外部动作。</span></span>
+<span class="line"><span>5. 将失败分类为 transport_timeout，消耗一次 fallback budget。</span></span>
+<span class="line"><span>6. 选择仍满足全部硬约束的 secondary route。</span></span>
+<span class="line"><span>7. 用 secondary Adapter 重新渲染同一份 canonical request。</span></span>
+<span class="line"><span>8. 新 attempt 返回完整 Tool Call，Runtime 才进入 Tool Lifecycle。</span></span></code></pre>
+<p>如果第 4 步已经收到完整、通过校验的 <code>create_ticket</code> Tool Call，就不应仅因最终文字流中断而让另一模型再生成一个新的票据提案。是否执行原 Tool Call，应由 Runtime 根据已持久化 item 和当前任务状态决定，而不是由 Router 猜测。若换成允许 provider-side Tool 的 route，这条示例路径不再成立：timeout 后必须先查询或对账已有执行。</p>
+<h2 id="怎样验证-router-没有把问题藏起来">怎样验证 Router 没有把问题藏起来</h2>
+<p>Model Routing 的 Eval 不应只统计“最终有没有回答”。至少要按 failure class 观察：</p>
+<ul>
+<li>硬约束过滤是否漏掉不兼容 route。</li>
+<li>每次选择和排除是否能由 decision record 解释。</li>
+<li>Fallback 是否仍满足原始 capability 与 policy。</li>
+<li>Timeout、rate limit、unsupported feature 和质量失败是否触发了不同动作。</li>
+<li>Fallback 次数、额外延迟和成本是否在预算内。</li>
+<li>两个 attempt 的 partial output 是否被错误拼接或重复消费。</li>
+</ul>
+<p>否则，较高的最终成功率可能只是来自无限 fallback，同时隐藏了成本失控和偶发重复 Tool Call。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>安全的 Model Routing 需要把任务要求编译成硬约束，先过滤不合格候选，再按成本、延迟和质量排序。发生失败后，它还要根据 failure class 判断是否允许 fallback，并重新验证新 route 与原执行契约是否兼容。</p>
+<p>换一个 model name 只改变了请求目标；Routing Decision、兼容性检查和 attempt 边界，才让这次切换仍然属于同一个可解释的 Agent Run。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>Canonical request 应怎样通过 Provider Adapter 转换为不同消息与 Tool 协议。</li>
+<li>Tool Schema 经不同 Adapter 转换后，怎样检测 validation drift。</li>
+<li>Service、model、Tool 与 plan failure 怎样共享总体 retry budget。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://developers.openai.com/api/docs/models">OpenAI API：Models</a></li>
+<li><a href="https://developers.openai.com/api/docs/guides/function-calling">OpenAI：Function calling</a></li>
+<li><a href="https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use">Anthropic：Tool use</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

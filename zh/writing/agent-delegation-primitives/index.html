@@ -3,8 +3,8 @@
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subproblem A  研究方案 A</span></span>
 <span class="line"><span>subproblem B  研究方案 B</span></span>
 <span class="line"><span>subproblem C  研究方案 C</span></span></code></pre>
-<p>这里先固定三个概念：<strong>SubAgent</strong> 是父 Agent 在当前 Run 内动态发起并继续拥有的 Child Run；<strong>Child Task</strong> 是由持久任务系统拥有、可以由其他 worker 接管的工作单元；<strong>Workflow Fanout</strong> 则由 workflow controller 按已知依赖启动多个节点并负责汇合。具体框架可能使用不同名字，本文比较的是它们各自的状态 owner。</p>
-<p>这些记录只说明“还有三个子问题需要完成”，尚未创建任何 SubAgent 或后台任务。Plan item 不拥有执行生命周期，模型提出的 delegation 也只是请求。Runtime 或业务 controller 仍要决定：由当前父 Run 等待 child、由 durable task system 接管，还是由 workflow controller 管理分支和汇合。</p>
+<p>这里先固定三个概念：<strong>SubAgent</strong> 是父 Agent 在当前 Run 内动态发起并继续拥有的 Child Run；<strong>Child Job</strong> 是由持久调度系统拥有、可以由其他 worker 接管的工作单元；<strong>Workflow Fanout</strong> 则由 workflow controller 按已知依赖启动多个节点并负责汇合。具体框架可能使用不同名字，本文比较的是它们各自的状态 owner。</p>
+<p>这些记录只说明“还有三个子问题需要完成”，尚未创建任何 SubAgent 或后台任务。Plan item 不拥有执行生命周期，模型提出的 delegation 也只是请求。Runtime 或业务 controller 仍要决定：由当前父 Run 等待 child、由 durable job system 接管，还是由 workflow controller 管理分支和汇合。</p>
 <p>三种实现都可能画成并行箭头，但父进程退出、用户取消或只完成两个分支时，系统应做什么完全不同。</p>
 <p>因此，“能并行”不是选择执行原语的充分理由。真正需要分开问的是：谁负责收敛子工作的状态，谁消费结果并完成最终交付，内容又保存在哪里？</p>
 <h2 id="子问题的来源不决定执行原语">子问题的来源不决定执行原语</h2>
@@ -65,10 +65,10 @@
 
 
 
-<table><thead><tr><th>维度</th><th>SubAgent</th><th>Child Task</th><th>Workflow Fanout</th></tr></thead><tbody><tr><td>工作状态 owner</td><td>父 Run</td><td>Task system</td><td>Workflow execution / controller</td></tr><tr><td>跨进程恢复</td><td>不一定</td><td>是主要目标</td><td>取决于是否持久化 workflow history/state</td></tr><tr><td>分支从哪里来</td><td>模型动态决定</td><td>应用或父执行提交</td><td>通常来自显式 workflow 逻辑</td></tr><tr><td>结果消费与最终交付</td><td>父 Agent 汇总并交付</td><td>Task caller 或后续 Run 消费</td><td>Workflow caller 或产品层交付</td></tr><tr><td>结果保存位置</td><td>父 Run result 或 artifact</td><td>Task result 或 artifact store</td><td>节点输出、业务库或 artifact store</td></tr></tbody></table>
-<p>这不是产品功能对比，而是语义分类。Artifact store 只负责保存和 retention，不负责判断工作是否完成，也不一定向用户交付结果。一个 SubAgent framework 也可以把 Child Run 持久化；这会增加恢复责任，但只有显式把状态 owner 交给持久任务系统，才会成为本文所说的 Child Task。</p>
+<table><thead><tr><th>维度</th><th>SubAgent</th><th>Child Job</th><th>Workflow Fanout</th></tr></thead><tbody><tr><td>工作状态 owner</td><td>父 Run</td><td>Job system</td><td>Workflow execution / controller</td></tr><tr><td>跨进程恢复</td><td>不一定</td><td>是主要目标</td><td>取决于是否持久化 workflow history/state</td></tr><tr><td>分支从哪里来</td><td>模型动态决定</td><td>应用或父执行提交</td><td>通常来自显式 workflow 逻辑</td></tr><tr><td>结果消费与最终交付</td><td>父 Agent 汇总并交付</td><td>Job caller 或后续 Run 消费</td><td>Workflow caller 或产品层交付</td></tr><tr><td>结果保存位置</td><td>父 Run result 或 artifact</td><td>Job result 或 artifact store</td><td>节点输出、业务库或 artifact store</td></tr></tbody></table>
+<p>这不是产品功能对比，而是语义分类。Artifact store 只负责保存和 retention，不负责判断工作是否完成，也不一定向用户交付结果。一个 SubAgent framework 也可以把 Child Run 持久化；这会增加恢复责任，但只有显式把状态 owner 交给持久调度系统，才会成为本文所说的 Child Job。</p>
 <figure>
-  <img src="/posts/zh/agent-delegation-primitives/delegation-primitives.svg" alt="SubAgent 跟随父 Run，Child Task 由持久任务系统拥有，Workflow Fanout 由 workflow controller 管理分支和汇合。" loading="lazy">
+  <img src="/posts/zh/agent-delegation-primitives/delegation-primitives.svg" alt="SubAgent 跟随父 Run，Child Job 由持久调度系统拥有，Workflow Fanout 由 workflow controller 管理分支和汇合。" loading="lazy">
   <figcaption>三种原语的区别不在是否并行，而在谁收敛工作状态、谁消费结果并完成交付。</figcaption>
 </figure>
 <h2 id="什么时候选择-subagent">什么时候选择 SubAgent</h2>
@@ -77,9 +77,9 @@
 <span class="line"><span>→ 启动 database-research SubAgent</span></span>
 <span class="line"><span>→ 等待结构化结论与证据</span></span>
 <span class="line"><span>→ 父 Agent 验证并继续回答</span></span></code></pre>
-<p>这类工作的特点是：目标由模型动态产生，子结果服务于当前 Run，父 Agent 仍对最终答案负责。父 Run 取消时，child 通常也应取消；父 Run 已经结束后，孤立 child 的结果往往没有消费者。父 Step 可以同步等待，也可以先保存 handle、稍后收集；sync / async 只是结果收集方式，不改变状态 owner。</p>
+<p>这类工作的特点是：目标由模型动态产生，子结果服务于当前 Run，父 Agent 仍对最终答案负责。父 Run 取消时，child 通常也应取消；父 Run 已经结束后，孤立 child 的结果往往没有消费者。父 Tool Execution 可以同步等待，也可以先保存 handle、稍后收集；sync / async 只是结果收集方式，不改变状态 owner。</p>
 <p>如果 child 只是进程内 async task，worker 崩溃后它会一起消失。这不是错误，只要 API 从未承诺恢复。Durable Runtime 也可以持久化父 Run、Child Run 和 handle，在新 worker 中恢复二者，同时继续由父 Run 拥有 child。是否跨进程恢复决定持久化责任，不自动决定生命周期 owner。</p>
-<h2 id="什么时候升级为-child-task">什么时候升级为 Child Task</h2>
+<h2 id="什么时候升级为-child-job">什么时候升级为 Child Job</h2>
 <p>假设其中一个分支需要爬取大量公开文档、生成 PDF，并允许父 Run 先进入终态、用户之后单独查看。这项工作已经拥有独立生命周期：</p>
 <ul>
 <li>父 Run 可以先返回“任务已创建”。</li>
@@ -88,8 +88,8 @@
 <li>用户可能单独取消或重试它。</li>
 <li>结果可以由后续 Run 或产品页面独立消费。</li>
 </ul>
-<p>这时更合适的是 durable Child Task。父 Run 保存 <code>task_id</code>，但不持有它的全部运行状态。Task system 负责 claim、lease、恢复和终态；结果通过稳定 artifact 或 completion event 返回。</p>
-<p>Child Task 不等于“放到 Queue 就完成了”。Queue 可能重复投递，外部副作用仍需幂等，父子之间也要明确取消和结果保留策略。</p>
+<p>这时更合适的是 durable Child Job。父 Run 保存 <code>job_id</code>，但不持有它的全部运行状态。Job system 负责 claim、lease、恢复和终态；结果通过稳定 artifact 或 completion event 返回。</p>
+<p>Child Job 不等于“放到 Queue 就完成了”。Queue 可能重复投递，外部副作用仍需幂等，父子之间也要明确取消和结果保留策略。</p>
 <h2 id="什么时候使用-durable-workflow-fanout">什么时候使用 durable Workflow Fanout</h2>
 <p>如果三个分支在运行前已经由业务流程确定，而且只有全部完成后才能进入固定汇总步骤，workflow fanout 更合适：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>prepare input</span></span>
@@ -105,15 +105,15 @@
 <h2 id="同一个例子如何选择">同一个例子如何选择</h2>
 <p>回到“三个技术方案”的请求，可以按下面的顺序判断：</p>
 <ol>
-<li><strong>谁拥有子工作的状态、retry 和终态？</strong> 父 Runtime 为当前 Run 收敛 Child Run，才是本文所说的 SubAgent；Task system 独立 claim、retry 并提交终态，就是 Child Task，即使父 Run 会等待它完成。</li>
+<li><strong>谁拥有子工作的状态、retry 和终态？</strong> 父 Runtime 为当前 Run 收敛 Child Run，才是本文所说的 SubAgent；Job system 独立 claim、retry 并提交终态，就是 Child Job，即使父 Run 会等待它完成。</li>
 <li><strong>父 Run 是否必须消费结果后才能结束？</strong> 这决定父级是否等待以及谁完成最终交付，不单独决定工作状态 owner。</li>
-<li><strong>父 Run 结束后，工作是否还要继续、单独取消或独立交付？</strong> 这是选择 Child Task 或 durable workflow node 的强信号，但不是 Child Task 的必要条件。</li>
+<li><strong>父 Run 结束后，工作是否还要继续、单独取消或独立交付？</strong> 这是选择 Child Job 或 durable workflow node 的强信号，但不是 Child Job 的必要条件。</li>
 <li><strong>分支和依赖是否由确定性业务流程预先定义？</strong> 是，则优先 Workflow Fanout。</li>
 <li><strong>谁消费分支结果并完成最终交付？</strong> 这个对象必须明确 join、取消和失败策略；它不一定是保存 artifact 的组件，也不一定拥有子工作的执行状态。</li>
 </ol>
 <p>假设只是一次交互式回答，三个研究分支都可在几十秒内完成，而且用户取消后无需保留结果：使用三个受父 Run 管理的 SubAgent 即可。</p>
-<p>假设其中一个分支要把 <code>report.md</code> 转为 PDF，父 Run 会等待结果，但 Queue、worker claim、retry 和 Task 终态都由持久任务系统管理：它仍然是 Child Task。父 Run 是结果消费者，不是工作状态 owner。</p>
-<p>假设每个分支会产生独立报告，父 Run 可以先结束，之后由后续 Run 或产品页面分别消费：创建三个 Child Task，并让后续汇总任务等待 artifact。运行时间长本身不是升级条件；关键是生命周期和交付责任已经独立。</p>
+<p>假设其中一个分支要把 <code>report.md</code> 转为 PDF，父 Run 会等待结果，但 Queue、worker claim、retry 和 Job 终态都由持久调度系统管理：它仍然是 Child Job。父 Run 是结果消费者，不是工作状态 owner。</p>
+<p>假设每个分支会产生独立报告，父 Run 可以先结束，之后由后续 Run 或产品页面分别消费：创建三个 Child Job，并让后续汇总任务等待 artifact。运行时间长本身不是升级条件；关键是生命周期和交付责任已经独立。</p>
 <p>假设这是每天固定运行的分析管道，分支集合和汇总规则提前已知：使用 workflow fanout，不必让主 Agent 重新“发明”调度结构。</p>
 <h2 id="失败和取消最能暴露边界">失败和取消最能暴露边界</h2>
 
@@ -151,29 +151,29 @@
 
 
 
-<table><thead><tr><th>场景</th><th>SubAgent</th><th>Child Task</th><th>Workflow Fanout</th></tr></thead><tbody><tr><td>父 Run 取消</td><td>通常传播取消</td><td>按显式 policy 取消或继续</td><td>由 parent-close/cancellation policy 决定</td></tr><tr><td>Worker 崩溃</td><td>进程内 child 可能丢失</td><td>新 worker 接管</td><td>持久 workflow 可从 history/state 恢复；非持久实现不能保证</td></tr><tr><td>一个分支失败</td><td>父 Agent 决定是否降级</td><td>Task 独立 retry 或终态</td><td>Join policy 决定 fail-fast、部分成功或补偿</td></tr><tr><td>父级已结束</td><td>结果通常失去消费者</td><td>结果按 retention 保留</td><td>Parent-close policy 决定 child 行为</td></tr></tbody></table>
+<table><thead><tr><th>场景</th><th>SubAgent</th><th>Child Job</th><th>Workflow Fanout</th></tr></thead><tbody><tr><td>父 Run 取消</td><td>通常传播取消</td><td>按显式 policy 取消或继续</td><td>由 parent-close/cancellation policy 决定</td></tr><tr><td>Worker 崩溃</td><td>进程内 child 可能丢失</td><td>新 worker 接管</td><td>持久 workflow 可从 history/state 恢复；非持久实现不能保证</td></tr><tr><td>一个分支失败</td><td>父 Agent 决定是否降级</td><td>Job 独立 retry 或终态</td><td>Join policy 决定 fail-fast、部分成功或补偿</td></tr><tr><td>父级已结束</td><td>结果通常失去消费者</td><td>结果按 retention 保留</td><td>Parent-close policy 决定 child 行为</td></tr></tbody></table>
 <p>不要把“取消请求已发送”写成“子工作已经停止”。无论使用哪种原语，都要区分 request、acknowledgement 和最终收敛。</p>
 <p>Temporal 等 workflow 系统甚至显式提供 Parent Close Policy，让 child 在 parent 结束时 terminate、request cancel 或继续。这恰好说明父子生命周期不是由“嵌套调用”自动决定的。</p>
 <h2 id="组合通常比统一更合理">组合通常比统一更合理</h2>
-<p>复杂系统不必三选一。一个 durable workflow node 可以启动 Agent Run，Agent 在某个 Turn 内再使用 SubAgent；SubAgent 发现长任务后，也可以通过受控 Tool 创建 Child Task。</p>
+<p>复杂系统不必三选一。一个 durable workflow node 可以启动 Agent Run，Agent 在某个 Model Turn 内再使用 SubAgent；SubAgent 发现长任务后，也可以通过受控 Tool 创建 Child Job。</p>
 <p>组合时要避免身份丢失：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>workflow_execution_id</span></span>
-<span class="line"><span>→ task_id</span></span>
+<span class="line"><span>→ job_id</span></span>
 <span class="line"><span>→ run_id</span></span>
 <span class="line"><span>→ child_run_id</span></span></code></pre>
 <p>这些 ID 表达不同 grain，不能全部压成一个 <code>parent_id</code>。Trace 可以把它们连起来，但 retry、状态和成本仍归各自 owner。</p>
 <h2 id="回到问题">回到问题</h2>
 <p>Plan 或 Agent Loop 产生三个子问题，并不等于已经生成三个 SubAgent。它只让系统看见了三项待完成工作。</p>
-<p>SubAgent 适合由父 Run 收敛状态的动态协作；Child Task 适合把 claim、retry 和终态交给持久任务系统的工作；durable Workflow Fanout 适合依赖和汇合规则明确、由持久 controller 管理的 control flow。先分别确定工作状态由谁收敛、结果由谁消费和交付、内容保存在哪里，再选择原语，系统才不会在父进程退出后才发现自己从未定义谁负责收尾。</p>
+<p>SubAgent 适合由父 Run 收敛状态的动态协作；Child Job 适合把 claim、retry 和终态交给持久调度系统的工作；durable Workflow Fanout 适合依赖和汇合规则明确、由持久 controller 管理的 control flow。先分别确定工作状态由谁收敛、结果由谁消费和交付、内容保存在哪里，再选择原语，系统才不会在父进程退出后才发现自己从未定义谁负责收尾。</p>
 <h2 id="后续问题">后续问题</h2>
 <ul>
 <li>选定 SubAgent 后，Runtime 怎样把 spawn request 变成受约束的 child run，并回收可验证结果。</li>
-<li>Child Task 的 Queue delivery、lease、幂等与 artifact retention 怎样定义。</li>
+<li>Child Job 的 Queue delivery、lease、幂等与 artifact retention 怎样定义。</li>
 <li>Workflow state 与业务数据库中的真实业务状态如何分工。</li>
 </ul>
 <p>参考：</p>
 <ul>
-<li><a href="https://github.com/temporalio/api/blob/master/temporal/api/enums/v1/workflow.proto#L41-L50">Temporal API：ParentClosePolicy definition</a></li>
+<li><a href="https://github.com/temporalio/api/blob/master/temporal/api/enums/v1/workflow.proto#L49-L58">Temporal API：ParentClosePolicy definition</a></li>
 </ul>
 <hr>
 <p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

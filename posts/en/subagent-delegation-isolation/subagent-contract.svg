@@ -61,7 +61,7 @@
   <path d="M1032 222H1042" class="edge"/>
   <rect x="1042" y="158" width="142" height="128" rx="14" class="box child"/>
   <text x="1113" y="196" text-anchor="middle" class="label">Child Run</text>
-  <text x="1113" y="220" text-anchor="middle" class="tiny">claim ready</text>
+  <text x="1113" y="220" text-anchor="middle" class="tiny">scheduler-claimed</text>
   <text x="1113" y="244" text-anchor="middle" class="tiny">execute child</text>
   <text x="1113" y="268" text-anchor="middle" class="tiny">parent-owned</text>
 

@@ -1,0 +1,168 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用信息源配额、优先级与分层降级代替超预算后的尾部截断。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Budget 需要结构化降级 | Xiaoyuan"><meta property="og:description" content="用信息源配额、优先级与分层降级代替超预算后的尾部截断。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Budget 需要结构化降级 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-context-budget-degradation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Budget 需要结构化降级</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>假设一个 Agent 正在根据项目文件修改设计文档。下一个 Model Turn 之前，Context Assembly 收集到了这些内容：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>内容</th><th align="right">估算 token</th><th>作用</th></tr></thead><tbody><tr><td>System instruction 与安全约束</td><td align="right">2,500</td><td>定义行为边界</td></tr><tr><td>当前任务与用户最新要求</td><td align="right">1,500</td><td>说明这次要完成什么</td></tr><tr><td>Tool definitions</td><td align="right">3,000</td><td>告诉模型当前能调用什么</td></tr><tr><td>最近对话</td><td align="right">5,000</td><td>保留正在进行的推理与更正</td></tr><tr><td>文件片段与 Tool results</td><td align="right">12,000</td><td>提供修改文档所需的证据</td></tr><tr><td>较早 history 与 memory</td><td align="right">7,000</td><td>补充背景和历史决策</td></tr></tbody></table>
+<p>这是一个方便说明问题的合成示例，总计 31,000 token。假设模型窗口是 32,000 token，但系统还要为输出预留 4,000 token，并留出 2,000 token 的估算误差与协议开销，真正可用的输入预算只有 26,000 token。</p>
+<p>最简单的处理是从最早的消息开始删除，或者对最终字符串做 tail truncation。可删除顺序只反映内容在数组里的位置，不反映它对当前任务的作用。系统可能删掉用户早先确认的兼容性要求，却保留两份重复的构建日志。</p>
+<p>所以超出 Context window 不是一个字符串长度问题，而是一个信息取舍问题：<strong>哪些内容必须原样保留，哪些可以压缩，哪些可以按需再取，哪些才可以直接丢弃。</strong></p>
+<h2 id="先算可用预算而不是把窗口全部分给输入">先算可用预算，而不是把窗口全部分给输入</h2>
+<p>模型公布的 Context window 通常同时容纳输入与输出。Runtime 如果把整个窗口都当作输入上限，模型可能在生成到一半时触顶；如果 token 估算与 provider 实际计数不同，也可能在请求发送后才收到超限错误。</p>
+<p>可以先把预算写成一个简单关系：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input budget</span></span>
+<span class="line"><span>= context window</span></span>
+<span class="line"><span>- reserved output</span></span>
+<span class="line"><span>- protocol and estimation margin</span></span></code></pre>
+<p><code>reserved output</code> 不是固定常数。只需要返回一个分类标签的请求，与需要生成完整报告的请求，预留空间显然不同。Tool definitions、图片和 provider 注入的控制信息也可能占用输入，因此 margin 应来自实际请求的计量，而不是永远拍一个百分比。</p>
+<p>这一步只回答“最多能放多少”，还没有回答“该放什么”。</p>
+<h2 id="budget-的对象应该是有语义的候选项">Budget 的对象应该是有语义的候选项</h2>
+<p>如果 Assembly 已经把所有来源拼成一个大字符串，Budget 层只能看到 token，无法知道删掉的是安全约束还是重复日志。</p>
+<p>更合适的输入是保留来源与用途的候选项：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file_chunk_27"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "source"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "role"</span><span style="color:#24292E">: </span><span style="color:#032F62">"evidence"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1800</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "priority"</span><span style="color:#24292E">: </span><span style="color:#005CC5">70</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "degradation"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"full"</span><span style="color:#24292E">, </span><span style="color:#032F62">"excerpt"</span><span style="color:#24292E">, </span><span style="color:#032F62">"reference"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "provenance"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"file_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"design_4"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">}</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>这里的 <code>priority</code> 只是策略输入，不应单独决定结果。一个低相关性的安全约束仍然不能删除；一段高相关性的文件内容也可能因为无权限而根本不能成为候选。权限、来源角色和冲突应先由 Context Assembly 处理，Budget 只在合格候选中做取舍。</p>
+<p>候选项可以按降级能力分成四类：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>类别</th><th>含义</th><th>常见例子</th></tr></thead><tbody><tr><td><code>pinned</code></td><td>当前请求成立所必需，不能静默删除</td><td>System instruction、用户当前要求、输出 Schema</td></tr><tr><td><code>compressible</code></td><td>可以用更短形式保留主要语义</td><td>已完成阶段的对话、重复 Tool log</td></tr><tr><td><code>retrievable</code></td><td>当前只放摘要或 reference，需要时再读取</td><td>大文件、完整搜索结果、Artifact</td></tr><tr><td><code>droppable</code></td><td>删除后不改变当前任务约束或主要证据</td><td>重复片段、低相关候选、过期中间输出</td></tr></tbody></table>
+<p>这不是给每种来源永久贴标签。同一份文件中，用户指定必须遵循的一段可以是 <code>pinned</code>，其余章节则是 <code>retrievable</code>；正在修复的 Tool error 应保留原始参数，已经成功结束的旧日志可以压缩。</p>
+<h2 id="source-quota-是上限不是预留座位">Source quota 是上限，不是预留座位</h2>
+<p>为 history、memory、files 和 Tool results 设置 quota，可以防止某个来源占满整个窗口。但 quota 不应被理解成“无论有没有价值，都要给每类内容留够份额”。</p>
+<p>例如当前任务没有使用 memory，就没必要为了填满 <code>memory=10%</code> 而加入无关偏好。反过来，如果修改文档必须阅读两个关键章节，files 可以在不挤掉硬约束和输出预算的前提下使用空余空间。</p>
+<p>因此，更实用的规则是：</p>
+<ol>
+<li>先满足所有 <code>pinned</code> 内容。</li>
+<li>为容易膨胀的来源设置 hard cap。</li>
+<li>在剩余空间中按任务阶段和证据价值竞争预算。</li>
+<li>把未使用的 quota 还给共享池，而不是强行填满。</li>
+</ol>
+<p>如果 <code>pinned</code> 内容本身已经超过输入预算，系统也不能继续静默截断。它应缩小 Tool Surface、要求用户缩小任务，或明确返回 Context 无法安全组装。<code>pinned</code> 表示不能偷偷丢，不表示它可以无限增长。</p>
+<h2 id="降级应该沿着预先定义的阶梯发生">降级应该沿着预先定义的阶梯发生</h2>
+<p>回到开场的 31,000 token。系统需要减少至少 5,000 token，可以按下面的顺序处理：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>31,000  原始候选</span></span>
+<span class="line"><span> -2,000 删除重复的 Tool log 与重复文件片段</span></span>
+<span class="line"><span> -4,000 把已完成阶段的 5,000-token history</span></span>
+<span class="line"><span>        替换为 1,000-token checkpoint summary</span></span>
+<span class="line"><span>=25,000 进入模型输入</span></span></code></pre>
+<p>这次没有截断任意字符串，也没有删除用户要求。完整旧 history 仍保存在原始记录中；下一个 Model Turn 只使用带来源范围的 summary。文件正文如果之后继续增长，还可以从 <code>full</code> 降为 <code>excerpt</code>，再降为可按需读取的 <code>reference</code>。</p>
+<p>一个通用的降级阶梯可以是：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>去重</span></span>
+<span class="line"><span>→ 缩小 Tool Surface 或移除未使用 Schema</span></span>
+<span class="line"><span>→ 压缩已稳定的 history</span></span>
+<span class="line"><span>→ 将大内容替换为 excerpt 或 reference</span></span>
+<span class="line"><span>→ 丢弃低价值候选</span></span>
+<span class="line"><span>→ 拒绝或缩小任务</span></span></code></pre>
+<p>具体顺序仍取决于任务。正在调用 Tool 的 Agent 不能为了省 token 删除尚未完成的 Tool Call 与 Tool Result 配对；要求引用原文的任务也不能把所有文件都只保留成摘要。降级策略需要理解任务阶段，而不是只看来源名称。</p>
+<h2 id="每次降级都要留下决定">每次降级都要留下决定</h2>
+<p>当模型漏掉一个约束时，只保存最终 prompt 很难判断原因。它可能从未被检索，也可能通过权限检查后因预算不足被排除，还可能被 summary 错误压缩。</p>
+<p>Budget 层可以为候选项记录简短决定：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "candidate_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_result_18"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "decision"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summarized"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "from_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3200</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "to_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"completed_phase"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "summary_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summary_9"</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p>这些记录让系统能分别评测三个问题：重要信息有没有成为候选、Budget 是否保留了它、模型看到后是否正确使用。只观察最终任务成功率，很难定位究竟是哪一层出了问题。</p>
+<h2 id="怎样判断降级策略是否有效">怎样判断降级策略是否有效</h2>
+<p>Token 使用量下降不代表策略变好。一个把所有输入都删掉的系统最省 token，却无法完成任务。</p>
+<p>至少需要同时观察：</p>
+<ul>
+<li>必需约束和关键证据是否进入最终输入。</li>
+<li>被压缩内容中的事实、指令和 provenance 是否仍可恢复。</li>
+<li>模型是否频繁重新读取刚刚被移除的内容。</li>
+<li>在相同任务集合上，成功率、延迟和 token 消耗怎样变化。</li>
+<li>哪些请求最终进入了“缩小任务或拒绝”，原因是否合理。</li>
+</ul>
+<p>这里评测的是跨来源的 Budget policy。Memory 内部怎样区分 pinned、hot 和 cold，长 history 怎样生成可靠 summary，仍需要各自的策略。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>Context 超预算时，Runtime 面对的不是一段太长的字符串，而是一组作用不同、降级方式不同的信息。</p>
+<p>先预留输出和误差空间，再让有语义的候选项按照 <code>pinned</code>、<code>compressible</code>、<code>retrievable</code> 与 <code>droppable</code> 的能力进入降级阶梯，系统才能明确知道自己保留了什么、为什么删掉其他内容。</p>
+<p>简单截断只保证请求变短；结构化降级才尝试保证任务仍然成立。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>已稳定的长 history 应怎样生成可增量更新、保留来源范围的 summary。</li>
+<li>Memory 内部怎样做 pinned、hot 和 cold 分层。</li>
+<li>怎样分别评测 Context 的召回、污染、冲突处理和 budget efficiency。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://platform.openai.com/docs/api-reference/realtime">OpenAI Realtime API：Context truncation</a></li>
+<li><a href="https://platform.claude.com/docs/en/build-with-claude/context-editing">Anthropic：Context editing</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>

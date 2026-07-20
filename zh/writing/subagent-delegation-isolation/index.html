@@ -2,14 +2,14 @@
 <p>主 Agent 在执行中发现两个临时子问题：一个比较数据库方案，另一个分析部署方式。它向 Runtime 提出两次 Spawn Request：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spawn_agent(type="research", goal="比较数据库方案", mode="sync")</span></span>
 <span class="line"><span>spawn_agent(type="research", goal="分析部署方式", mode="sync")</span></span></code></pre>
-<p>示例里没有让模型填写 request ID。可信 Runtime 在父 Step 的这次 Tool Call 首次进入 admission 时分配并持久化 <code>spawn_request_id</code>；同一逻辑 Tool Call 的所有 retry Attempt 都复用它，只有新的委派意图才获得新 ID。</p>
+<p>示例里没有让模型填写 request ID。可信 Runtime 在父 Tool Execution 的这次 Tool Call 首次进入 admission 时分配并持久化 <code>spawn_request_id</code>；同一逻辑 Tool Call 的所有 retry Attempt 都复用它，只有新的委派意图才获得新 ID。</p>
 <p>这两次 Tool Call 只是创建请求，不是已经生成的 SubAgent。真正的问题从这里才开始：Runtime 应该允许创建吗？使用哪份 Agent definition？Child 与父 Run 是什么关系？它能看到什么，又怎样把结果交回来？</p>
 <p>一种省事实现，是每次都新建模型会话，再复制父 Agent 的完整 Context、全部 Tool、credential 和同一个 workspace。</p>
 <p>两个 child 都把结果写到 <code>report.md</code>。后完成的覆盖了先完成的文件；其中一个还从父 Context 读到了与任务无关的用户资料。最终父 Agent 只拿到两句“已完成”，既不知道该信哪个文件，也无法确认每个结论来自哪里。</p>
 <p>问题不是 SubAgent 数量太多，而是 Runtime 把 Spawn Request 直接解释成“复制父 Agent”。没有创建协议时，共享会成为默认值：共享 Context、credential、workspace、预算，最后也共享责任。</p>
 <p>上一篇<a href="/zh/writing/agent-delegation-primitives/">《Agent 拆出子任务后，应该交给谁执行？》</a>已经说明为什么这个子问题适合交给 SubAgent。本文接着回答：选定 SubAgent 后，Runtime 怎样把一次创建请求变成受父 Run 管理的 Child Run。</p>
 <h2 id="spawn-request-只是创建提议">Spawn Request 只是创建提议</h2>
-<p>模型可以提出目标、SubAgent 类型和期望的返回方式，但不能自行生成可信 Agent definition、授权或 credential。父 Step retry 时还可能重复提交同一个请求，因此创建流程必须先定义幂等边界。Runtime 至少要经过下面几步：</p>
+<p>模型可以提出目标、SubAgent 类型和期望的返回方式，但不能自行生成可信 Agent definition、授权或 credential。父 Tool Execution retry 时还可能重复提交同一个请求，因此创建流程必须先定义幂等边界。Runtime 至少要经过下面几步：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>父 Agent 产生 Spawn Request</span></span>
 <span class="line"><span>→ dedup：以 parent_run_id + spawn_request_id 查找既有结果</span></span>
 <span class="line"><span>→ admission：检查 Tool Surface、nesting depth、并发和剩余预算</span></span>
@@ -19,8 +19,8 @@
 <span class="line"><span>→ activation：原子保存 envelope、ready 状态和 dispatch intent / outbox</span></span>
 <span class="line"><span>→ dispatch：dispatcher 按 child_run_id 幂等投递，或 scheduler claim durable ready record</span></span>
 <span class="line"><span>→ collection：把结构化结果或 handle 返回父 Agent</span></span></code></pre>
-<p>这里的 <strong>Child Run</strong> 是拥有独立 <code>run_id</code> 和执行状态、但生命周期仍由父 Run 管理的一次 Agent 执行。它可以是 ephemeral，也可以由 durable Runtime 随父 Run 一起持久化和恢复。父 Runtime 可以单独取消或 retry 自己拥有的 Child Run，这不会改变 owner。只有当这些状态、retry 和控制需要脱离父 Run，由持久任务系统独立拥有并收敛时，才应升级为 Child Task；worker / process 重启本身也不要求转移 owner。</p>
-<p><code>spawn_request_id</code> 是父 Run 范围内的幂等键，由可信 Runtime 绑定到稳定的父 Step / Tool Call identity。相同逻辑请求因 timeout 或 Tool Result 丢失而重试时，Runtime 返回同一个 <code>child_run_id</code>，或返回第一次已经确定的 admission failure，不能再创建第二个 Child Run。</p>
+<p>这里的 <strong>Child Run</strong> 是拥有独立 <code>run_id</code> 和执行状态、但生命周期仍由父 Run 管理的一次 Agent 执行。它可以是 ephemeral，也可以由 durable Runtime 随父 Run 一起持久化和恢复。父 Runtime 可以单独取消自己拥有的 Child Run，也拥有 child 的 retry policy：明确暂停或尚未完成的 Child Run 可以恢复同一个 <code>run_id</code>；终态失败后的重试则创建带因果关联的新 Child Run。只有当这些状态、retry 和控制需要脱离父 Run，由持久调度系统独立拥有并收敛时，才应升级为 Child Job；worker / process 重启本身也不要求转移 owner。</p>
+<p><code>spawn_request_id</code> 是父 Run 范围内的幂等键，由可信 Runtime 绑定到稳定的父 Tool Execution / Tool Call identity。相同逻辑请求因 timeout 或 Tool Result 丢失而重试时，Runtime 返回同一个 <code>child_run_id</code>，或返回第一次已经确定的 admission failure，不能再创建第二个 Child Run。</p>
 <p>如果 <code>preparing</code> 记录位于 durable store，进程在 reserve 后、activation 前崩溃时，reconciler 可以从这条记录继续 compilation，或把它收敛为明确失败。Activation 也不能只做“先写 ready，随后在内存里 enqueue”：envelope、<code>ready</code> 和 dispatch intent / outbox 要在同一个提交边界持久化，再由 dispatcher 按 <code>child_run_id</code> 幂等投递；另一种做法是 scheduler 直接轮询并 claim durable <code>ready</code> record。这样进程在 ready 后崩溃，Child Run 仍会被重新发现。Reconciler 还应扫描长期停留的 <code>preparing</code> 和 <code>ready</code>，而不是只等待一次容易丢失的通知。纯进程内实现只能在记录和调度者仍存活时去重与执行，不提供跨崩溃保证。</p>
 <p>Admission 失败也应成为明确的 Tool Result，例如 <code>spawn_not_allowed</code>、<code>depth_exceeded</code> 或 <code>budget_exhausted</code>。不能先启动 child，再让模型从 timeout 猜测创建是否成功。</p>
 <h2 id="委派不是复制父-agent">委派不是复制父 Agent</h2>
@@ -37,7 +37,7 @@
 <span class="line"><span style="color:#005CC5">  "delegation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"delegation_7"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "spawn_request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"spawn_19"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "parent_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "parent_step_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"step_12"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "parent_tool_execution_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_exec_12"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "child_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_21"</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">  "definition"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">},</span></span>
 <span class="line"><span style="color:#005CC5">  "mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"sync"</span><span style="color:#24292E">,</span></span>
@@ -53,7 +53,7 @@
 <span class="line"><span style="color:#005CC5">    "expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:03:00Z"</span></span>
 <span class="line"><span style="color:#24292E">  },</span></span>
 <span class="line"><span style="color:#005CC5">  "workspace"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"read"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/inputs"</span><span style="color:#24292E">], </span><span style="color:#005CC5">"write"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/outputs/db"</span><span style="color:#24292E">]},</span></span>
-<span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">180</span><span style="color:#24292E">, </span><span style="color:#005CC5">"max_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">180</span><span style="color:#24292E">, </span><span style="color:#005CC5">"max_model_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">},</span></span>
 <span class="line"><span style="color:#005CC5">  "result_schema"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research_result.v2"</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
 <p>Envelope 是执行授权引用和结果预期，不是给模型看的长 prompt。<code>principal_21</code> 是可信 Runtime 为这个 Child Run 绑定并认证的 per-Run execution principal；裸 <code>run_21</code> 只是执行记录 ID，从不直接参与授权判断。可信执行层根据不可伪造的 <code>grant_ref</code> 重新解析 actor、subject、audience、scope 与 expiry，并检查路径和资源限制。Envelope 中这些字段用于约束和审计，不能让 child 仅靠修改 JSON 扩大权限。</p>
@@ -62,14 +62,14 @@
   <figcaption>模型只提出创建请求；图中采用 durable-ready 路径，Runtime 激活完整 ready record，scheduler claim 该记录后再执行对应 Child Run。</figcaption>
 </figure>
 <h2 id="同步返回与异步-handle-仍由父-run-拥有">同步返回与异步 Handle 仍由父 Run 拥有</h2>
-<p>同步模式下，父 Step 等待 Child Run 到达终态，再把结构化结果作为本次 <code>spawn_agent</code> Tool Result 交给下一轮模型：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Step waiting_for_child</span></span>
+<p>同步模式下，父 Tool Execution 等待 Child Run 到达终态，再把结构化结果作为本次 <code>spawn_agent</code> Tool Result 交给下一个 Model Turn：</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Tool Execution waiting_for_child</span></span>
 <span class="line"><span>→ child Run completed</span></span>
 <span class="line"><span>→ validate child result</span></span>
-<span class="line"><span>→ parent Step succeeded</span></span>
-<span class="line"><span>→ result enters next parent Turn</span></span></code></pre>
-<p>异步模式可以先返回稳定 <code>child_run_id</code>，让父 Agent 继续其他工作，之后再通过 <code>get_child_result</code> 或完成事件收集结果。但 handle 不会自动带来 durability：如果 Child Run 只存在于当前进程，进程退出后它仍会丢失；如果 durable Runtime 持久化父子状态，二者可以在新 worker 中恢复，owner 仍是父 Run。只有 child 的状态、retry 和控制需要脱离父 Run，由 task system 或 workflow 独立拥有并收敛时，才应回到上一篇的 owner 判断，升级为 Child Task 或 durable workflow node。</p>
-<p>无论同步还是异步，父 Run 都要记录谁创建了 child、哪个 Step 等待结果、取消如何传播，以及结果是否已经被消费。否则“后台执行”只是在进程里留下一个没人负责的 Task。</p>
+<span class="line"><span>→ parent Tool Execution succeeded</span></span>
+<span class="line"><span>→ result enters next parent Model Turn</span></span></code></pre>
+<p>异步模式可以先返回稳定 <code>child_run_id</code>，让父 Agent 继续其他工作，之后再通过 <code>get_child_result</code> 或完成事件收集结果。但 handle 不会自动带来 durability：如果 Child Run 只存在于当前进程，进程退出后它仍会丢失；如果 durable Runtime 持久化父子状态，二者可以在新 worker 中恢复，owner 仍是父 Run。只有 child 的状态、retry 和控制需要脱离父 Run，由 job system 或 workflow 独立拥有并收敛时，才应回到上一篇的 owner 判断，升级为 Child Job 或 durable workflow node。</p>
+<p>无论同步还是异步，父 Run 都要记录谁创建了 child、哪个 Tool Execution 等待结果、取消如何传播，以及结果是否已经被消费。否则“后台执行”只是在进程里留下一个没人负责的 coroutine。</p>
 <h2 id="context-应按任务选择不应默认继承">Context 应按任务选择，不应默认继承</h2>
 <p>完整继承父对话最省事，却会带来三个问题：</p>
 <ul>
@@ -105,7 +105,7 @@
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
 <p>父 Agent 不再从共享目录猜哪个文件是最终结果。</p>
 <h2 id="budget-与取消需要父子关系">Budget 与取消需要父子关系</h2>
-<p>Child 自己的 timeout 不能代替父级预算。父 Run 只剩 60 秒时，不应再启动一个 deadline 为 5 分钟的 child，除非它已经被升级为独立 durable task。</p>
+<p>Child 自己的 timeout 不能代替父级预算。父 Run 只剩 60 秒时，不应再启动一个 deadline 为 5 分钟的 child，除非它已经被升级为独立 Child Job。</p>
 <p>有效 child deadline 通常是：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>min(parent_deadline, delegation_deadline, system_limit)</span></span></code></pre>
 <p>Token、Tool Call 和成本属于可累计消耗，需要向父级 roll up。并发不是累计预算，而是某一时刻的 capacity/admission 上限；nesting depth 和 rate limit 也分别检查。否则主 Agent 仍可能通过不断 spawn child 绕过自己的限制。</p>
@@ -137,7 +137,7 @@
 <p>如果一个 child 只做几秒钟的纯文本分类，没有 Tool、workspace 或敏感 Context，一段目标明确的 prompt 加结构化输出可能已经足够。Delegation contract 应与风险成比例。</p>
 <h2 id="回到问题">回到问题</h2>
 <p>SubAgent 不是由模型直接生成的完整 Agent，也不是多一次孤立的模型调用。模型产生 Spawn Request；可信 Runtime 用 request identity 去重，完成 admission 和 definition resolution，reserve Child Run identity，再编译 delegation、激活并调度执行。</p>
-<p>显式 envelope 让目标、Context、Tool、credential、workspace、预算、取消和结果各有边界；稳定的父子 identity 连接创建请求、Child Run 和父 Step；结构化结果把证据与限制交回父级。父 Agent 继续承担验证与最终决策责任，并行协作也不再通过默认共享换来不可归因的结果。</p>
+<p>显式 envelope 让目标、Context、Tool、credential、workspace、预算、取消和结果各有边界；稳定的父子 identity 连接创建请求、Child Run 和父 Tool Execution；结构化结果把证据与限制交回父级。父 Agent 继续承担验证与最终决策责任，并行协作也不再通过默认共享换来不可归因的结果。</p>
 <h2 id="后续问题">后续问题</h2>
 <ul>
 <li>多个 SubAgent 修改同一资源时，如何使用 OCC、merge 或串行提交。</li>

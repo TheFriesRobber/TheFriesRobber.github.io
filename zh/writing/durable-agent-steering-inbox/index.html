@@ -1,16 +1,16 @@
 <!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从执行期间的新输入和结束阶段的竞态出发，解释 Agent Runtime 为什么需要持久、可确认消费的 steering inbox。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Steering 为什么需要持久 Inbox | Xiaoyuan"><meta property="og:description" content="从执行期间的新输入和结束阶段的竞态出发，解释 Agent Runtime 为什么需要持久、可确认消费的 steering inbox。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/durable-agent-steering-inbox/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Steering 为什么需要持久 Inbox | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/durable-agent-steering-inbox/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Steering 为什么需要持久 Inbox</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Streaming/">Streaming</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>Agent 正在调用一个需要两分钟的 Tool。用户看到中间结果后补充：“只保留最近一个月的数据。”服务端立即回复“已收到”，并把消息放进当前负责执行 Run 的后台进程（下文简称 worker）的内存 Queue。</p>
 <p>几秒后 Tool 返回，worker 恰好重启。新的 worker 根据已有消息继续执行，却找不到刚才那条补充要求。对用户来说，系统明确说过已经接收；对 Runtime 来说，这条输入从未成为可恢复事实。</p>
-<p>把消息直接追加到当前 <code>messages</code> 也有问题：模型调用可能已经开始，当前 Turn 到底有没有看到它变得不可判断；如果同时修改正在迭代的 Context，还会产生依赖时序的结果。</p>
+<p>把消息直接追加到当前 <code>messages</code> 也有问题：模型调用可能已经开始，当前 Model Turn 到底有没有看到它变得不可判断；如果同时修改正在迭代的 Context，还会产生依赖时序的结果。</p>
 <h2 id="收到输入其实包含三个承诺">“收到输入”其实包含三个承诺</h2>
 <p>执行期间的新输入通常被称为 steering，但这个词容易把几个阶段混在一起：</p>
 <ol>
 <li><strong>accepted</strong>：系统已经持久接纳，重启后仍然存在。</li>
-<li><strong>consumed</strong>：输入已经绑定到某个明确 Turn 的 canonical input；它不证明 Provider 已接收请求或模型已经“读到”。</li>
+<li><strong>consumed</strong>：输入已经绑定到某个明确 Model Turn 的 canonical input；它不证明 Provider 已接收请求或模型已经“读到”。</li>
 <li><strong>applied</strong>：模型或 Tool 是否真的按它改变了行为。</li>
 </ol>
 <p>前两项可以由 Runtime 记录，第三项往往需要从后续执行事实或结果验证。API 在只完成内存 enqueue 时就返回 accepted，相当于做出了自己无法兑现的承诺。</p>
-<p>所以 steering 需要一个持久 Inbox。它不是另一份聊天记录，而是“已被系统接纳、尚未进入某个 Turn 的输入”这一状态的 owner。这里的 <code>accepted</code> 还隐含一个重要条件：输入正文和 Inbox 记录都已经持久化。只写下一条指向不存在正文的 <code>payload_ref</code>，仍然无法在恢复后兑现承诺。</p>
+<p>所以 steering 需要一个持久 Inbox。它不是另一份聊天记录，而是“已被系统接纳、尚未进入某个 Model Turn 的输入”这一状态的 owner。这里的 <code>accepted</code> 还隐含一个重要条件：输入正文和 Inbox 记录都已经持久化。只写下一条指向不存在正文的 <code>payload_ref</code>，仍然无法在恢复后兑现承诺。</p>
 <h2 id="最小-inbox-模型">最小 Inbox 模型</h2>
 <p>一条输入可以保留以下逻辑字段：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input_id</span></span>
@@ -24,28 +24,28 @@
 <span class="line"><span>payload_canonicalization</span></span>
 <span class="line"><span>state              pending | consumed | rejected_terminal</span></span>
 <span class="line"><span>accepted_at</span></span>
-<span class="line"><span>consumed_by_turn_id</span></span>
+<span class="line"><span>consumed_by_model_turn_id</span></span>
 <span class="line"><span>consumed_at</span></span></code></pre>
 <p><code>input_id</code> 让客户端 retry 不会产生两条相同输入，但它需要数据库约束配合，例如以 <code>(tenant_id, subject_ref, input_id)</code> 建立唯一键。<code>input_id</code> 在提交主体的命名空间内标识一次操作；不同主体可以独立使用相同 ID。发生冲突时，系统还要比较 <code>target_run_id</code>、<code>payload_canonicalization</code> 和 <code>payload_digest</code>：目标和内容都相同，才返回原来的接纳结果；同一主体用同一个 ID 携带不同目标或内容时，应明确返回 conflict。</p>
 <p>写入之前，可信的接入层还要从登录态中取得 <code>tenant_id</code> 和 <code>subject_ref</code>，确认这个主体有权 steering 目标 Run。它们不能直接相信请求正文，否则攻击者只要猜到 <code>run_id</code> 就可能向别人的执行注入输入。</p>
-<p><code>inbox_seq</code> 是同一 Run 内单调递增的接纳顺序。它比只按 <code>accepted_at</code> 排序更稳定：两条输入可能拥有相同时间戳，也可能由不同服务实例同时写入。<code>consumed_by_turn_id</code> 则说明输入被绑定到哪个 Turn 的 canonical input，而不是只写一个模糊的 <code>processed=true</code>。</p>
+<p><code>inbox_seq</code> 是同一 Run 内单调递增的接纳顺序。它比只按 <code>accepted_at</code> 排序更稳定：两条输入可能拥有相同时间戳，也可能由不同服务实例同时写入。<code>consumed_by_model_turn_id</code> 则说明输入被绑定到哪个 Model Turn 的 canonical input，而不是只写一个模糊的 <code>processed=true</code>。</p>
 <p>如果 payload 和 Inbox 在同一个数据库，可以在同一事务里保存不可变正文并插入 Inbox。若正文位于对象存储，更稳妥的方式是先按内容地址写入不可变对象，再提交 Inbox。两种“结果未知”要分开处理：对象写入的结果未知，就按内容地址查询对象并校验 digest；Inbox 提交的结果未知，就按上面的幂等键查询接纳记录。只有对象、没有 Inbox 的孤立 payload 由 retention 清理，不能仅凭对象存在就声称输入已经 accepted。Runtime 在消费前仍要校验 digest，避免把损坏或被替换的正文送入模型。</p>
 <figure>
-  <img src="/posts/zh/durable-agent-steering-inbox/steering-inbox-lifecycle.svg" alt="用户输入先经过授权和接纳窗口检查；窗口开放时持久写入 Inbox，再由 Runtime 在 Turn boundary 原子标记为 consumed，窗口关闭时则拒绝或转入后续 Run。" loading="lazy">
-  <figcaption>持久接纳和 Turn 消费是两个边界，进程内通知只负责唤醒。</figcaption>
+  <img src="/posts/zh/durable-agent-steering-inbox/steering-inbox-lifecycle.svg" alt="用户输入先经过授权和接纳窗口检查；窗口开放时持久写入 Inbox，再由 Runtime 在 Model Turn boundary 原子标记为 consumed，窗口关闭时则拒绝或转入后续 Run。" loading="lazy">
+  <figcaption>持久接纳和 Model Turn 消费是两个边界，进程内通知只负责唤醒。</figcaption>
 </figure>
-<p>客户端收到 <code>accepted</code> 后，只能确信输入已进入 Inbox。若界面要展示更精确状态，可以在它被绑定到某个 Turn 后显示“已分配给 Turn”；模型请求已发送和模型响应应由后续 Turn event 表达。</p>
-<h2 id="为什么只能在-turn-boundary-消费">为什么只能在 Turn boundary 消费</h2>
-<p>Turn boundary 是模型请求尚未组装或上一轮已经结束的位置。Runtime 在这里可以：</p>
+<p>客户端收到 <code>accepted</code> 后，只能确信输入已进入 Inbox。若界面要展示更精确状态，可以在它被绑定到某个 Model Turn 后显示“已分配给 Model Turn”；模型请求已发送和模型响应应由后续 Model Turn event 表达。</p>
+<h2 id="为什么只能在-model-turn-boundary-消费">为什么只能在 Model Turn boundary 消费</h2>
+<p>Model Turn boundary 是模型请求尚未组装或上一轮已经结束的位置。Runtime 在这里可以：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 按 inbox_seq 读取 pending input</span></span>
 <span class="line"><span>2. 按稳定顺序生成输入消息</span></span>
-<span class="line"><span>3. 创建 next Turn</span></span>
-<span class="line"><span>4. 把这些 input 标记为 consumed_by_turn</span></span></code></pre>
-<p>这里的“创建 Turn”不只生成一个 <code>turn_id</code>，还要持久化这次模型请求使用的不可变 canonical input（或稳定内容引用），以及本次纳入的 Inbox <code>input_id</code> 列表。它与标记 <code>consumed_by_turn_id</code> 应共享原子边界。否则，worker 可能只创建 Turn identity 就崩溃，留下“已消费”却无法重建输入；也可能恢复时把同一条 steering 注入第二个 Turn。</p>
-<p>如果模型请求已经发出，新输入默认留给下一个 Turn。系统也可以选择中断当前模型调用后重开一轮，但那是显式的 interruption policy，不能通过修改正在使用的数组偷偷实现。</p>
-<p>回到开场例子：补充要求先变成 <code>pending</code>。旧 worker 在 Tool 返回后崩溃，新 worker 仍能看到它，并在创建下一 Turn 时将其绑定。输入没有因为进程生命周期结束而消失。</p>
+<span class="line"><span>3. 创建 next Model Turn</span></span>
+<span class="line"><span>4. 把这些 input 标记为 consumed_by_model_turn</span></span></code></pre>
+<p>这里的“创建 Model Turn”不只生成一个 <code>model_turn_id</code>，还要持久化这次模型请求使用的不可变 canonical input（或稳定内容引用），以及本次纳入的 Inbox <code>input_id</code> 列表。它与标记 <code>consumed_by_model_turn_id</code> 应共享原子边界。否则，worker 可能只创建 Model Turn identity 就崩溃，留下“已消费”却无法重建输入；也可能恢复时把同一条 steering 注入第二个 Model Turn。</p>
+<p>如果模型请求已经发出，新输入默认留给下一个 Model Turn。系统也可以选择中断当前模型调用后重开一轮，但那是显式的 interruption policy，不能通过修改正在使用的数组偷偷实现。</p>
+<p>回到开场例子：补充要求先变成 <code>pending</code>。旧 worker 在 Tool 返回后崩溃，新 worker 仍能看到它，并在创建下一 Model Turn 时将其绑定。输入没有因为进程生命周期结束而消失。</p>
 <h2 id="结束阶段最容易出现竞态">结束阶段最容易出现竞态</h2>
-<p>更隐蔽的情况发生在 Run 即将完成时。这里先假设 Run owner 已经验证：目标具备完成证据、所有 owned child work 已经收敛，而且当前状态允许进入终态。Inbox 为空并不证明任务完成；下面的协议只负责让这个既有终态决定与最后一刻到达的 steering 不互相穿透。</p>
+<p>更隐蔽的情况发生在 Run 即将完成时。这里先假设 Run owner 已经验证：这次 Agent Loop 已有 final output、所有由 Run 拥有的 child work 已经收敛，而且当前状态允许进入终态。Inbox 为空并不证明上层 Task 已完成；下面的协议只负责让这个既有 Run 终态决定与最后一刻到达的 steering 不互相穿透。</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1 Runtime 检查 Inbox：为空</span></span>
 <span class="line"><span>T2 用户发送新输入</span></span>
 <span class="line"><span>T3 Runtime 把 Run 标记为 completed</span></span>
@@ -92,19 +92,19 @@
 <span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> 'pending'</span></span>
 <span class="line"><span style="color:#D73A49">FOR</span><span style="color:#D73A49"> UPDATE</span><span style="color:#24292E">;</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#6A737D">-- 有 pending input：创建并绑定 next Turn，标记 consumed，</span></span>
+<span class="line"><span style="color:#6A737D">-- 有 pending input：创建并绑定 next Model Turn，标记 consumed，</span></span>
 <span class="line"><span style="color:#6A737D">--                  推进 admission_epoch，再把窗口重新设为 open。</span></span>
 <span class="line"><span style="color:#6A737D">-- 没有 pending input：追加 run.completed，并把窗口设为 closed。</span></span>
 <span class="line"><span style="color:#D73A49">COMMIT</span><span style="color:#24292E">;</span></span></code></pre>
-<p>这里的 SQL 是概念模型；创建 Turn、标记 Inbox 已消费和追加决定事件也必须位于同一个提交协议中。应用还要检查每条语句的实际结果。也可以使用带整体 retry 的 serializable transaction，或者用版本号实现等价的 CAS 协议。关键不是选择哪种数据库语法，而是两条路径不能各自在普通 snapshot 中读一次 <code>admission_state</code> 后独立提交。</p>
+<p>这里的 SQL 是概念模型；创建 Model Turn、标记 Inbox 已消费和追加决定事件也必须位于同一个提交协议中。应用还要检查每条语句的实际结果。也可以使用带整体 retry 的 serializable transaction，或者用版本号实现等价的 CAS 协议。关键不是选择哪种数据库语法，而是两条路径不能各自在普通 snapshot 中读一次 <code>admission_state</code> 后独立提交。</p>
 <p>这样竞态只有两种确定结果：</p>
 <ul>
-<li>输入先提交：finalizer 能看到 pending input，原子创建下一 Turn，并为后续接纳推进 epoch、重新打开窗口。</li>
+<li>输入先提交：finalizer 能看到 pending input，原子创建下一 Model Turn，并为后续接纳推进 epoch、重新打开窗口。</li>
 <li>finalizer 先提交终态：窗口成为 <code>closed</code>，后来的输入不会被错误标成属于当前 Run，可以明确拒绝，或根据产品规则创建 follow-up Run。</li>
 </ul>
 <p>不能出现“当前 Run 已接受，但没人负责”的第三种结果。</p>
 <p>如果 Run control、Inbox 与 Event Log 位于不同存储，就不能直接声称这些步骤原子完成；需要把 admission decision 收敛到一个 Source of Truth，再通过 outbox 或 reconciliation 驱动另一侧。</p>
-<p>这个协议还假设同一时刻只有一个持有效 lease 的 Run owner 能消费 Inbox 和提交终态。<code>owner_fencing_token</code> 用来拒绝旧 worker 的迟到写入。lease 如何续期与接管属于执行所有权问题，但这里必须明确它是前提，否则两个 worker 仍可能同时创建 next Turn。</p>
+<p>这个协议还假设同一时刻只有一个持有效 lease 的 Run owner 能消费 Inbox 和提交终态。<code>owner_fencing_token</code> 用来拒绝旧 worker 的迟到写入。lease 如何续期与接管属于执行所有权问题，但这里必须明确它是前提，否则两个 worker 仍可能同时创建 next Model Turn。</p>
 <h2 id="唤醒信号仍然有用">唤醒信号仍然有用</h2>
 <p>持久 Inbox 不等于每个 worker 都要高频轮询。写入成功后，可以通过进程内 Queue、Redis Pub/Sub 或其他 notification 唤醒当前 owner。</p>
 <p>但 signal 只意味着“可能有新输入”，worker 被唤醒后仍以 Inbox 查询为准。为了保证 signal 丢失后最终仍有人处理，系统还需要一种明确的 re-drive：例如写 Inbox 的事务同时写 outbox，由 durable queue 重试投递；或者由 heartbeat/定时扫描在约定的最大间隔内重新发现 pending input。signal 重复时，Inbox 状态和 <code>inbox_seq</code> 也不会让同一输入被重复绑定。</p>
@@ -136,16 +136,16 @@
 
 
 
-<table><thead><tr><th>输入类型</th><th>目标</th><th>常见处理</th></tr></thead><tbody><tr><td>steer</td><td>活跃 Run 的下一次推理</td><td>进入 Inbox，在 Turn boundary 消费</td></tr><tr><td>stop</td><td>当前执行控制状态</td><td>持久化 cancel request，并唤醒执行者</td></tr><tr><td>follow-up</td><td>已结束目标上的新意图</td><td>创建新 Run，引用之前的 Session 事实</td></tr></tbody></table>
-<p>把 stop 当成自然语言消息，模型可能在下一轮才看到；把 follow-up 强塞进已经 terminal 的 Run，又会破坏终态。统一接入层可以共享 identity 和 idempotency，但状态转移必须不同。</p>
+<table><thead><tr><th>输入类型</th><th>目标</th><th>常见处理</th></tr></thead><tbody><tr><td>steer</td><td>活跃 Run 的下一次推理</td><td>进入 Inbox，在 Model Turn boundary 消费</td></tr><tr><td>stop</td><td>当前执行控制状态</td><td>持久化 cancel request，并唤醒执行者</td></tr><tr><td>follow-up</td><td>已结束目标上的新意图</td><td>创建新 Run，引用之前的 Session 事实</td></tr></tbody></table>
+<p>把 stop 当成自然语言消息，模型可能在下一个 Model Turn 才看到；把 follow-up 强塞进已经 terminal 的 Run，又会破坏终态。统一接入层可以共享 identity 和 idempotency，但状态转移必须不同。</p>
 <h2 id="回到问题">回到问题</h2>
 <p>执行期间的新输入不能只存在于当前 worker，也不能在模型请求进行中随意改写 <code>messages</code>。</p>
-<p>更清晰的协议是：先在可信接入层完成授权，把正文和输入幂等写入持久 Inbox，再在明确 Turn boundary 创建消费记录；signal 只负责降低唤醒延迟，durable re-drive 负责最终发现。Run 结束前关闭当前 admission epoch，并让竞态收敛为“原子创建下一 Turn 后重新开放”或“提交终态并明确进入后续路径”。</p>
+<p>更清晰的协议是：先在可信接入层完成授权，把正文和输入幂等写入持久 Inbox，再在明确 Model Turn boundary 创建消费记录；signal 只负责降低唤醒延迟，durable re-drive 负责最终发现。Run 结束前关闭当前 admission epoch，并让竞态收敛为“原子创建下一 Model Turn 后重新开放”或“提交终态并明确进入后续路径”。</p>
 <p>这样，<code>accepted</code>、<code>consumed</code> 和“是否真正执行”不再被一句含糊的“已收到”掩盖。</p>
 <h2 id="后续问题">后续问题</h2>
 <ul>
 <li>Run owner 的 lease、fencing token 和接管协议应怎样设计。</li>
-<li>输入已消费后，Checkpoint 应怎样保存 Turn 与 Inbox cursor。</li>
+<li>输入已消费后，Checkpoint 应怎样保存 Model Turn 与 Inbox cursor。</li>
 <li>高风险 steering 是否需要重新确认授权或用户批准。</li>
 </ul>
 <p>参考：</p>

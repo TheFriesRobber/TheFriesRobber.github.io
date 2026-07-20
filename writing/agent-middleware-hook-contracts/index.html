@@ -111,14 +111,14 @@
 <span class="line"><span>after A</span></span></code></pre>
 <p>If <code>after</code> callbacks also run in registration order, A may close a resource that B is still using. Whether cleanup runs in reverse order should be part of the Runtime contract, not something every Hook author has to guess.</p>
 <p>Cancellation must follow the same unwind contract: scopes already entered clean up in reverse order, so resources such as temporary credentials are not left behind. A cleanup error should be recorded separately rather than replace the original cancellation. Whether an after Hook with an external side effect may be replayed follows the delivery contract defined later.</p>
-<p>Not every after Hook belongs to the same nesting model. A metrics observer may consume a completed event, while an output policy must run before content reaches the user or the next context. Putting both into one <code>afterModel</code> array once again delegates different semantics to registration order.</p>
+<p>Not every after Hook belongs to the same nesting model. A metrics observer may consume a completed event, while an output policy must run before content reaches the user or enters the next Model Turn’s Context. Putting both into one <code>afterModel</code> array once again delegates different semantics to registration order.</p>
 <h2 id="a-hook-failure-must-not-rewrite-a-tool-result-that-already-happened">A Hook failure must not rewrite a Tool result that already happened</h2>
 <p>Ordering problems appear on the happy path; retries make the failure contract even more important.</p>
 <p>Suppose <code>write_file</code> successfully saves a report. An <code>afterTool</code> Hook then sends a trace event to a remote collector, but the collector times out. If middleware marks the whole chain as failed, an outer retry may execute <code>write_file</code> again:</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt 1: write_file succeeds → trace delivery times out</span></span>
 <span class="line"><span>attempt 2: write_file succeeds again</span></span></code></pre>
 <p>The second write is not a tracing retry. It repeats the business side effect. The Runtime must preserve two separate facts:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Step: succeeded, artifact = report.md@v3</span></span>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Execution: succeeded, artifact = report.md@v3</span></span>
 <span class="line"><span>Trace delivery: failed, pending an independent retry or degradation</span></span></code></pre>
 <p>Each Hook kind therefore needs a predefined failure policy:</p>
 <ul>
@@ -133,7 +133,7 @@
 <p>Suppose a Hook sends a notification after a Tool finishes. The process crashes after the notification succeeds but before a checkpoint records that fact. Recovery enters <code>afterTool</code> again. If the Hook generates a new message ID, the user receives two notifications.</p>
 <p>This kind of action should not hide inside a callback as incidental work. There are two safer choices:</p>
 <ol>
-<li>Promote the notification to an explicit Step whose logical identity, Attempts, and result are stored by the Runtime.</li>
+<li>Promote the notification to an explicit Tool Execution whose logical identity, Attempts, and result are stored by the Runtime.</li>
 <li>If it genuinely belongs to an infrastructure Hook, use a stable <code>event_id</code>, let the downstream system deduplicate it, and retain delivery state.</li>
 </ol>
 <p>Replay then means another delivery of the same Hook event, not a new business intent. Observers for metrics, tracing, billing, and audit must likewise state whether they accept at-least-once delivery, require an idempotent upsert, or need a durable outbox. A stable <code>event_id</code> alone cannot prevent duplicate side effects; repeated deliveries converge on one result only when the downstream system deduplicates them or performs an idempotent upsert.</p>
@@ -146,7 +146,7 @@
 <li>a cached response still passes through normalization and output policy;</li>
 <li>paired scopes unwind their after behavior in reverse order;</li>
 <li>cancellation unwinds entered scopes in reverse order, and cleanup errors do not replace the original cancellation;</li>
-<li>observer failure does not turn a successful Tool Step into <code>failed</code>;</li>
+<li>observer failure does not turn a successful Tool Execution into <code>failed</code>;</li>
 <li>replay follows its declared delivery contract: at-least-once delivery reuses one <code>event_id</code> and may deliver duplicates, while only idempotent or deduplicated delivery is tested for a single side effect;</li>
 <li>the trace distinguishes original candidates, policy decision, and final request.</li>
 </ul>

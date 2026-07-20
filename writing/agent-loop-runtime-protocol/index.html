@@ -71,11 +71,11 @@
 <p>At that point, an Agent Loop is no longer just a <code>while</code> loop. The Runtime must distinguish logical operations, execution attempts, confirmed facts, and unresolved outcomes.</p>
 <h2 id="follow-up-questions">Follow-up questions</h2>
 <ul>
-<li>What state and retry boundaries should Run, Turn, Step, and background Task represent?</li>
+<li>What state and retry boundaries should Task, Run, Model Turn, Tool Execution, and background Job represent?</li>
 <li>How should a Tool lifecycle cover registration, authorization, execution, and result normalization?</li>
 <li>What should a Checkpoint contain, and how should execution resume after a process restart?</li>
 <li>How should cancellation handle a Tool that is still running or has already caused a side effect?</li>
-<li>How should Context Assembly decide what the model actually sees in the next turn?</li>
+<li>How should Context Assembly decide what the model actually sees in the next Model Turn?</li>
 <li>How should Middleware, Tracing, and Eval consume the same execution facts?</li>
 </ul>
 <hr>

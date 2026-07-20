@@ -1,42 +1,76 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
-  <title id="title">Run、Turn、Step 与 Task 的执行时间线</title>
-  <desc id="desc">一个 Run 包含两个已完成 Turn、两个已完成 Step，并在等待仍然运行的后台 Task。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 620" role="img" aria-labelledby="title desc">
+  <title id="title">Agent Runtime 对象的执行时间线</title>
+  <desc id="desc">一个 Session 中的报告 Task 跨越两个 Run。第一个 Run 包含多个 Model Turn 和 Tool Execution，提交的后台 Job 在 Run 结束后继续执行；第二个 Run 查询进度。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#6b7280"/>
+    </marker>
+  </defs>
   <style>
     text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #202124; }
-    .label { font-size: 18px; font-weight: 650; }
-    .small { font-size: 15px; fill: #4b5563; }
+    .heading { font-size: 21px; font-weight: 700; }
+    .label { font-size: 17px; font-weight: 650; }
+    .small { font-size: 14px; fill: #4b5563; }
+    .tiny { font-size: 12px; fill: #4b5563; }
     .lane { stroke: #d1d5db; stroke-width: 2; }
+    .scope { fill: #f3f4f6; stroke: #6b7280; stroke-width: 2; }
     .done { fill: #e8f5ec; stroke: #3f7d52; stroke-width: 2; }
     .waiting { fill: #fff4d6; stroke: #a66b00; stroke-width: 2; }
     .running { fill: #e7f0ff; stroke: #3c6fb6; stroke-width: 2; }
+    .flow { fill: none; stroke: #6b7280; stroke-width: 1.8; stroke-dasharray: 5 5; marker-end: url(#arrow); }
   </style>
-  <rect width="960" height="420" rx="18" fill="#fafafa"/>
-  <text x="36" y="45" class="label">同一次用户目标中的不同生命周期</text>
-  <text x="36" y="72" class="small">Turn 和 Step 已经结束时，Run 仍可能等待后台 Task</text>
+  <rect width="1100" height="620" rx="18" fill="#fafafa"/>
+  <text x="34" y="42" class="heading">同一个用户目标可以跨越多个 Run</text>
+  <text x="34" y="68" class="small">Run 在给出最终回复后结束；Task 继续等待独立调度的 Job</text>
 
-  <text x="36" y="132" class="label">Run</text>
-  <line x1="130" y1="126" x2="920" y2="126" class="lane"/>
-  <rect x="150" y="103" width="580" height="46" rx="12" class="running"/>
-  <text x="373" y="132" class="small">run_18 · running</text>
-  <rect x="740" y="103" width="160" height="46" rx="12" class="waiting"/>
-  <text x="753" y="132" class="small">waiting for task_9</text>
+  <text x="34" y="126" class="label">Session</text>
+  <line x1="165" y1="120" x2="1060" y2="120" class="lane"/>
+  <rect x="180" y="98" width="850" height="44" rx="11" class="scope"/>
+  <text x="536" y="126" class="small">session_3 · 跨交互 Context</text>
 
-  <text x="36" y="207" class="label">Turn</text>
-  <line x1="130" y1="201" x2="920" y2="201" class="lane"/>
-  <rect x="160" y="178" width="140" height="46" rx="12" class="done"/>
-  <text x="182" y="207" class="small">turn_1 · done</text>
-  <rect x="450" y="178" width="140" height="46" rx="12" class="done"/>
-  <text x="472" y="207" class="small">turn_2 · done</text>
+  <text x="34" y="204" class="label">Task</text>
+  <line x1="165" y1="198" x2="1060" y2="198" class="lane"/>
+  <rect x="180" y="176" width="720" height="44" rx="11" class="waiting"/>
+  <text x="445" y="204" class="small">task_report_7 · waiting for Job</text>
+  <rect x="910" y="176" width="120" height="44" rx="11" class="done"/>
+  <text x="930" y="204" class="small">succeeded</text>
 
-  <text x="36" y="282" class="label">Step</text>
-  <line x1="130" y1="276" x2="920" y2="276" class="lane"/>
-  <rect x="310" y="253" width="130" height="46" rx="12" class="done"/>
-  <text x="325" y="282" class="small">read_file · done</text>
-  <rect x="600" y="253" width="130" height="46" rx="12" class="done"/>
-  <text x="611" y="282" class="small">save_report · done</text>
+  <text x="34" y="282" class="label">Run</text>
+  <line x1="165" y1="276" x2="1060" y2="276" class="lane"/>
+  <rect x="190" y="254" width="560" height="44" rx="11" class="done"/>
+  <text x="361" y="282" class="small">run_18 · 初始请求 · succeeded</text>
+  <rect x="840" y="254" width="190" height="44" rx="11" class="done"/>
+  <text x="862" y="282" class="small">run_19 · 查询进度</text>
 
-  <text x="36" y="357" class="label">Task</text>
-  <line x1="130" y1="351" x2="920" y2="351" class="lane"/>
-  <rect x="740" y="328" width="160" height="46" rx="12" class="running"/>
-  <text x="763" y="357" class="small">task_9 · running</text>
+  <text x="34" y="360" class="label">Model Turn</text>
+  <line x1="165" y1="354" x2="1060" y2="354" class="lane"/>
+  <rect x="200" y="332" width="132" height="44" rx="11" class="done"/>
+  <text x="222" y="359" class="tiny">1 · read_file</text>
+  <rect x="390" y="332" width="146" height="44" rx="11" class="done"/>
+  <text x="406" y="359" class="tiny">2 · 生成并保存</text>
+  <rect x="600" y="332" width="140" height="44" rx="11" class="done"/>
+  <text x="616" y="359" class="tiny">3 · 最终回复</text>
+  <rect x="850" y="332" width="170" height="44" rx="11" class="done"/>
+  <text x="875" y="359" class="tiny">4 · 返回 Job 状态</text>
+
+  <text x="34" y="438" class="label">Tool Execution</text>
+  <line x1="165" y1="432" x2="1060" y2="432" class="lane"/>
+  <rect x="260" y="410" width="130" height="44" rx="11" class="done"/>
+  <text x="281" y="437" class="tiny">read · done</text>
+  <rect x="470" y="410" width="130" height="44" rx="11" class="done"/>
+  <text x="491" y="437" class="tiny">save · done</text>
+  <rect x="610" y="410" width="140" height="44" rx="11" class="done"/>
+  <text x="625" y="437" class="tiny">enqueue · done</text>
+
+  <text x="34" y="516" class="label">Job</text>
+  <line x1="165" y1="510" x2="1060" y2="510" class="lane"/>
+  <rect x="690" y="488" width="210" height="44" rx="11" class="running"/>
+  <text x="722" y="516" class="small">job_pdf_9 · running</text>
+  <rect x="910" y="488" width="120" height="44" rx="11" class="done"/>
+  <text x="930" y="516" class="small">succeeded</text>
+
+  <path d="M680 455 C680 470 720 470 720 486" class="flow"/>
+  <path d="M900 486 C900 450 935 420 935 378" class="flow"/>
+  <text x="675" y="572" class="small">时间 →</text>
+  <text x="758" y="572" class="tiny">Queue / worker 独立拥有 Job</text>
 </svg>

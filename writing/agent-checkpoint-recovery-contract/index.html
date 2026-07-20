@@ -36,7 +36,7 @@
 
 
 
-<table><thead><tr><th>Object</th><th>Question it answers</th><th>Typical contents</th></tr></thead><tbody><tr><td>Event Log</td><td>Which execution facts have been committed?</td><td>Tool intent, result, Turn completed</td></tr><tr><td>Snapshot</td><td>What is the current derived state?</td><td>Run state, current Turn, remaining budget</td></tr><tr><td>Checkpoint</td><td>Where and under which conditions should recovery resume?</td><td>snapshot reference, event cursor, waiting condition, version</td></tr><tr><td>Artifact</td><td>What deliverable did execution produce?</td><td>files, reports, code, citations</td></tr></tbody></table>
+<table><thead><tr><th>Object</th><th>Question it answers</th><th>Typical contents</th></tr></thead><tbody><tr><td>Event Log</td><td>Which execution facts have been committed?</td><td>Tool intent, result, Model Turn completed</td></tr><tr><td>Snapshot</td><td>What is the current derived state?</td><td>Run state, current Model Turn, remaining budget</td></tr><tr><td>Checkpoint</td><td>Where and under which conditions should recovery resume?</td><td>snapshot reference, event cursor, waiting condition, version</td></tr><tr><td>Artifact</td><td>What deliverable did execution produce?</td><td>files, reports, code, citations</td></tr></tbody></table>
 <p>The Event Log emphasizes history, the Snapshot supports fast reads, and the Artifact is a user-visible result. A Checkpoint is a recovery protocol: it points to a position and states which external conditions recovery code must verify.</p>
 <p>Serializing an ORM connection, async task, socket, or framework-internal object may look more complete, but those objects generally cannot survive a process, version, or machine boundary. Recovery should recreate them.</p>
 <p>For external side effects, the Runtime must also persist an effect intent before making the call: a stable <code>effect_key</code>, a parameter digest, the target system, and an initial state. The call can begin only after that intent commits. If the worker then crashes after the call, recovery at least knows that this logical action may have happened instead of assigning a new identity and executing it again.</p>
@@ -62,12 +62,12 @@
 <span class="line"><span style="color:#24292E">    }</span></span>
 <span class="line"><span style="color:#24292E">  ],</span></span>
 <span class="line"><span style="color:#005CC5">  "artifact_refs"</span><span style="color:#24292E">: [],</span></span>
-<span class="line"><span style="color:#005CC5">  "budget"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"turns_used"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#005CC5">  "budget"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"model_turns_used"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span><span style="color:#24292E">},</span></span>
 <span class="line"><span style="color:#005CC5">  "created_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:00:00Z"</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
 <p>Here, <code>snapshot_ref</code> points to the complete recoverable derived state through <code>seq=73</code> in Session stream <code>session:session_17</code>. Recovery verifies the binding among the Snapshot, stream, and sequence before reading later events. The bare number 73 has no meaning in another Session stream. To restore this Run, recovery still reads that Session stream in order and applies only events causally related to the current Run. A system that does not persist a Snapshot may instead replay the Event Log from the beginning, but it cannot start from a cursor in the middle without any base state.</p>
 <p>The RunSpec identifies the execution contract, while <code>resume_contract_revision</code> identifies the version of recovery semantics on which <code>resume_at</code> depends. An effect contract also records the downstream provider, idempotency scope, and key expiry. The <code>effect_key</code> alone does not prove that a retry days later will still deduplicate.</p>
-<p><code>resume_at</code> should not be an arbitrary source-code line. It should name a logical boundary that future code can continue to understand, such as a committed Step, a pending approval, or an effect that requires reconciliation.</p>
+<p><code>resume_at</code> should not be an arbitrary source-code line. It should name a logical boundary that future code can continue to understand, such as a committed Tool Execution, a pending approval, or an effect that requires reconciliation.</p>
 <h2 id="recovery-is-reconciliation-not-deserialization">Recovery is reconciliation, not deserialization</h2>
 <figure>
   <img src="/posts/en/agent-checkpoint-recovery-contract/checkpoint-recovery.svg" alt="Recovery loads a Checkpoint, verifies that its Snapshot covers the event cursor, replays events after the cursor, reconciles external side effects with unknown outcomes, and then constructs new Runtime state." loading="lazy">
@@ -116,8 +116,8 @@
 <h2 id="how-often-to-create-a-checkpoint">How often to create a Checkpoint</h2>
 <p>Writing a Checkpoint for every token is too expensive, while writing one only when the Run ends removes most recovery value. Natural boundaries include:</p>
 <ul>
-<li>after a Step with side effects converges;</li>
-<li>after a Turn completes;</li>
+<li>after a Tool Execution with side effects converges;</li>
+<li>after a Model Turn completes;</li>
 <li>before entering human approval or a long timer;</li>
 <li>after producing an important Artifact;</li>
 <li>when the Event Log has grown enough that recovery should shorten its rebuild path.</li>

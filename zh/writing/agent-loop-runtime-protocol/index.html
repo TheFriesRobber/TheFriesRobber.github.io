@@ -39,7 +39,7 @@
 <p>模型只能提出下一步，Runtime 只能确认自己是否拿到了响应，真正的写入结果由笔记服务掌握。正常返回时，这三层可以合并成一条 Tool Result；发生 timeout 后，它们却不再一致。</p>
 <p>如果 Runtime 只向 <code>messages</code> 追加一条错误：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool error: request timed out</span></span></code></pre>
-<p>下一轮模型看到的只是“调用报错”，很自然会再次调用 <code>write_note</code>。但这条消息漏掉了最重要的事实：第一次写入不是已经失败，而是<strong>结果未知</strong>。</p>
+<p>下一个 Model Turn 看到的只是“调用报错”，很自然会再次调用 <code>write_note</code>。但这条消息漏掉了最重要的事实：第一次写入不是已经失败，而是<strong>结果未知</strong>。</p>
 <p>结果未知是一种需要继续处理的执行状态，不是一句自然语言错误。Runtime 至少需要记住这是哪一次写入、是否拿到过 <code>note_id</code>，以及下一步应该确认原来的结果还是重新执行。否则，进程一旦重启，只恢复 <code>messages</code>，这些信息就会全部丢失。</p>
 <p>这也是问题从 timeout 走向 retry 的地方：在不知道第一次是否成功时，“再调用一次”到底意味着什么？</p>
 <h2 id="retry-之前先分清再试一次和再做一次">Retry 之前，先分清“再试一次”和“再做一次”</h2>
@@ -71,11 +71,11 @@
 <p>从这一刻开始，Agent Loop 才不再只是一个 <code>while</code> 循环。它需要由 Runtime 明确区分逻辑动作、执行尝试、已确认事实和未决结果。</p>
 <h2 id="后续问题">后续问题</h2>
 <ul>
-<li>Run、Turn、Step 和后台 Task 分别代表什么状态与重试边界。</li>
+<li>Task、Run、Model Turn、Tool Execution 和后台 Job 分别代表什么状态与重试边界。</li>
 <li>Tool 从注册、授权到结果归一化应怎样管理生命周期。</li>
 <li>Checkpoint 应保存什么，进程重启后怎样恢复。</li>
 <li>Cancellation 怎样处理仍在执行或已经产生副作用的 Tool。</li>
-<li>Context Assembly 怎样决定下一轮模型真正看到什么。</li>
+<li>Context Assembly 怎样决定下一个 Model Turn 真正看到什么。</li>
 <li>Middleware、Tracing 和 Eval 怎样消费同一组执行事实。</li>
 </ul>
 <hr>

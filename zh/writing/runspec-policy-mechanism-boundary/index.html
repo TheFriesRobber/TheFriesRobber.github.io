@@ -1,18 +1,18 @@
 <!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用执行前编译的 RunSpec 分开 Profile policy 与 Runtime mechanism，避免业务分支不断侵入 Agent Loop。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="RunSpec 如何把业务策略移出 Agent Loop | Xiaoyuan"><meta property="og:description" content="用执行前编译的 RunSpec 分开 Profile policy 与 Runtime mechanism，避免业务分支不断侵入 Agent Loop。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/runspec-policy-mechanism-boundary/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>RunSpec 如何把业务策略移出 Agent Loop | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/runspec-policy-mechanism-boundary/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">RunSpec 如何把业务策略移出 Agent Loop</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Architecture/">Architecture</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设同一套 Agent Runtime 同时支持两种入口：</p>
 <ul>
-<li>对话入口使用响应快、成本低的模型，只开放搜索和读取 Tool，最多运行 8 个 Turn。</li>
+<li>对话入口使用响应快、成本低的模型，只开放搜索和读取 Tool，最多运行 8 个 Model Turn。</li>
 <li>后台研究入口允许更长时间运行，开放文件写入和 SubAgent，预算也更高。</li>
 </ul>
 <p>最直接的实现，是在 Agent Loop 里判断入口类型：</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> request.mode </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "chat"</span><span style="color:#24292E">:</span></span>
 <span class="line"><span style="color:#24292E">    model </span><span style="color:#D73A49">=</span><span style="color:#032F62"> "fast-model"</span></span>
 <span class="line"><span style="color:#24292E">    tools </span><span style="color:#D73A49">=</span><span style="color:#24292E"> read_only_tools</span></span>
-<span class="line"><span style="color:#24292E">    max_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 8</span></span>
+<span class="line"><span style="color:#24292E">    max_model_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 8</span></span>
 <span class="line"><span style="color:#D73A49">elif</span><span style="color:#24292E"> request.mode </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "research"</span><span style="color:#24292E">:</span></span>
 <span class="line"><span style="color:#24292E">    model </span><span style="color:#D73A49">=</span><span style="color:#032F62"> "reasoning-model"</span></span>
 <span class="line"><span style="color:#24292E">    tools </span><span style="color:#D73A49">=</span><span style="color:#24292E"> read_write_tools </span><span style="color:#D73A49">+</span><span style="color:#24292E"> subagent_tools</span></span>
-<span class="line"><span style="color:#24292E">    max_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 40</span></span></code></pre>
+<span class="line"><span style="color:#24292E">    max_model_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 40</span></span></code></pre>
 <p>接下来又会出现付费等级、地区限制、实验分组、用户授权和模型降级。每种条件看起来都只增加一个 <code>if</code>，最终却让 Loop 同时决定“这次执行允许什么”和“Tool Call 应该怎样运行”。</p>
 <p>这时最危险的问题不是代码太长，而是同一个请求在执行中途可能改变含义：恢复时重新读取了新配置，Eval 使用了另一套默认值，或者某个分支忘记同步 Tool 权限。</p>
 <h2 id="policy-与-mechanism-为什么要分开">Policy 与 mechanism 为什么要分开</h2>
@@ -47,7 +47,7 @@
 <table><thead><tr><th>对象</th><th>回答的问题</th><th>生命周期</th></tr></thead><tbody><tr><td>Profile</td><td>某类场景通常采用什么 policy</td><td>可以持续修改</td></tr><tr><td>RunSpec</td><td>这一次 Run 最终采用什么执行契约</td><td>Run 创建时固定</td></tr><tr><td>Runtime state</td><td>这一次 Run 已执行到哪里</td><td>随执行变化</td></tr></tbody></table>
 <p>Profile 可以叫 scenario、preset 或 agent definition，名字并不重要。重要的是它仍是一份可变策略；真正交给 Runtime 的应该是已经解析完默认值、权限和实验条件的 RunSpec。</p>
 <figure>
-  <img src="/posts/zh/runspec-policy-mechanism-boundary/runspec-boundary.svg" alt="请求与 Profile 先经过 policy compiler 生成不可变的 RunSpec，Runtime 只消费 RunSpec 并持续产生执行事件。" loading="lazy">
+  <img src="/posts/zh/runspec-policy-mechanism-boundary/runspec-boundary.svg" alt="请求与 Profile 先经过 policy compiler 生成不可变的 RunSpec；Runtime 以 RunSpec 作为已编译的 policy contract，并结合当前执行事实持续产生事件。" loading="lazy">
   <figcaption>Policy 在执行前收敛为 RunSpec；Runtime 不再反向读取可变 Profile。</figcaption>
 </figure>
 <h2 id="runspec-固定什么">RunSpec 固定什么</h2>
@@ -64,7 +64,7 @@
 <span class="line"><span style="color:#005CC5">    "allowed"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"read_file"</span><span style="color:#24292E">, </span><span style="color:#032F62">"write_file"</span><span style="color:#24292E">, </span><span style="color:#032F62">"spawn_agent"</span><span style="color:#24292E">]</span></span>
 <span class="line"><span style="color:#24292E">  },</span></span>
 <span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "max_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">40</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "max_model_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">40</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">    "deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1800</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">    "max_subagents"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3</span></span>
 <span class="line"><span style="color:#24292E">  },</span></span>
@@ -78,7 +78,7 @@
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
 <p>它固定的是<strong>选择结果</strong>，不是把整个运行现场都塞进配置。</p>
 <ul>
-<li>Model response、当前 Turn、剩余预算和 Tool Result 属于 Runtime state。</li>
+<li>Model response、当前 Model Turn、剩余预算和 Tool Result 属于 Runtime state。</li>
 <li>用户刚上传的新文件、执行期间的 steering 输入属于新的运行事实。</li>
 <li>OAuth token、API key 等 secret 不应复制进 RunSpec。<code>grant_ref + revision</code> 指向不可变的最大授权 envelope，RunSpec 同时固定 audience、scope 和 resource boundary；执行时可以因撤销或当前条件进一步收窄，不能在 fingerprint 不变时扩大权限。</li>
 <li>每轮真正送给模型的 Context 仍要结合最新 history、Memory、文件和 Tool Result 组装，不应在 Run 创建时冻结成一长段字符串。</li>
@@ -128,7 +128,7 @@
 <h2 id="后续问题">后续问题</h2>
 <ul>
 <li>RunSpec 创建后，Runtime 产生的消息、状态和事件应以什么作为事实源。</li>
-<li>每个 Turn 如何从 history、Memory、files 与 Tool results 组装最新 Context。</li>
+<li>每个 Model Turn 如何从 history、Memory、files 与 Tool results 组装最新 Context。</li>
 <li>Profile、compiler 与 Runtime 是否需要拆成不同服务，应由哪些故障和所有权边界决定。</li>
 <li>RunSpec 跨越信任域时，怎样使用 HMAC 或数字签名证明来源与完整性。</li>
 </ul>

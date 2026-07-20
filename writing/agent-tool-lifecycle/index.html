@@ -9,12 +9,12 @@
 <span class="line"><span style="color:#005CC5">    "content"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span></span>
 <span class="line"><span style="color:#24292E">  }</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
-<p>Even if the handler has no bug, the call can fail elsewhere. The user may not be allowed to write to the directory. The model may have seen an outdated Tool definition. The file may have been written while the Runtime received only a timeout. Or the handler may return a complete file object that still does not tell the next model turn whether the write succeeded.</p>
+<p>Even if the handler has no bug, the call can fail elsewhere. The user may not be allowed to write to the directory. The model may have seen an outdated Tool definition. The file may have been written while the Runtime received only a timeout. Or the handler may return a complete file object that still does not tell the next Model Turn whether the write succeeded.</p>
 <p>The function body alone cannot solve these problems because they occur before the model sees the Tool, before the action executes, while an external side effect occurs, and after the result returns.</p>
 <p>The purpose of a Tool Lifecycle is not to invent more stages. It is to preserve identity, authority, and outcome as one logical action crosses those boundaries.</p>
 <h2 id="a-registered-tool-should-not-always-be-visible">A registered Tool should not always be visible</h2>
-<p>A registry answers “which capabilities exist in the system?” The current Tool surface answers “which capabilities may this model turn use?” Those sets are not the same.</p>
-<p><code>write_file</code> may be registered but absent from the model input because the user has read-only access, the project workspace is not mounted, or the current phase permits analysis but not modification.</p>
+<p>A registry answers “which capabilities exist in the system?” The current Tool surface answers “which capabilities may this Model Turn use?” Those sets are not the same.</p>
+<p><code>write_file</code> may be registered but absent from the model input because the user has read-only access, the project workspace is not mounted, or the current Model Turn permits analysis but not modification.</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>registered tools</span></span>
 <span class="line"><span>      ↓ identity, permission, environment</span></span>
 <span class="line"><span>allowed tools</span></span>
@@ -70,13 +70,13 @@
 <p><a href="/writing/tool-schemas-model-facing-apis/">Tool Schemas Are Model-Facing APIs</a> explains the schema boundary in more detail.</p>
 <h2 id="a-handler-exception-does-not-prove-that-the-action-failed">A handler exception does not prove that the action failed</h2>
 <p>Suppose the file service saves <code>report.md</code>, but the response is lost on its way back. The Runtime sees a timeout. Calling the Tool again may overwrite the file, create a new version, or trigger downstream work twice.</p>
-<p>A write therefore needs a stable logical identity. Several attempts may belong to one write, but a retry must not silently become a new user action:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>write operation_7</span></span>
+<p>An authorized write therefore needs a stable Tool Execution identity. Several Attempts may belong to one Tool Execution, but a retry must not silently become a new user action:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_write_7</span></span>
 <span class="line"><span>  ├─ attempt 1: timeout, outcome unknown</span></span>
 <span class="line"><span>  └─ attempt 2: confirms that file_version_12 exists</span></span></code></pre>
-<p>The Runtime must retain the operation identity, and the downstream service should provide idempotency or result lookup where possible. At this point the lifecycle records <code>succeeded</code>, definitely <code>failed</code>, or <code>unknown</code>; it does not translate every exception into “nothing happened.”</p>
+<p>The Runtime must retain the Tool Execution identity, and the downstream service should provide idempotency or result lookup where possible. At this point the lifecycle records <code>succeeded</code>, definitely <code>failed</code>, or <code>unknown</code>; it does not translate every exception into “nothing happened.”</p>
 <h2 id="a-successful-backend-response-still-should-not-enter-context-unchanged">A successful backend response still should not enter Context unchanged</h2>
-<p>An external file API may return permission lists, internal storage fields, version history, and several megabytes of content. A successful handler call does not make all of that suitable for the next model turn.</p>
+<p>An external file API may return permission lists, internal storage fields, version history, and several megabytes of content. A successful handler call does not make all of that suitable for the next Model Turn.</p>
 <p>The Runtime should normalize the backend response into a bounded, interpretable Tool Result:</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
 <span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">,</span></span>
@@ -89,11 +89,11 @@
 <p>The result should say whether it is complete or truncated, where its facts came from, and where large content can be read as an Artifact. Without those boundaries, the model may treat a partial result as complete or mistake instructions embedded in external data for trusted instructions.</p>
 <h2 id="the-lifecycle-connects-one-action">The lifecycle connects one action</h2>
 <p>The <code>write_file</code> call has now crossed several owners. The Registry supplied the definition. Policy decided visibility. The model generated arguments. The Runtime injected trusted context. The backend confirmed the side effect. A result normalizer decided what the model would see.</p>
-<p>The lifecycle does not require all of this code to live in one service. It requires the decisions to remain linked to the same logical call: which definition the model saw, who authorized which action, which attempts occurred, and which result was finally confirmed.</p>
+<p>The lifecycle does not require all of this code to live in one service. It requires the decisions to remain linked to the Tool Call and the Tool Execution created after authorization: which definition the model saw, who authorized which action, which Attempts occurred, and which result was finally confirmed.</p>
 <p>If those relationships break, the system knows only that “a function was called” and “something failed somewhere.” It cannot distinguish a Tool-selection problem from argument generation, authorization, execution, or result consumption.</p>
 <h2 id="back-to-the-problem">Back to the problem</h2>
 <p>A successful handler invocation proves only that execution reached the function boundary once.</p>
-<p>An interpretable Tool Runtime must also ensure that the model saw the currently allowed definition; model arguments could not forge trusted identity; Schema, authorization, and backend state each checked the facts they own; an unknown result did not blindly become a new action; and a successful response was normalized before entering the next model turn.</p>
+<p>An interpretable Tool Runtime must also ensure that the model saw the currently allowed definition; model arguments could not forge trusted identity; Schema, authorization, and backend state each checked the facts they own; an unknown result did not blindly become a new action; and a successful response was normalized before entering the next Model Turn.</p>
 <p>Once those boundaries remain connected, a Tool is no longer just a function. It becomes an agent capability whose execution can be authorized and whose result can be confirmed.</p>
 <h2 id="follow-up-questions">Follow-up questions</h2>
 <ul>

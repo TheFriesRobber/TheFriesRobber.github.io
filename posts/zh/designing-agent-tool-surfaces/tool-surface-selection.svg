@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
-  <title id="title">Permission-first Tool surface selection</title>
-  <desc id="desc">完整 Tool registry 先经过身份权限、场景策略和依赖检查，形成当前 run 的 allowed set。Allowed set 被分成 eager 与 deferred；未授权能力直接 disabled。模型可以直接调用 eager Tool，也可以通过 discovery 从 deferred index 解锁完整定义。</desc>
+  <title id="title">先确定权限，再选择 Tool Surface</title>
+  <desc id="desc">完整 Tool registry 先经过身份权限、场景策略和依赖检查，形成当前 Run 的 allowed set。Allowed set 被分成 eager 与 deferred；未授权能力直接 disabled。模型可以直接调用 eager Tool，也可以通过 discovery 从 deferred index 解锁完整定义。</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#737a76"/>
@@ -40,7 +40,7 @@
 
   <rect x="660" y="105" width="220" height="135" rx="14" class="allowed"/>
   <text x="770" y="148" class="label" text-anchor="middle">Allowed set</text>
-  <text x="770" y="183" class="small" text-anchor="middle">当前 run 可使用</text>
+  <text x="770" y="183" class="small" text-anchor="middle">当前 Run 可使用</text>
   <text x="770" y="213" class="small" text-anchor="middle">discovery 的最大边界</text>
 
   <path class="edge" d="M 465 250 C 465 285 1015 270 1015 315"/>

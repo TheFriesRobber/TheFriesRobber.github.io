@@ -1,17 +1,17 @@
 <!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Select eager, deferred, and disabled capabilities from a Tool registry by task and permission, then evaluate the trade-offs in tokens, latency, and discovery recall."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Tool Surfaces: Eager, Deferred, and On-Demand Discovery | Xiaoyuan"><meta property="og:description" content="Select eager, deferred, and disabled capabilities from a Tool registry by task and permission, then evaluate the trade-offs in tokens, latency, and discovery recall."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/designing-agent-tool-surfaces/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/designing-agent-tool-surfaces/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/designing-agent-tool-surfaces/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/designing-agent-tool-surfaces/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/designing-agent-tool-surfaces/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Tool Surfaces: Eager, Deferred, and On-Demand Discovery | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/designing-agent-tool-surfaces/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Tool Surfaces: Eager, Deferred, and On-Demand Discovery</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>An Agent may start with only five Tools: search the web, read a file, write a file, inspect a calendar, and send a message. As connectors (adapters to external systems), device capabilities, business operations, and administrative actions accumulate, the registry can quickly grow to dozens or hundreds of definitions.</p>
-<p>Sending every Tool name, description, and parameter schema to the model on every turn creates at least three problems:</p>
+<p>Sending every Tool name, description, and parameter schema to the model on every Model Turn creates at least three problems:</p>
 <ul>
 <li>Tool definitions consume input tokens. A token is a basic unit used to measure model input; more complex schemas generally mean more input.</li>
 <li>Similar capabilities appear together, so the model must route within a larger choice set.</li>
 <li>Capabilities irrelevant to the task—or unavailable to the current user—may enter the model context.</li>
 </ul>
 <p>Simply hiding every low-frequency Tool does not work either. A model cannot choose a capability it cannot see. If discovery fails, a capability can exist in the system while remaining unreachable in practice.</p>
-<p>The central Tool-surface question is not how to fit more Tools. It is: <strong>for this run, which capabilities should be immediately callable, which should be discoverable on demand, and which should not appear at all?</strong></p>
+<p>The central Tool-surface question is not how to fit more Tools. It is: <strong>for this Run, which capabilities should be immediately callable, which should be discoverable on demand, and which should not appear at all?</strong></p>
 <blockquote>
 <p>Think of the registry as every tool in a warehouse and the Tool surface as the small set placed on the model’s desk for this task. The warehouse can be large; the desk should contain only what is both allowed and likely to be useful now.</p>
 </blockquote>
-<p>A run here means one complete Agent execution: it begins with a user request and ends when the Agent returns a result or enters a waiting state.</p>
+<p>A Run here means one Agent Loop: it begins with user input or a resume action and ends with final output, an explicit resumable pause, failure, or cancellation.</p>
 <h2 id="define-the-sets-first">Define the sets first</h2>
 <p>Four sets need to remain distinct:</p>
 
@@ -44,16 +44,16 @@
 
 
 
-<table><thead><tr><th>Set</th><th>Meaning</th><th>Typical decision owner</th></tr></thead><tbody><tr><td>Registry</td><td>Every Tool installed by the system and available to construct</td><td>Code, plugins, connector catalog</td></tr><tr><td>Allowed set</td><td>Tools permitted for the current user, situation, and resource scope</td><td>Authentication, authorization policy, feature flags, dependency availability</td></tr><tr><td>Initial surface</td><td>Complete definitions the model can call when the run begins</td><td>Surface policy</td></tr><tr><td>Unlocked set</td><td>Tools loaded during the run through on-demand discovery</td><td>Search results and renewed authorization</td></tr></tbody></table>
-<p>These sets should not collapse into one <code>allTools</code> array. The registry answers “what does the system have?” The allowed set answers “what may this run use?” The surface answers “what can the model see now?”</p>
+<table><thead><tr><th>Set</th><th>Meaning</th><th>Typical decision owner</th></tr></thead><tbody><tr><td>Registry</td><td>Every Tool installed by the system and available to construct</td><td>Code, plugins, connector catalog</td></tr><tr><td>Allowed set</td><td>Tools permitted for the current user, situation, and resource scope</td><td>Authentication, authorization policy, feature flags, dependency availability</td></tr><tr><td>Initial surface</td><td>Complete definitions the model can call when the Run begins</td><td>Surface policy</td></tr><tr><td>Unlocked set</td><td>Tools loaded during the Run through on-demand discovery</td><td>Search results and renewed authorization</td></tr></tbody></table>
+<p>These sets should not collapse into one <code>allTools</code> array. The registry answers “what does the system have?” The allowed set answers “what may this Run use?” The surface answers “what can the model see now?”</p>
 <p>The order matters: <strong>filter for permissions and context first, then divide the allowed set into eager and deferred Tools.</strong> Discovery finds a capability; it does not authorize one.</p>
 <figure>
-  <img src="/posts/en/designing-agent-tool-surfaces/tool-surface-selection.svg" alt="The full Tool registry passes through identity, permission, context-policy, and dependency filters to produce the allowed set for the current run. Capabilities outside the allowed set are disabled. The allowed set then splits into eager and deferred Tools; the model can call eager Tools directly or discover and unlock a Tool from the deferred index." loading="lazy">
+  <img src="/posts/en/designing-agent-tool-surfaces/tool-surface-selection.svg" alt="The full Tool registry passes through identity, permission, context-policy, and dependency filters to produce the allowed set for the current Run. Capabilities outside the allowed set are disabled. The allowed set then splits into eager and deferred Tools; the model can call eager Tools directly or discover and unlock a Tool from the deferred index." loading="lazy">
   <figcaption>Permission filtering happens before discovery; deferred loading only reduces the initial surface within the allowed set.</figcaption>
 </figure>
 <p>If the application indexes the complete registry and checks authorization only at call time, search results can still reveal the names and descriptions of unauthorized Tools. That leaks capability information and encourages the model to plan a path that is guaranteed to fail.</p>
 <h2 id="eager-deferred-and-disabled-are-different-states">Eager, deferred, and disabled are different states</h2>
-<p>A Tool can occupy one of three states in a run:</p>
+<p>A Tool can occupy one of three states in a Run:</p>
 
 
 
@@ -83,10 +83,10 @@
 
 
 
-<table><thead><tr><th>State</th><th>What the model sees initially</th><th>Good fit</th><th>Main cost</th></tr></thead><tbody><tr><td>eager</td><td>Full name, description, and schema; immediately callable</td><td>Frequent, clearly required by the task, or expensive to miss</td><td>Persistent context cost and a larger direct choice set</td></tr><tr><td>deferred</td><td>A searchable summary, namespace, or index entry; full definition loaded on demand</td><td>Infrequent, large-schema, or specialized connector capabilities</td><td>An extra discovery step and possible missed recall</td></tr><tr><td>disabled</td><td>Nothing; unavailable even through discovery</td><td>Unauthorized, missing a dependency, disallowed in this context, or turned off</td><td>Completely unreachable in the current run</td></tr></tbody></table>
+<table><thead><tr><th>State</th><th>What the model sees initially</th><th>Good fit</th><th>Main cost</th></tr></thead><tbody><tr><td>eager</td><td>Full name, description, and schema; immediately callable</td><td>Frequent, clearly required by the task, or expensive to miss</td><td>Persistent context cost and a larger direct choice set</td></tr><tr><td>deferred</td><td>A searchable summary, namespace, or index entry; full definition loaded on demand</td><td>Infrequent, large-schema, or specialized connector capabilities</td><td>An extra discovery step and possible missed recall</td></tr><tr><td>disabled</td><td>Nothing; unavailable even through discovery</td><td>Unauthorized, missing a dependency, disallowed in this context, or turned off</td><td>Completely unreachable in the current Run</td></tr></tbody></table>
 <p><code>disabled</code> is not a deeper form of <code>deferred</code>. If the current user may not send an external message, that capability should not enter the searchable set. The system cannot show it to the model and rely on restraint.</p>
 <p>A Tool also need not stay in the same category forever. <code>search_web</code> may be eager during research and disabled during a local formatting task. <code>export_spreadsheet</code> may be deferred in a general conversation and eager in an explicit data-export task.</p>
-<p>Classification is therefore a property of a Tool <strong>within this run</strong>, not a permanent attribute of the Tool class.</p>
+<p>Classification is therefore a property of a Tool <strong>within this Run</strong>, not a permanent attribute of the Tool class.</p>
 <h2 id="how-to-decide-whether-a-tool-should-be-eager">How to decide whether a Tool should be eager</h2>
 <p>“Frequent means eager; infrequent means deferred” is only a starting point. A useful decision considers at least five dimensions.</p>
 <h3 id="need-that-can-be-predicted-from-the-task">Need that can be predicted from the task</h3>
@@ -98,7 +98,7 @@
 <h3 id="how-naturally-the-capability-can-be-discovered">How naturally the capability can be discovered</h3>
 <p>The model must form a search query from the current conversation. If a user says, “sync these results to my knowledge base,” a <code>knowledge_base</code> namespace—a named group of related Tools—is easy to discover. If the capability name differs sharply from user language or requires an internal term that the model cannot know, deferring it raises the risk of missed recall.</p>
 <h3 id="whether-an-extra-round-trip-is-acceptable">Whether an extra round trip is acceptable</h3>
-<p>On-demand discovery usually adds a search, a load, or another model turn: one more round trip between the application and model. For a short interactive task, that delay may cost more than the tokens it saves. For a long task, avoiding a large schema on every turn can be more valuable.</p>
+<p>On-demand discovery usually adds a search, a load, or another Model Turn: one more round trip between the application and model. For a short interactive Task, that delay may cost more than the tokens it saves. For a long Task, avoiding a large schema on every Model Turn can be more valuable.</p>
 <p>Turn these dimensions into an explicit review table instead of relying on intuition:</p>
 
 
@@ -139,7 +139,7 @@
 <p>The table deliberately has no universal thresholds. Classification should be calibrated with evals and traces, not by mechanically deferring every “large Tool.”</p>
 <h2 id="the-full-lifecycle-of-on-demand-discovery">The full lifecycle of on-demand discovery</h2>
 <p>A provider-neutral flow can look like this:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Resolve run context</span></span>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Resolve Run context</span></span>
 <span class="line"><span>   user identity + scenario + policy + available dependencies</span></span>
 <span class="line"><span></span></span>
 <span class="line"><span>2. Build allowed set</span></span>
@@ -158,8 +158,8 @@
 <span class="line"><span>6. Call</span></span>
 <span class="line"><span>   model invokes the unlocked Tool -> handler and backend validate again</span></span></code></pre>
 <p>Several checkpoints in this flow are essential.</p>
-<p>First, a search result is not permission to execute. Before unlock, the application must recheck identity, feature flags, and dependencies because those conditions can change during a long run.</p>
-<p>Second, the contract must specify when an unlocked Tool becomes callable. Some runtimes can search, inject a definition, and continue the call within one model response. Others add the definition to context only on the next turn. The application must trace this transition instead of assuming identical turn behavior across platforms.</p>
+<p>First, a search result is not permission to execute. Before unlock, the application must recheck identity, feature flags, and dependencies because those conditions can change during a long Run.</p>
+<p>Second, the contract must specify when an unlocked Tool becomes callable. Some runtimes can search, inject a definition, and continue the call within one model response. Others add the definition to context only on the next Model Turn. The application must trace this transition instead of assuming identical Model Turn behavior across platforms.</p>
 <p>Third, Tool names must be unique in the final surface. Different connectors in the registry may both export <code>search</code> or <code>list_items</code>. If their names collide after loading, neither the model nor the gateway can route reliably. Namespaces, stable prefixes, or an explicit transformation should resolve collisions before definitions reach the model.</p>
 <p>OpenAI’s current Tool search supports both hosted search, where the platform performs the search, and client-executed search, where the application does. The former suits candidate sets known at the start of a request; the latter lets the application resolve candidates from its own state. At the time of this article’s update, the official documentation limits this feature to GPT-5.4 and later models, so applications should verify current support before depending on it. The product interface will evolve, but the underlying boundary is general: a platform or an application may perform the search, while <strong>the application must still define candidate capabilities and own authorization</strong>.</p>
 <h2 id="what-belongs-in-a-discovery-index">What belongs in a discovery index</h2>
@@ -178,23 +178,23 @@
 <li>Exclude capability metadata that the current user is not allowed to know.</li>
 </ol>
 <p>An entry that is too short hurts recall. One that is too long merely moves the token cost of a full schema into another location. A small number of clear namespaces, each containing semantically related Tools, is generally more reliable than one enormous “misc” directory.</p>
-<p>Search results should also be bounded. Loading too many Tools causes the surface to expand again during the run and defeats the purpose of discovery. Returning only the top-scoring k results—Top-k—is common, but k should depend on Tool similarity, task complexity, and eval results rather than a universal constant.</p>
+<p>Search results should also be bounded. Loading too many Tools causes the surface to expand again during the Run and defeats the purpose of discovery. Returning only the top-scoring k results—Top-k—is common, but k should depend on Tool similarity, task complexity, and eval results rather than a universal constant.</p>
 <h2 id="failure-and-fallback-must-be-explicit">Failure and fallback must be explicit</h2>
 <p>Discovery can fail because search returns no result, the index is stale, a provider lacks support, the network is unavailable, or the model never searches.</p>
-<p>A tempting but dangerous fallback is to expand every deferred Tool whenever Tool search fails. That improves recall by abruptly increasing tokens, disrupting prompt caching, and replacing the capacity-controlled surface with a different behavior.</p>
+<p>A tempting but dangerous fallback is to expand every deferred Tool whenever Tool search fails. That may improve recall, but it can abruptly increase token use, disrupt prompt caching, and replace the capacity-controlled surface with different behavior.</p>
 <p>More explicit fallback options include:</p>
 <ul>
 <li>Keep a core eager set whose token budget has been measured.</li>
 <li>Provide a limited static fallback for high-value namespaces.</li>
 <li>When search returns no result, provide a recoverable response that lets the model rewrite the query or explain the missing capability.</li>
-<li>If the current model platform does not support dynamic loading, let an application router select a smaller static surface before the run begins.</li>
+<li>If the current model platform does not support dynamic loading, let an application router select a smaller static surface before the Run begins.</li>
 <li>Apply the same allowed set to every fallback. A discovery failure must never broaden permissions.</li>
 </ul>
 <p>The lifetime of an unlock must also be defined:</p>
 <ul>
-<li><strong>Turn-scoped:</strong> recompute on the next turn; strictest, but repeats more discovery.</li>
-<li><strong>Run-scoped:</strong> remain visible during the current Agent run; often a good fit for multi-step tasks.</li>
-<li><strong>Session-scoped:</strong> cache across several runs; lower latency, but greater risk from permission, version, and dependency drift.</li>
+<li><strong>Model-Turn-scoped:</strong> recompute on the next Model Turn; strictest, but repeats more discovery.</li>
+<li><strong>Run-scoped:</strong> remain visible during the current Agent Run; often a good fit for multi-step tasks.</li>
+<li><strong>Session-scoped:</strong> cache across several Runs; lower latency, but greater risk from permission, version, and dependency drift.</li>
 </ul>
 <p>The longer the lifetime, the more important it is to record the Tool-definition version, the policy snapshot in effect when it was unlocked, and invalidation conditions. A Tool unlocked ten minutes ago is not necessarily still permitted now.</p>
 <h2 id="the-surface-is-not-the-entire-security-boundary">The surface is not the entire security boundary</h2>
@@ -203,7 +203,7 @@
 <ul>
 <li>Internal code may call the handler without going through the model.</li>
 <li>A cache or adapter bug may inject the wrong Tool definition.</li>
-<li>Resource permissions may change after the run begins.</li>
+<li>Resource permissions may change after the Run begins.</li>
 <li>An allowed Tool can still carry an unauthorized resource ID.</li>
 </ul>
 <p>The complete path still requires layered checks:</p>
@@ -257,7 +257,7 @@
 
 
 
-<table><thead><tr><th>Metric</th><th>Question answered</th></tr></thead><tbody><tr><td>Initial tool-definition tokens</td><td>How much input did the initial surface actually remove?</td></tr><tr><td>Discovery recall</td><td>When a deferred capability is needed, is it found?</td></tr><tr><td>Tool selection accuracy</td><td>After loading, does the model choose the right Tool instead of a similar one?</td></tr><tr><td>Extra model turns</td><td>How many turns does discovery add?</td></tr><tr><td>Time to first useful call</td><td>How long from the user request to the first useful Tool call?</td></tr><tr><td>Task success rate</td><td>Does the token optimization hurt final completion?</td></tr><tr><td>Unauthorized exposure rate</td><td>Do unauthorized names or schemas enter search results or the surface?</td></tr><tr><td>Fallback rate</td><td>How often does normal discovery fail, and which fallback follows?</td></tr></tbody></table>
+<table><thead><tr><th>Metric</th><th>Question answered</th></tr></thead><tbody><tr><td>Initial tool-definition tokens</td><td>How much input did the initial surface actually remove?</td></tr><tr><td>Discovery recall</td><td>When a deferred capability is needed, is it found?</td></tr><tr><td>Tool selection accuracy</td><td>After loading, does the model choose the right Tool instead of a similar one?</td></tr><tr><td>Extra Model Turns</td><td>How many model cycles does discovery add?</td></tr><tr><td>Time to first useful Tool Call</td><td>How long from the user request to the first useful Tool Call?</td></tr><tr><td>Task success rate</td><td>Does the token optimization hurt final completion?</td></tr><tr><td>Unauthorized exposure rate</td><td>Do unauthorized names or schemas enter search results or the surface?</td></tr><tr><td>Fallback rate</td><td>How often does normal discovery fail, and which fallback follows?</td></tr></tbody></table>
 <p>Comparisons should hold the model, task set, Tool versions, and permission context constant. Include at least four kinds of cases:</p>
 <ol>
 <li>The task needs only core eager Tools.</li>
@@ -278,7 +278,7 @@
 <li>Deferred loading reduces definition exposure and selection space. It does not automatically shorten Tool results, conversation history, or other context.</li>
 <li>A namespace improves discovery but cannot repair an ambiguous name, description, or schema within one Tool.</li>
 <li>A high-risk Tool should not be deferred merely because it is infrequent. It must be disabled when unauthorized and still needs a separate confirmation or policy step when appropriate.</li>
-<li>The API for dynamic loading, same-turn versus next-turn behavior, and caching vary by model platform. Applications should encapsulate those differences in a surface contract: an explicit agreement about Tool visibility and loading time.</li>
+<li>The API for dynamic loading, current- versus next-Model-Turn behavior, and caching vary by model platform. Applications should encapsulate those differences in a surface contract: an explicit agreement about Tool visibility and loading time.</li>
 </ul>
 <h2 id="back-to-the-problem">Back to the problem</h2>
 <p>As the Tool count grows, the system should not choose only between “show everything” and “hide everything.”</p>
@@ -289,7 +289,7 @@
 <li>Within the allowed set, make core and recall-sensitive capabilities eager.</li>
 <li>Organize infrequent, large-schema, and discoverable capabilities into deferred namespaces or an index.</li>
 <li>Disable unauthorized or currently invalid capabilities so discovery cannot reveal them.</li>
-<li>Evaluate tokens, recall, extra turns, latency, task success, and permission exposure together.</li>
+<li>Evaluate tokens, recall, extra Model Turns, latency, Task success, and permission exposure together.</li>
 </ol>
 <p>The value of on-demand discovery is not that one Agent can theoretically connect to unlimited Tools. It is that each concrete task exposes only the small set needed to complete it.</p>
 <p>References:</p>

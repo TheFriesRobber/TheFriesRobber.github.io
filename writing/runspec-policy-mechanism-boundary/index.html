@@ -1,18 +1,18 @@
 <!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A RunSpec compiled before execution separates Profile policy from Runtime mechanism and keeps product branches out of the Agent Loop."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="How a RunSpec Moves Product Policy Out of the Agent Loop | Xiaoyuan"><meta property="og:description" content="A RunSpec compiled before execution separates Profile policy from Runtime mechanism and keeps product branches out of the Agent Loop."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/runspec-policy-mechanism-boundary/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>How a RunSpec Moves Product Policy Out of the Agent Loop | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/runspec-policy-mechanism-boundary/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">How a RunSpec Moves Product Policy Out of the Agent Loop</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Architecture/">Architecture</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>Suppose one Agent Runtime supports two entry points:</p>
 <ul>
-<li>Interactive chat uses a fast, inexpensive model, exposes only search and read Tools, and allows at most 8 Turns.</li>
+<li>Interactive chat uses a fast, inexpensive model, exposes only search and read Tools, and allows at most 8 Model Turns.</li>
 <li>Background research may run longer, exposes file writes and SubAgents, and receives a larger budget.</li>
 </ul>
 <p>The most direct implementation branches on the entry point inside the Agent Loop:</p>
 <pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> request.mode </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "chat"</span><span style="color:#24292E">:</span></span>
 <span class="line"><span style="color:#24292E">    model </span><span style="color:#D73A49">=</span><span style="color:#032F62"> "fast-model"</span></span>
 <span class="line"><span style="color:#24292E">    tools </span><span style="color:#D73A49">=</span><span style="color:#24292E"> read_only_tools</span></span>
-<span class="line"><span style="color:#24292E">    max_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 8</span></span>
+<span class="line"><span style="color:#24292E">    max_model_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 8</span></span>
 <span class="line"><span style="color:#D73A49">elif</span><span style="color:#24292E"> request.mode </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "research"</span><span style="color:#24292E">:</span></span>
 <span class="line"><span style="color:#24292E">    model </span><span style="color:#D73A49">=</span><span style="color:#032F62"> "reasoning-model"</span></span>
 <span class="line"><span style="color:#24292E">    tools </span><span style="color:#D73A49">=</span><span style="color:#24292E"> read_write_tools </span><span style="color:#D73A49">+</span><span style="color:#24292E"> subagent_tools</span></span>
-<span class="line"><span style="color:#24292E">    max_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 40</span></span></code></pre>
+<span class="line"><span style="color:#24292E">    max_model_turns </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 40</span></span></code></pre>
 <p>Paid tiers, regional restrictions, experiment cohorts, user authorization, and model fallback soon add more conditions. Each one appears to require only another <code>if</code>, but eventually the Loop decides both “what this execution may do” and “how a Tool Call should execute.”</p>
 <p>The most dangerous consequence is not the length of the code. It is that one request can change meaning in the middle of execution: recovery rereads newer configuration, Eval uses a different set of defaults, or one branch fails to apply the same Tool permissions.</p>
 <h2 id="why-policy-and-mechanism-should-be-separate">Why policy and mechanism should be separate</h2>
@@ -47,7 +47,7 @@
 <table><thead><tr><th>Object</th><th>Question it answers</th><th>Lifecycle</th></tr></thead><tbody><tr><td>Profile</td><td>What policy does this kind of scenario usually use?</td><td>May change continuously</td></tr><tr><td>RunSpec</td><td>What execution contract did this Run ultimately receive?</td><td>Fixed when the Run is created</td></tr><tr><td>Runtime state</td><td>How far has this Run executed?</td><td>Changes during execution</td></tr></tbody></table>
 <p>A Profile may instead be called a scenario, preset, or agent definition. The name is not important. It remains mutable policy; the Runtime should receive a RunSpec in which defaults, authorization, and experiment conditions have already been resolved.</p>
 <figure>
-  <img src="/posts/en/runspec-policy-mechanism-boundary/runspec-boundary.svg" alt="A request and Profile pass through a policy compiler to produce an immutable RunSpec. The Runtime consumes only that RunSpec and continuously emits execution events." loading="lazy">
+  <img src="/posts/en/runspec-policy-mechanism-boundary/runspec-boundary.svg" alt="A request and Profile pass through a policy compiler to produce an immutable RunSpec. The Runtime uses it as the compiled policy contract and evaluates current execution facts while emitting events." loading="lazy">
   <figcaption>Policy converges into a RunSpec before execution; the Runtime does not read a mutable Profile again.</figcaption>
 </figure>
 <h2 id="what-a-runspec-fixes">What a RunSpec fixes</h2>
@@ -64,7 +64,7 @@
 <span class="line"><span style="color:#005CC5">    "allowed"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"read_file"</span><span style="color:#24292E">, </span><span style="color:#032F62">"write_file"</span><span style="color:#24292E">, </span><span style="color:#032F62">"spawn_agent"</span><span style="color:#24292E">]</span></span>
 <span class="line"><span style="color:#24292E">  },</span></span>
 <span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "max_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">40</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "max_model_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">40</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">    "deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1800</span><span style="color:#24292E">,</span></span>
 <span class="line"><span style="color:#005CC5">    "max_subagents"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3</span></span>
 <span class="line"><span style="color:#24292E">  },</span></span>
@@ -78,10 +78,10 @@
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
 <p>It fixes the <strong>selection result</strong>; it does not place the entire live execution into configuration.</p>
 <ul>
-<li>Model responses, the current Turn, remaining budget, and Tool Results belong to Runtime state.</li>
+<li>Model responses, the current Model Turn, remaining budget, and Tool Results belong to Runtime state.</li>
 <li>A newly uploaded file and steering input received during execution are new runtime facts.</li>
 <li>Secrets such as OAuth tokens and API keys should not be copied into the RunSpec. <code>grant_ref + revision</code> points to an immutable maximum-authority envelope, while the RunSpec also fixes audience, scope, and resource boundaries. Revocation or current conditions may narrow authority during execution, but authority must not expand while the fingerprint remains unchanged.</li>
-<li>The Context actually sent to the model on each Turn still combines current history, Memory, files, and Tool Results. It should not be frozen into one long string when the Run is created.</li>
+<li>The Context actually sent to the model on each Model Turn still combines current history, Memory, files, and Tool Results. It should not be frozen into one long string when the Run is created.</li>
 </ul>
 <p>This distinction keeps the RunSpec serializable and explainable without turning it into “a JSON object containing everything.”</p>
 <h2 id="walk-the-opening-example-through-the-design">Walk the opening example through the design</h2>
@@ -130,7 +130,7 @@
 <h2 id="follow-up-questions">Follow-up questions</h2>
 <ul>
 <li>After a RunSpec is created, what should be the source of truth for messages, state, and events produced by the Runtime?</li>
-<li>How should each Turn assemble current Context from history, Memory, files, and Tool Results?</li>
+<li>How should each Model Turn assemble current Context from history, Memory, files, and Tool Results?</li>
 <li>Should Profile, compiler, and Runtime live in different services, and which failure and ownership boundaries should decide that split?</li>
 <li>When a RunSpec crosses a trust boundary, how should an HMAC or digital signature prove its provenance and integrity?</li>
 </ul>

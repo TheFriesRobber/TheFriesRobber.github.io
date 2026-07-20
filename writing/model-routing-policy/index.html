@@ -1,0 +1,151 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="An explainable model-selection policy makes explicit which execution state remains reusable after fallback."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Model Routing Needs Explicit Capability, Cost, and Failure Contracts | Xiaoyuan"><meta property="og:description" content="An explainable model-selection policy makes explicit which execution state remains reusable after fallback."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Model Routing Needs Explicit Capability, Cost, and Failure Contracts | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/model-routing-policy/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Model Routing Needs Explicit Capability, Cost, and Failure Contracts</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Model%20Routing/">Model Routing</a><a class="pill" href="/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Suppose an Agent needs to read a screenshot, organize the problems it contains, and then call <code>create_ticket</code>. Here, <code>create_ticket</code> is a client Tool executed by the local Runtime: the provider request only generates a Tool proposal and cannot itself execute a provider-side Tool or create a ticket. This execution requires a model with all of the following:</p>
+<ul>
+<li>Image input support.</li>
+<li>Structured output support for the current Tool Schema.</li>
+<li>A Context window large enough for the screenshot description, recent conversation, and Tool definitions.</li>
+<li>Compliance with the current data-region policy and cost budget.</li>
+</ul>
+<p>The Runtime calls the primary model, but the request times out. The most direct fallback is to replace the model name with a backup and resend the request unchanged.</p>
+<p>That path may fail again. The backup model may not accept images, may support a different Schema subset, may have a smaller Context window, or may violate the Task’s data policy. Even if the request succeeds, the Runtime may not know whether the primary model produced a complete Tool Call before the timeout or whether any partial output it received can be reused.</p>
+<p>Model Routing is therefore more than switching from one string to another. It must answer two questions: <strong>which model satisfies this execution contract, and whether the current failure permits execution to continue on another model.</strong></p>
+<h2 id="filter-ineligible-models-before-comparing-cost-and-latency">Filter ineligible models before comparing cost and latency</h2>
+<p>If the Router ranks every model by price or average latency first, it may select an inexpensive candidate that cannot complete the Task. A safer order begins by extracting hard constraints from the RunSpec or current Task:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>required modalities</span></span>
+<span class="line"><span>required tool / structured-output features</span></span>
+<span class="line"><span>estimated input and reserved output budget</span></span>
+<span class="line"><span>required context capacity and maximum output</span></span>
+<span class="line"><span>data policy and region</span></span>
+<span class="line"><span>allowed provider set</span></span>
+<span class="line"><span>provider-side effect policy</span></span></code></pre>
+<p>The model catalog maintains a capability profile for each candidate. The profile describes known capabilities, limits, and current health, but it is not a permanently correct static table. Model versions, provider behavior, and organizational configuration all change, so the profile also needs a revision.</p>
+<p>The Router first excludes candidates that violate hard constraints, then ranks the remaining set by latency target, cost budget, quality tier, and current availability:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>all candidates</span></span>
+<span class="line"><span>→ capability and policy eligibility</span></span>
+<span class="line"><span>→ latency / cost / quality ranking</span></span>
+<span class="line"><span>→ selected route with fallback set</span></span></code></pre>
+<p>This keeps “ineligible” separate from “lower priority.” A model without image input is not merely a lower-scoring candidate; it is ineligible for this request.</p>
+<h2 id="a-routing-decision-should-explain-the-selection">A Routing Decision should explain the selection</h2>
+<p>Return to the screenshot Task. The Router might produce this conceptual decision record:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
+<span class="line"><span style="color:#005CC5">  "operation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_op_17"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "requirements"</span><span style="color:#24292E">: {</span></span>
+<span class="line"><span style="color:#005CC5">    "modalities"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"text"</span><span style="color:#24292E">, </span><span style="color:#032F62">"image"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">    "tool_contract"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ticket_tools@revision_8"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "estimated_input_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">18000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "reserved_output_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "required_context_capacity_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">22000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "minimum_max_output_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4000</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "provider_side_effects"</span><span style="color:#24292E">: </span><span style="color:#032F62">"none"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">    "data_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"region_a"</span></span>
+<span class="line"><span style="color:#24292E">  },</span></span>
+<span class="line"><span style="color:#005CC5">  "selected"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_primary"</span><span style="color:#24292E">,</span></span>
+<span class="line"><span style="color:#005CC5">  "eligible_fallbacks"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"model_route_secondary"</span><span style="color:#24292E">],</span></span>
+<span class="line"><span style="color:#005CC5">  "excluded"</span><span style="color:#24292E">: [</span></span>
+<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"route"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_fast"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"image_input_unsupported"</span><span style="color:#24292E">},</span></span>
+<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"route"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_large"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"cost_budget_exceeded"</span><span style="color:#24292E">}</span></span>
+<span class="line"><span style="color:#24292E">  ],</span></span>
+<span class="line"><span style="color:#005CC5">  "policy_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<p><code>estimated_input_tokens</code> estimates the current Assembly result; it is not a model capacity. The Router adds it to <code>reserved_output_tokens</code> to derive the required Context capacity, then separately checks that the candidate’s maximum output is at least <code>minimum_max_output_tokens</code>. Collapsing these values into one <code>min_input_tokens</code> field would mix “how large is this request?” with “how much can this model hold?” again.</p>
+<p>The record identifies a route, not necessarily a bare model name. A route can also fix the provider, model version, Adapter profile, region, and parameter ceilings. A Trace can then distinguish “the Router selected incorrectly” from “the selected model call failed,” while an Eval can compare results under the same routing policy.</p>
+<h2 id="fallback-depends-on-where-the-failure-occurred">Fallback depends on where the failure occurred</h2>
+<p>Not every model failure should trigger a model switch:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Observed failure</th><th>What the Router can do</th><th>What it cannot infer</th></tr></thead><tbody><tr><td>Capability mismatch detected before the request</td><td>Select another eligible candidate</td><td>The original candidate was merely “lower quality”</td></tr><tr><td>Provider explicitly returns rate limit or unavailable</td><td>Switch to an eligible route within budget</td><td>The first call produced a usable result</td></tr><tr><td>Timeout without a complete response</td><td>Create a new Attempt when there are no provider-side effects; otherwise query or reconcile first</td><td>The provider definitely did not finish generation or an external action</td></tr><tr><td>Partial text or a partial Tool Call received</td><td>Discard the incomplete item and retry from a stable boundary</td><td>Partial JSON can be continued safely</td></tr><tr><td>Complete output fails a quality check</td><td>Repair, add Context, or replan</td><td>Trying more models will necessarily help</td></tr><tr><td>Data policy or authorization disallows the request</td><td>Stop or narrow the Task</td><td>A cheaper model may bypass policy</td></tr></tbody></table>
+<p>A timeout is only a Runtime observation: no confirmable result arrived before the deadline. It does not prove that the provider never completed its work. For the route in this article, which only generates client Tool proposals, the model request itself has no external side effects. The Runtime must still determine which items were completely recorded in the Event Log before it decides where fallback can resume.</p>
+<p>Only when the route capability explicitly guarantees <code>provider_side_effects=none</code> is the safe default to create a new Attempt under the same logical model operation on a new route. That Attempt reuses only confirmed input facts and never concatenates incomplete output from two Attempts. If a route permits provider-executed server Tools or remote MCP Tools, a request timeout may leave an external action in an unknown state. The Runtime must query or reconcile through a provider response identity or Tool Execution identity, or rely on an explicit idempotent recovery contract. This classification follows the execution owner and side-effect contract, not whether a Tool uses the MCP protocol. When the Runtime cannot determine the outcome, the state remains <code>unknown</code>; it must not fall back and execute the action again. The Runtime’s layered recovery policy still owns the overall retry budget and failure recovery across Tool Executions.</p>
+<h2 id="switching-models-also-requires-revalidating-the-input">Switching models also requires revalidating the input</h2>
+<p>Two models both marked as supporting images and Tools do not necessarily accept the same final request unchanged. Before fallback, the Runtime must revalidate at least the following:</p>
+<ul>
+<li>Whether the new route’s Context limit can hold the current Assembly result.</li>
+<li>Whether the Tool Surface retains every required constraint after conversion by the corresponding Adapter.</li>
+<li>Whether system instructions, message roles, and structured output can be represented without semantic loss.</li>
+<li>Whether completed Tool Results preserve call identity and content boundaries in the new protocol.</li>
+<li>Whether output budgets, sampling parameters, and stop conditions remain valid.</li>
+</ul>
+<p>If the Context is too large, the system can return to structured degradation. If a required Tool Schema cannot be represented, it should return <code>incompatible_route</code> instead of silently removing constraints and continuing.</p>
+<p>This is why the Router and Provider Adapter need separate responsibilities. The Router decides which candidate to use; the Adapter answers how to express the canonical request in that provider’s protocol. When an Adapter reports incompatibility, the Router may choose another candidate. The Adapter should not switch models on its own merely because conversion failed.</p>
+<h2 id="walk-the-opening-example-through-fallback">Walk the opening example through fallback</h2>
+<p>The complete selection and fallback path for the screenshot Task might be:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Read image, Tool contract, Context, data-policy, and provider-side effect</span></span>
+<span class="line"><span>   requirements from the RunSpec.</span></span>
+<span class="line"><span>2. Exclude routes that do not support images, violate regional policy, or execute</span></span>
+<span class="line"><span>   Tools inside the provider.</span></span>
+<span class="line"><span>3. Select a primary route with `provider_side_effects=none` from the eligible set</span></span>
+<span class="line"><span>   and persist the Routing Decision.</span></span>
+<span class="line"><span>4. The primary Attempt times out and no complete response item was accepted; this</span></span>
+<span class="line"><span>   route cannot execute external actions itself.</span></span>
+<span class="line"><span>5. Classify the failure as transport_timeout and consume one unit of fallback budget.</span></span>
+<span class="line"><span>6. Select a secondary route that still satisfies every hard constraint.</span></span>
+<span class="line"><span>7. Render the same canonical request through the secondary Adapter.</span></span>
+<span class="line"><span>8. The new Attempt returns a complete Tool Call; only then does the Runtime enter</span></span>
+<span class="line"><span>   the Tool Lifecycle.</span></span></code></pre>
+<p>If step 4 had already received a complete, validated <code>create_ticket</code> Tool Call, an interrupted final text stream alone would not justify asking another model to generate a second ticket proposal. The Runtime should decide whether to execute the original Tool Call from the persisted item and current Task state; the Router should not guess. If the route instead permits provider-side Tools, this example path no longer applies: the Runtime must first query or reconcile prior execution after the timeout.</p>
+<h2 id="how-to-verify-that-the-router-is-not-hiding-failures">How to verify that the Router is not hiding failures</h2>
+<p>A Model Routing Eval should measure more than whether the system eventually answered. At minimum, it should observe each failure class separately:</p>
+<ul>
+<li>Whether hard-constraint filtering missed an incompatible route.</li>
+<li>Whether each selection and exclusion can be explained by the decision record.</li>
+<li>Whether fallback still satisfies the original capabilities and policy.</li>
+<li>Whether timeout, rate limit, unsupported features, and quality failures trigger different actions.</li>
+<li>Whether the number of fallbacks, added latency, and added cost remain within budget.</li>
+<li>Whether partial output from two Attempts is incorrectly concatenated or consumed more than once.</li>
+</ul>
+<p>Otherwise a higher final success rate may come only from unbounded fallback while hiding uncontrolled cost and occasional duplicate Tool Calls.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Safe Model Routing compiles Task requirements into hard constraints, filters out ineligible candidates, and only then ranks the remainder by cost, latency, and quality. After a failure, it uses the failure class to decide whether fallback is allowed and revalidates the new route against the original execution contract.</p>
+<p>Changing a model name only changes the request target. The Routing Decision, compatibility checks, and Attempt boundary are what keep that switch inside the same explainable Agent Run.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should a canonical request pass through a Provider Adapter into different message and Tool protocols?</li>
+<li>How can a system detect validation drift when the same Tool Schema passes through different Adapters?</li>
+<li>How should service, model, Tool, and plan failures share an overall retry budget?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://developers.openai.com/api/docs/models">OpenAI API: Models</a></li>
+<li><a href="https://developers.openai.com/api/docs/guides/function-calling">OpenAI: Function calling</a></li>
+<li><a href="https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use">Anthropic: Tool use</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
