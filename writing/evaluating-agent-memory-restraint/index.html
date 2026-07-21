@@ -1,0 +1,330 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Evaluate whether Memory should be written, remains current, can be revoked, and stays within scope—not only whether it can be recalled."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Agent Memory 8: Memory Evaluation Needs More Than Recall | Xiaoyuan"><meta property="og:description" content="Evaluate whether Memory should be written, remains current, can be revoked, and stays within scope—not only whether it can be recalled."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/evaluating-agent-memory-restraint/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/evaluating-agent-memory-restraint/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/evaluating-agent-memory-restraint/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/evaluating-agent-memory-restraint/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/evaluating-agent-memory-restraint/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 8: Memory Evaluation Needs More Than Recall | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.DiTwpWXa.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/evaluating-agent-memory-restraint/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 08 </p> <h1 class="page-title">Agent Memory 8: Memory Evaluation Needs More Than Recall</h1> <p class="article-deck">Evaluate whether Memory should be written, remains current, can be revoked, and stays within scope—not only whether it can be recalled.</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>In a synthetic test, Memory system A answers 92 of 100 historical questions correctly, while B answers 86. This is end-to-end question-answering accuracy, not Retrieval Recall. If the comparison stops at correct answers, A appears better.</p>
+<p>The trace reveals three additional behaviors. A saves “use the short format this time” as a durable preference, keeps citing the old version after the user switches to a detailed format, and mentions a sensitive health record in an unrelated travel-planning response. B misses a few more questions because it writes more cautiously and filters by authorization, but it avoids these failures.</p>
+<p>Retrieval Recall asks whether required Memory entered the top-k result. End-to-end accuracy also includes reading and reasoning. A durable Memory evaluation must ask more: should this content have been written, is it current now, may this Task use it, and does it stop influencing the system after a correction or deletion? Ignoring these stages rewards systems that store and retrieve everything.</p>
+<h2 id="decompose-one-score-across-the-lifecycle">Decompose one score across the lifecycle</h2>
+<p>A correct answer may depend on a Writer saving the right content, a Store maintaining versions correctly, Retrieval finding the current record, and Assembly using it under the current permissions and budget. A failure may originate at any of those layers. Collapsing them into end-to-end QA accuracy hides overcollection and provides no repair owner.</p>
+<p>A more useful evaluation unit is <code>scenario × system configuration × assertion checkpoint × trial</code>. System configuration distinguishes A and B together with their model, prompt, and policy revisions. An assertion checkpoint binds the initial Memory snapshot, committed event sequence, and an explicit observation boundary. Lifecycle phase remains useful as a checkpoint classification, but cannot identify an observation by itself.</p>
+<p>The same scenario should observe both the write and a future read:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Phase</th><th>Core question</th><th>Example metrics</th></tr></thead><tbody><tr><td>Write</td><td>Does the system write what it should and refrain when it should not?</td><td>write precision, write recall, false-write rate</td></tr><tr><td>Version</td><td>Do corrections, expiry, and revocation update the canonical current view?</td><td>stale-current-view rate, update latency</td></tr><tr><td>Retrieve</td><td>Does it recall current, authorized records?</td><td>read recall, read precision, unauthorized-hit rate</td></tr><tr><td>Assemble</td><td>Do retrieved records enter an appropriate Task?</td><td>stale-exposure rate, unauthorized-exposure rate, irrelevant-exposure rate</td></tr><tr><td>Outcome</td><td>Does Memory improve the Task without causing out-of-scope behavior?</td><td>task success, harmful-memory influence rate</td></tr></tbody></table>
+<p>Metric names can vary, but denominators must be explicit. <code>false_write_rate</code>, for example, is the fraction of no-write trials that produce a durable record, not a fraction of all inputs. Old versions need three separate observations: <code>stale_current_view_rate</code> checks the canonical view, <code>stale_exposure_rate</code> checks the prompt, and <code>stale_influence_rate</code> checks whether the old version changed the output. Exposure cannot prove that the canonical view failed because a stale index or cache might bypass a correct view.</p>
+<h2 id="do-not-remember-needs-first-class-cases">“Do not remember” needs first-class cases</h2>
+<p>Many benchmarks provide a question and a history containing the answer, which naturally rewards maximum retention. Restraint requires explicit no-write and no-use cases:</p>
+<ul>
+<li>“Use a table this time,” which applies only to the current Task;</li>
+<li>a third-party email that claims to contain a durable user preference;</li>
+<li>sensitive information mentioned casually but irrelevant to future Tasks;</li>
+<li>an explicit correction to an old preference;</li>
+<li>revocation or deletion of a stored record;</li>
+<li>a similar fact that belongs to another user, workspace, or resource scope.</li>
+</ul>
+<p>These cases test over-persistence of temporary instructions, source promotion, data minimization, freshness, editability, and isolation. LongMemEval includes knowledge updates and abstention among long-term conversational Memory abilities. A full lifecycle evaluation should extend this with write restraint, permission, and deletion propagation.</p>
+<h2 id="walk-a-and-b-through-the-cases">Walk A and B through the cases</h2>
+<p>The opening test can be decomposed into one stateful scenario and two independent exposure cases:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>S1.1 explicit durable preference: “Use a short format for every weekly report”</span></span>
+<span class="line"><span>S1.2 current-only instruction:     “Use a short format this time”</span></span>
+<span class="line"><span>S1.3 correction after S1.1:        “Use a detailed format from now on”</span></span>
+<span class="line"><span>C4 authorized-but-irrelevant:      travel planning should not read this user's health record</span></span>
+<span class="line"><span>C5 cross-scope unauthorized:       this user must not read a similar record from another workspace</span></span></code></pre>
+<p>A writes both S1.1 and S1.2, so a dataset that rewards only historical QA has more opportunities to find “short format.” In a lifecycle score, S1.2 is a false write. After S1.3 commits, the test separately checks whether the old record remains in the canonical view, enters the prompt, or affects the output. Permission may pass in C4, where relevance should reject the record. Permission or scope must reject C5 first. Even when neither changes the answer, prompt entry counts as irrelevant or unauthorized exposure. Waiting for output leakage is too late.</p>
+<p>B may write only S1.1 and keep S1.2 in the current Run. S1.3 creates a new version and removes the old one from the current view. Relevance rejects C4, while permission rejects C5. Lower raw QA accuracy does not automatically make B better overall, but in this scenario B is more reliable under the fuller objective: write when appropriate, use when appropriate, and otherwise refrain.</p>
+<p>Placing the synthetic behaviors stated at the beginning into a scorecard makes the tradeoff explicit:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>A</th><th>B</th></tr></thead><tbody><tr><td>End-to-end QA accuracy</td><td>92 / 100</td><td>86 / 100</td></tr><tr><td>S1.2 false write</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>S1.3 stale exposure</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>S1.3 stale influence</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>C4 irrelevant exposure</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>C4 harmful-memory influence</td><td>1 / 1</td><td>0 / 1</td></tr></tbody></table>
+<p>This is not a new composite score. It expands the same synthetic observations against their denominators. Cross-scope cases such as C5 still need a separate safety gate and cannot be offset by higher QA accuracy.</p>
+<p>Do not force every dimension into one opaque weighted score. First define the observation boundary and eligible denominator for the core metrics:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th>Numerator / eligible denominator</th><th>Boundary and aggregation</th></tr></thead><tbody><tr><td>write recall</td><td>required records successfully written / all required records</td><td>Inspect the store after commit for each write trial</td></tr><tr><td>false-write rate</td><td>no-write trials producing a durable record / all no-write trials</td><td>Count once per trial, not once per generated record</td></tr><tr><td>read Recall@k</td><td>required current records in top-k / required record set for that read trial</td><td>Fix k and macro-average across trials</td></tr><tr><td>stale-current-view rate</td><td>update/delete trials whose canonical view still contains the old version / all committed update/delete trials</td><td>Observe after the canonical commit</td></tr><tr><td>stale-exposure rate</td><td>eligible post-update read trials whose prompt contains the old version / all eligible post-update read trials</td><td>Observe at the Model Turn input boundary</td></tr><tr><td>unauthorized-exposure rate</td><td>cross-scope trials whose prompt contains an unauthorized record / all cross-scope trials</td><td>Observe at Model Turn input; keep as a separate hard gate</td></tr><tr><td>irrelevant-exposure rate</td><td>no-use trials whose prompt contains an authorized but irrelevant record / all no-use trials</td><td>Report separately from unauthorized exposure</td></tr><tr><td>propagation latency</td><td>elapsed time from correction/deletion commit until all affected instances of a named derived view are invalidated</td><td>Report current view, index, cache, and summary separately</td></tr><tr><td>task outcome delta</td><td>success with Memory minus success without Memory on the same case</td><td>Fix snapshots and report the mean and distribution across trials</td></tr></tbody></table>
+<p>If a release needs a gate, require <code>observed unauthorized exposure = 0</code> on the current suite while reporting the trial count and a confidence upper bound, and separately bound stale exposure. Compare read Recall@k and Task outcome only among configurations that pass those gates. Zero observed violations in a finite suite is not a claim of zero underlying risk, and it does not replace production monitoring or continued regression expansion.</p>
+<h2 id="make-each-failure-point-to-a-repair-layer">Make each failure point to a repair layer</h2>
+<p>Evaluation is useful only when a result identifies an owner:</p>
+<ul>
+<li>Missing a required write points to the extraction prompt, Writer Gate, or confirmation path.</li>
+<li>Writing a no-write case points to capture policy, content origin, request actor, or retention.</li>
+<li>Missing an existing current record points to candidate generation or reranking.</li>
+<li>Using an old version points to current-view resolution, index lag, or cache invalidation.</li>
+<li>Retrieving a record but omitting it from Context points to the Memory Budget or Assembly decision.</li>
+<li>Exposing an irrelevant or unauthorized record points to permission, scope, or minimum-disclosure policy.</li>
+</ul>
+<p>Repeat every checkpoint in a scenario under each fixed configuration. Model output and Tool selection can vary, so a single pass does not establish stability. Report trial count, model version, prompt version, Memory snapshot, committed event sequence, and policy revision to distinguish model variance from a system change.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>A’s 92 correct answers came from more aggressive storage and retrieval, while hiding persistence of temporary information, stale-version use, and sensitive-data exposure. B’s 86 is not automatically better. The synthetic comparison shows that neither end-to-end QA accuracy nor Retrieval Recall can represent durable Memory quality by itself.</p>
+<p>Evaluate writing, versioning, retrieval, Assembly, and outcome across the lifecycle. Memory becomes more than an ever-growing history search box only when it recalls correct, current, authorized records when needed and remains restrained at every other time.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2410.10813">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a></li>
+<li><a href="/writing/agent-memory-write-gates/">Agent Memory 2: What Deserves Long-Term Retention?</a></li>
+<li><a href="/writing/versioned-agent-memory/">Agent Memory 4: Use Version Chains for Correction and Revocation</a></li>
+<li><a href="/writing/agent-memory-retrieval-ranking/">Agent Memory 5: Retrieval Cannot Rank by Similarity Alone</a></li>
+<li><a href="/writing/agent-memory-context-budget/">Agent Memory 6: Tier Memory into Pinned, Hot, and Cold Views</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-memory-prompt-injection/" rel="prev"> <span>Previous</span> <strong>Agent Memory 7: How Prompt Injection Enters Long-Term Memory</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#decompose-one-score-across-the-lifecycle">Decompose one score across the lifecycle</a></li><li><a href="#do-not-remember-needs-first-class-cases">“Do not remember” needs first-class cases</a></li><li><a href="#walk-a-and-b-through-the-cases">Walk A and B through the cases</a></li><li><a href="#make-each-failure-point-to-a-repair-layer">Make each failure point to a repair layer</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/incremental-conversation-compression/">Context Engineering 3: Manage Long Conversations with Incremental Compression</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-delegation-primitives/">Agent Runtime 10: Who Should Execute a Subtask?</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-session-event-log-projections/">Agent Runtime 4: Make the Event Log the Source of Truth</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
