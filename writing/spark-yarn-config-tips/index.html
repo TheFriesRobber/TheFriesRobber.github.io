@@ -99,6 +99,13 @@
     const updateTheme = () => {
       const frame = container.querySelector('iframe.giscus-frame');
       if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
       frame.contentWindow?.postMessage({
         giscus: { setConfig: { theme: theme() } }
       }, 'https://giscus.app');
@@ -125,7 +132,7 @@
     const bindFrame = () => {
       const frame = container.querySelector('iframe.giscus-frame');
       if (!(frame instanceof HTMLIFrameElement)) return;
-      frame.addEventListener('load', updateTheme, { once: true });
+      frame.addEventListener('load', updateTheme);
       frameObserver.disconnect();
     };
     const frameObserver = new MutationObserver(bindFrame);
