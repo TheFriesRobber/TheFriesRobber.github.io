@@ -236,7 +236,13 @@
     script.dataset.lang = giscusLang;
     script.dataset.loading = 'lazy';
 
-    const frameObserver = new MutationObserver(updateTheme);
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme, { once: true });
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
     frameObserver.observe(container, { childList: true, subtree: true });
     const themeObserver = new MutationObserver(updateTheme);
     themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
