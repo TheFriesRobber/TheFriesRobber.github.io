@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A file update that crosses a queue shows how an agent can still prove who is acting for whom when execution resumes asynchronously."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Identity Must Flow Through the Agent Call Chain | Xiaoyuan"><meta property="og:description" content="A file update that crosses a queue shows how an agent can still prove who is acting for whom when execution resumes asynchronously."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Identity Must Flow Through the Agent Call Chain | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-identity-propagation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Identity Must Flow Through the Agent Call Chain</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Security/">Security</a><a class="pill" href="/tags/Identity/">Identity</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A file update that crosses a queue shows how an agent can still prove who is acting for whom when execution resumes asynchronously."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Identity Must Flow Through the Agent Call Chain | Xiaoyuan"><meta property="og:description" content="A file update that crosses a queue shows how an agent can still prove who is acting for whom when execution resumes asynchronously."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Identity Must Flow Through the Agent Call Chain | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-identity-propagation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Identity Must Flow Through the Agent Call Chain</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Security/">Security</a><a class="pill" href="/tags/Identity/">Identity</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>A user asks an agent to update a report. When the API receives the request, it knows who is signed in and confirms that the user may edit the file. The agent then creates a Job for the background work and places it on a queue; another worker executes it several minutes later.</p>
 <p>When the file is finally written, the worker uses its own service credential. The file service sees the worker as the caller, not the original user.</p>
 <p>If the queue stores only a <code>user_id</code>, downstream services cannot prove who placed that ID there or what the user authorized. If it stores the user’s access token instead, the token may expire while waiting, be revoked, or leak into an execution environment that should never receive it.</p>
@@ -37,7 +53,7 @@
 <h2 id="identity-continuity-does-not-mean-forwarding-one-credential-everywhere">Identity continuity does not mean forwarding one credential everywhere</h2>
 <p>A dangerous implementation passes one user token through the API, queue, worker, SubAgent, and Sandbox. It appears to preserve identity, but actually exposes a high-value credential across more and more trust boundaries.</p>
 <p>A safer design preserves the meaning of the delegation while obtaining an appropriate credential again at each trusted boundary:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user request</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user request</span></span>
 <span class="line"><span>  ↓ authenticate the user and check initial permission</span></span>
 <span class="line"><span>Agent Runtime</span></span>
 <span class="line"><span>  ↓ create a constrained delegation reference</span></span>
@@ -49,15 +65,15 @@
 <span class="line"><span>  ↓ check subject, actor, action, and resource</span></span>
 <span class="line"><span>write and record an audit event</span></span></code></pre>
 <p>The queue stores a verifiable reference, not a long-lived bearer token:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "job_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"job_42"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "subject_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"user_7"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "actor_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"agent_run_19"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "tenant_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tenant_3"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "delegation_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"delegation_81"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "action"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file.update"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "resource_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file_12"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "job_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"job_42"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "subject_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"user_7"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "actor_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"agent_run_19"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tenant_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tenant_3"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "delegation_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"delegation_81"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "action"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file.update"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resource_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file_12"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>After claiming the Job, the worker still checks whether the delegation has expired or been revoked, whether the user retains permission, and whether the target file version has changed. A queue makes later execution possible; it does not freeze authorization facts in the outside world.</p>
 <h2 id="delegation-should-narrow-along-the-call-chain">Delegation should narrow along the call chain</h2>
 <p>Allowing an agent to modify a project directory does not mean every downstream component needs the same permission.</p>
@@ -69,22 +85,22 @@
 <li>audience: usable only by the target service;</li>
 <li>depth: whether further delegation is allowed.</li>
 </ul>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent: files.read + files.write on /project/**</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent: files.read + files.write on /project/**</span></span>
 <span class="line"><span>child:  files.read on /project/docs/**</span></span></code></pre>
 <p>Child permissions should be a subset of the parent’s authorization. A deeper call chain should not gain authority merely because broader access is easier to implement.</p>
 <h2 id="the-model-cannot-supply-trusted-identity">The model cannot supply trusted identity</h2>
 <p>A model may generate a file path, patch, or search condition, and it may propose a requested capability, because these are task proposals. It must not supply the authoritative <code>subject_id</code>, <code>tenant_id</code>, granted authorization scope, OAuth token, or audit actor.</p>
 <p>Any such identity or authorization fields remain model output even when they appear in a Tool Schema. They may come from incorrect memory, be induced by text in a file, or simply be fabricated.</p>
 <p>The Runtime should inject trusted context from the authenticated session, delegation record, and workflow metadata:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> function</span><span style="color:#6F42C1"> updateFile</span><span style="color:#24292E">(</span><span style="color:#E36209">args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> UpdateFileArgs</span><span style="color:#24292E">, </span><span style="color:#E36209">ctx</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> TrustedContext</span><span style="color:#24292E">) {</span></span>
-<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> fileService.</span><span style="color:#6F42C1">update</span><span style="color:#24292E">({</span></span>
-<span class="line"><span style="color:#24292E">    subject: ctx.subject,</span></span>
-<span class="line"><span style="color:#24292E">    actor: ctx.actor,</span></span>
-<span class="line"><span style="color:#24292E">    tenant: ctx.tenant,</span></span>
-<span class="line"><span style="color:#24292E">    path: args.path,</span></span>
-<span class="line"><span style="color:#24292E">    patch: args.patch,</span></span>
-<span class="line"><span style="color:#24292E">  })</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#D73A49;--shiki-dark:#F97583"> function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> updateFile</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">args</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> UpdateFileArgs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">ctx</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> TrustedContext</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> fileService.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">update</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    subject: ctx.subject,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    actor: ctx.actor,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    tenant: ctx.tenant,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    path: args.path,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    patch: args.patch,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>The backend then validates against its own resource state: may this subject modify the target file, and may this actor perform that action on the subject’s behalf? Model-generated business arguments cannot override trusted context.</p>
 <h2 id="subagents-connectors-and-sandboxes-follow-the-same-rule">SubAgents, Connectors, and Sandboxes follow the same rule</h2>
 <p>These components need different credentials, but the identity problem remains the same:</p>
@@ -112,4 +128,52 @@
 <li><a href="https://www.rfc-editor.org/rfc/rfc8693">RFC 8693: OAuth 2.0 Token Exchange</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

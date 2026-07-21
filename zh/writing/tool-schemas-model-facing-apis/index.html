@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Tool Schema 是面向模型的 API | Xiaoyuan"><meta property="og:description" content="Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Tool Schema 是面向模型的 API | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/tool-schemas-model-facing-apis/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Tool Schema 是面向模型的 API</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time> <span>更新于 2026/07/14</span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Tool Schema 是面向模型的 API | Xiaoyuan"><meta property="og:description" content="Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Tool Schema 是面向模型的 API | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/tool-schemas-model-facing-apis/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Tool Schema 是面向模型的 API</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time> <span>更新于 2026/07/14</span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设后端已经有一个创建日历事件的接口。它接收十几个字段：用户 ID、组织 ID、标题、开始时间、结束时间、参与者、通知策略、审计来源、请求 ID 和重试配置。</p>
 <p>最直接的做法，是把这份 request DTO（Data Transfer Object，服务之间传递参数的数据结构）转成 JSON Schema（描述 JSON 数据形状与约束的规则），再注册成 Agent Tool。类型能对上，执行函数也可以复用，似乎没有必要再设计一层接口。</p>
 <p>但模型不是一个按固定代码调用 API 的客户端。它必须先从自然语言中判断<strong>要不要调用</strong>，再判断<strong>调用哪个 Tool</strong>，最后生成一组满足规则的参数。DTO 中每多一个名字含糊的字段、每少一个必要约束，都会让模型多做一次不必要的猜测。</p>
@@ -73,17 +89,17 @@
 </figure>
 <h2 id="先从-backend-dto-的反例开始">先从 backend DTO 的反例开始</h2>
 <p>下面是一份适合服务间调用、却不适合直接暴露给模型的输入：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "user_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"u_123"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "tenant_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"t_456"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "title"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Project sync"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "starts_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:00:00+08:00"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "ends_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:30:00+08:00"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "notification_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"default"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "actor_type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"req_789"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "retry_mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"safe"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "user_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"u_123"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tenant_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"t_456"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "title"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Project sync"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-16T10:00:00+08:00"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "ends_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-16T10:30:00+08:00"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "notification_policy"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"default"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "actor_type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"assistant"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "request_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"req_789"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "retry_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"safe"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>这些字段混合了三类信息：</p>
 <ol>
 <li>用户明确表达的业务意图，例如标题、时间和参与者。</li>
@@ -92,51 +108,51 @@
 </ol>
 <p>后两类字段一旦进入 schema，模型就不得不为它们做决定。更严重的是，<code>user_id</code> 或 <code>actor_type</code> 看起来只是字符串，实际上却属于权限和审计边界。即使模型大多数时候能填对，也不能把授权建立在“模型通常不会伪造”之上。</p>
 <p>更窄的 model-facing Tool 可以只接收完成任务所需的信息。为了展示范围约束，下面假设这个示例产品只接受 5 到 480 分钟的事件、最多 50 名参与者；这些数字是示例策略，不是通用日历限制：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"object"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "properties"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "title"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "minLength"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event title visible to attendees."</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#005CC5">    "starts_at"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Start time with an explicit UTC offset."</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#005CC5">    "duration_minutes"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"integer"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "minimum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">5</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "maximum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event duration in minutes."</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#005CC5">    "attendee_emails"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"array"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "items"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E"> },</span></span>
-<span class="line"><span style="color:#005CC5">      "minItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "maxItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">50</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Confirmed attendee email addresses. Omit when there are no attendees."</span></span>
-<span class="line"><span style="color:#24292E">    }</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "required"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"title"</span><span style="color:#24292E">, </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">, </span><span style="color:#032F62">"duration_minutes"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "additionalProperties"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "properties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "title"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "minLength"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Event title visible to attendees."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Start time with an explicit UTC offset."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "duration_minutes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"integer"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "minimum"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "maximum"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">480</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Event duration in minutes."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "attendee_emails"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"array"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "items"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: { </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "minItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "maxItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">50</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Confirmed attendee email addresses. Omit when there are no attendees."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "required"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"title"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"duration_minutes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "additionalProperties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Runtime 再补上可信上下文：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> function</span><span style="color:#6F42C1"> executeScheduleEvent</span><span style="color:#24292E">(</span><span style="color:#E36209">args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ScheduleEventArgs</span><span style="color:#24292E">, </span><span style="color:#E36209">ctx</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ToolContext</span><span style="color:#24292E">) {</span></span>
-<span class="line"><span style="color:#D73A49">  const</span><span style="color:#005CC5"> input</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> validateBusinessRules</span><span style="color:#24292E">(args, ctx.timezone)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#D73A49;--shiki-dark:#F97583"> function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> executeScheduleEvent</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">args</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ScheduleEventArgs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">ctx</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ToolContext</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> input</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> validateBusinessRules</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(args, ctx.timezone)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> calendarClient.</span><span style="color:#6F42C1">createEvent</span><span style="color:#24292E">({</span></span>
-<span class="line"><span style="color:#D73A49">    ...</span><span style="color:#24292E">input,</span></span>
-<span class="line"><span style="color:#24292E">    userId: ctx.authenticatedUserId,</span></span>
-<span class="line"><span style="color:#24292E">    permissionScope: ctx.permissionScope,</span></span>
-<span class="line"><span style="color:#24292E">    actor: ctx.actor,</span></span>
-<span class="line"><span style="color:#24292E">    requestId: ctx.requestId,</span></span>
-<span class="line"><span style="color:#24292E">  })</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> calendarClient.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createEvent</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    ...</span><span style="color:#24292E;--shiki-dark:#E1E4E8">input,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    userId: ctx.authenticatedUserId,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    permissionScope: ctx.permissionScope,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    actor: ctx.actor,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    requestId: ctx.requestId,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>这不是为了让 Tool 看起来更简单，而是在明确责任：模型表达任务，runtime 提供可信上下文，backend 执行最终授权和一致性检查。</p>
 <h2 id="name-和-description-是路由接口">Name 和 description 是路由接口</h2>
 <p>Tool name 首先应该表达一个稳定动作，而不是内部 service 或 class 名称。</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>calendar_api_v2_execute       # 暴露实现，意图不清</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>calendar_api_v2_execute       # 暴露实现，意图不清</span></span>
 <span class="line"><span>manage_calendar              # 范围太宽</span></span>
 <span class="line"><span>schedule_calendar_event      # 动作和资源都明确</span></span></code></pre>
 <p>Description 则需要回答几个路由问题：</p>
@@ -148,7 +164,7 @@
 <li>最关键的前置条件是什么？</li>
 </ul>
 <p>例如：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Create one calendar event for the current user. Use only after the title,</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Create one calendar event for the current user. Use only after the title,</span></span>
 <span class="line"><span>start time, and duration are known. This tool writes to the calendar; it</span></span>
 <span class="line"><span>does not search for availability or resolve ambiguous time zones.</span></span></code></pre>
 <p>这段 description 没有解释后端怎样存储 event，也没有重复每个字段的类型。它提供的是选择 Tool 所需的判别信息。</p>
@@ -196,11 +212,11 @@
 </ul>
 <p>JSON Schema 中，写在 <code>properties</code> 里的字段默认并不是必填；必须显式放进 <code>required</code>。同样，未声明的字段默认可以出现，只有使用 <code>additionalProperties: false</code> 才会拒绝模型自创的近义字段。</p>
 <p>需要特别区分三种状态：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{}</span></span></code></pre>
 <p>表示字段缺失；</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#032F62">""</span><span style="color:#24292E"> }</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">""</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }</span></span></code></pre>
 <p>表示调用方明确传入空字符串；</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span><span style="color:#24292E"> }</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }</span></span></code></pre>
 <p>表示显式 <code>null</code>，而且只有 schema 允许 <code>null</code> 时才合法。</p>
 <p>如果 handler 用 <code>value ?? ""</code> 把三者合并，schema 再精确也保不住语义。对于“空字符串表示删除内容”之类的接口，字段可以允许为空，但字段本身仍应是 required。</p>
 <h2 id="schema-validation-不能代替-handler-validation">Schema validation 不能代替 handler validation</h2>
@@ -240,16 +256,16 @@
 <h2 id="错误也是-model-facing-api-的一部分">错误也是 model-facing API 的一部分</h2>
 <p>如果 application/runtime 把 Tool error 返回给模型，它就会成为下一步决策的输入。对工程师来说，<code>400 invalid body</code> 也许足以开始查日志；对模型来说，它几乎没有提供下一步动作。</p>
 <p>一个可修复错误至少应包含稳定错误码、问题字段和修复提示。可以把它组织成一个固定格式的 error envelope：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "ok"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "error"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ambiguous_time_zone"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "field"</span><span style="color:#24292E">: </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "message"</span><span style="color:#24292E">: </span><span style="color:#032F62">"The start time does not include a UTC offset."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "hint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Ask the user for a time zone, then retry with an explicit offset."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "recoverable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "requires_user_input"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "retryable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "ok"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "error"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"ambiguous_time_zone"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "field"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "message"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"The start time does not include a UTC offset."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "hint"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Ask the user for a time zone, then retry with an explicit offset."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "recoverable"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "requires_user_input"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "retryable"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>错误包需要控制边界：</p>
 <ul>
 <li><code>error</code> 使用低基数、稳定的机器码，便于 trace 和 eval 聚合。</li>
@@ -325,4 +341,52 @@
 <li><a href="https://json-schema.org/understanding-json-schema/reference/object">JSON Schema: Objects</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

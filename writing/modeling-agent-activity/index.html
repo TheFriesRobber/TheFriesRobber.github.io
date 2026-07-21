@@ -1,13 +1,29 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A Tool retry shows why an Agent Task, Run, Model Turn, Tool Execution, and Attempt cannot share one row of analytical data."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Define the Grain Before Modeling Agent Activity | Xiaoyuan"><meta property="og:description" content="A Tool retry shows why an Agent Task, Run, Model Turn, Tool Execution, and Attempt cannot share one row of analytical data."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Define the Grain Before Modeling Agent Activity | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/modeling-agent-activity/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Data Platform</p> <h1 class="page-title">Define the Grain Before Modeling Agent Activity</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Data%20Modeling/">Data Modeling</a><a class="pill" href="/tags/Observability/">Observability</a><a class="pill" href="/tags/Lineage/">Lineage</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A Tool retry shows why an Agent Task, Run, Model Turn, Tool Execution, and Attempt cannot share one row of analytical data."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Define the Grain Before Modeling Agent Activity | Xiaoyuan"><meta property="og:description" content="A Tool retry shows why an Agent Task, Run, Model Turn, Tool Execution, and Attempt cannot share one row of analytical data."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Define the Grain Before Modeling Agent Activity | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/modeling-agent-activity/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Data Platform</p> <h1 class="page-title">Define the Grain Before Modeling Agent Activity</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Data%20Modeling/">Data Modeling</a><a class="pill" href="/tags/Observability/">Observability</a><a class="pill" href="/tags/Lineage/">Lineage</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>An Agent Run executes a file-reading Tool. The first request times out, the retry succeeds, and the Agent eventually replies “the report has been generated.”</p>
 <p>The system records two Tool logs: one timeout with an unknown outcome and one confirmed success. Asking “did this Tool execution succeed?” now produces at least two apparently contradictory answers:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>By physical request: 1 success / 2 attempts = 50%</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>By physical request: 1 success / 2 attempts = 50%</span></span>
 <span class="line"><span>By logical Tool Execution: eventual success / 1 execution = 100%</span></span></code></pre>
 <p>If the Run returns final output normally, it is also successful at the Run grain. If the report Artifact has not been delivered, the user’s Task may still be incomplete. All of these numbers can be correct because they answer different questions.</p>
 <p>The first problem in Agent Activity modeling is not whether enough fields exist. It is grain: <strong>does one row represent a user goal, an Agent Loop, a model cycle, a logical execution, or a physical attempt?</strong></p>
 <h2 id="separate-the-objects-along-one-execution">Separate the objects along one execution</h2>
 <p>Continue with the report example:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>User Message: “Generate a report from this file”</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>User Message: “Generate a report from this file”</span></span>
 <span class="line"><span>  └─ Task: generate and deliver the report</span></span>
 <span class="line"><span>       └─ Run: Agent Loop handling this user input</span></span>
 <span class="line"><span>            ├─ Model Turn 1: the model proposes reading the file</span></span>
@@ -32,7 +48,7 @@
 <p>Suppose an analytical table treats every HTTP request as one Tool Execution. The initial timeout and successful retry are counted as two different actions, making the system appear to have read the file twice.</p>
 <p>If retry overwrites one row instead, the final state becomes <code>succeeded</code>, but the latency, cost, and error from the first timeout disappear.</p>
 <p>The correct relationship preserves both logical-execution identity and attempt identity:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_id = tool_exec_42</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_id = tool_exec_42</span></span>
 <span class="line"><span>  ├─ attempt_id = attempt_1  → timeout</span></span>
 <span class="line"><span>  └─ attempt_id = attempt_2  → succeeded</span></span></code></pre>
 <p><code>tool_call_id</code> can preserve the model’s original proposal. <code>tool_execution_id</code> answers “which logical action did the Runtime execute?” <code>attempt_id</code> answers “how many physical tries occurred?” Separating them lets the system analyze model behavior, Tool outcome, and downstream reliability independently.</p>
@@ -41,7 +57,7 @@
 <p>Agent execution may cross queues, SubAgents, and external callbacks. The order in which two events reach the logging system is not necessarily the order in which they happened.</p>
 <p>For example, the timeout for the first Tool Attempt may arrive before an external service later reports “read completed.” Sorting only by <code>ingested_at</code> can make the callback look like a new action after the retry.</p>
 <p>Persist explicit relationships instead of reconstructing them later:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task task_report_7</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task task_report_7</span></span>
 <span class="line"><span>  └─ Run run_12</span></span>
 <span class="line"><span>       └─ Model Turn model_turn_3</span></span>
 <span class="line"><span>            └─ Tool Execution tool_exec_42</span></span>
@@ -92,7 +108,7 @@
 <p>A more stable design preserves process detail in source events, then derives analytical facts idempotently at stable grains. One underlying event may contribute to several derived models, but each model retains its own grain.</p>
 <h2 id="a-metric-must-state-its-denominator">A metric must state its denominator</h2>
 <p>“Tool success rate” is not a complete metric. It could mean any of the following:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>successful attempts / all terminal attempts</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>successful attempts / all terminal attempts</span></span>
 <span class="line"><span>successful tool executions / all terminal tool executions</span></span>
 <span class="line"><span>successful runs using this tool / all terminal runs using this tool</span></span>
 <span class="line"><span>successful tasks using this tool / all terminal tasks using this tool</span></span></code></pre>
@@ -122,4 +138,52 @@
 <li>How should Traces, Eval datasets, and production bad cases share execution identities?</li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

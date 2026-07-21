@@ -1,1 +1,65 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="关于 Xiaoyuan：一名关注分布式数据系统、ML Platform 与 AI Agent 的软件工程师。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="关于 | Xiaoyuan"><meta property="og:description" content="关于 Xiaoyuan：一名关注分布式数据系统、ML Platform 与 AI Agent 的软件工程师。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/about/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/about/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/about/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/about/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/about/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>关于 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/">文章</a> <a href="/zh/about/" aria-current="page">关于</a> <a class="nav-language" href="/about/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <header class="page-header about-header"> <p class="eyebrow">关于</p> <h1 class="page-title">我关注如何把模型和数据变成可靠的产品系统。</h1> <p class="lead">我是一名软件工程师，长期关注广告数据、分布式计算、OLAP、feature store 和 ML pipelines；最近一年也开始探索 AI Agent 相关系统。</p> </header> <section class="about-grid" aria-labelledby="throughline-title"> <div class="section-heading"> <p class="section-kicker">贯穿始终的主线</p> <h2 id="throughline-title">数据基础设施 → ML Platform → Agent 基础设施</h2> </div> <div class="prose-block"> <p>这些领域看起来属于不同技术周期，但核心问题很相似：如何定义边界、管理状态、追踪数据与行为、评估系统是否真的有效，以及在故障发生时知道发生了什么。</p><p>我希望把这些领域里共通的工程问题整理出来，通过文章、实验和可运行的代码，将设计判断变成可以被检验和讨论的公开记录。</p> </div> </section> <section class="section" aria-labelledby="questions-title"> <div class="section-heading"> <p class="section-kicker">我关心的问题</p> <h2 id="questions-title">当前探索方向</h2> </div> <ul class="question-list"> <li><span>01</span>Agent runtime 和普通后端服务的边界究竟在哪里？</li><li><span>02</span>Long-running agents 如何安全地持久化、恢复和 replay？</li><li><span>03</span>Tools、connectors、MCP 与 skills 应该如何分层？</li><li><span>04</span>Feature store 与 data lineage 的经验如何迁移到 agent context 与 action lineage？</li><li><span>05</span>除了 task success，production agents 还应该怎样评估？</li> </ul> </section> <section class="contact-panel"> <div> <p class="section-kicker">其他平台</p> <h2>代码、作品与交流</h2> </div> <div class="contact-links"> <a href="https://github.com/xiaoyuan-gu">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/">LinkedIn <span aria-hidden="true">↗</span></a> </div> </section>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="关于 Xiaoyuan：一名关注分布式数据系统、ML Platform 与 AI Agent 的软件工程师。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="关于 | Xiaoyuan"><meta property="og:description" content="关于 Xiaoyuan：一名关注分布式数据系统、ML Platform 与 AI Agent 的软件工程师。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/about/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/about/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/about/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/about/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/about/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>关于 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/">文章</a> <a href="/zh/about/" aria-current="page">关于</a> <a class="nav-language" href="/about/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <header class="page-header about-header"> <p class="eyebrow">关于</p> <h1 class="page-title">我关注如何把模型和数据变成可靠的产品系统。</h1> <p class="lead">我是一名软件工程师，长期关注广告数据、分布式计算、OLAP、feature store 和 ML pipelines；最近一年也开始探索 AI Agent 相关系统。</p> </header> <section class="about-grid" aria-labelledby="throughline-title"> <div class="section-heading"> <p class="section-kicker">贯穿始终的主线</p> <h2 id="throughline-title">数据基础设施 → ML Platform → Agent 基础设施</h2> </div> <div class="prose-block"> <p>这些领域看起来属于不同技术周期，但核心问题很相似：如何定义边界、管理状态、追踪数据与行为、评估系统是否真的有效，以及在故障发生时知道发生了什么。</p><p>我希望把这些领域里共通的工程问题整理出来，通过文章、实验和可运行的代码，将设计判断变成可以被检验和讨论的公开记录。</p> </div> </section> <section class="section" aria-labelledby="questions-title"> <div class="section-heading"> <p class="section-kicker">我关心的问题</p> <h2 id="questions-title">当前探索方向</h2> </div> <ul class="question-list"> <li><span>01</span>Agent runtime 和普通后端服务的边界究竟在哪里？</li><li><span>02</span>Long-running agents 如何安全地持久化、恢复和 replay？</li><li><span>03</span>Tools、connectors、MCP 与 skills 应该如何分层？</li><li><span>04</span>Feature store 与 data lineage 的经验如何迁移到 agent context 与 action lineage？</li><li><span>05</span>除了 task success，production agents 还应该怎样评估？</li> </ul> </section> <section class="contact-panel"> <div> <p class="section-kicker">其他平台</p> <h2>代码、作品与交流</h2> </div> <div class="contact-links"> <a href="https://github.com/xiaoyuan-gu">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/">LinkedIn <span aria-hidden="true">↗</span></a> </div> </section>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

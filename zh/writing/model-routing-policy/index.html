@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Model Routing 需要明确能力、成本与失败契约 | Xiaoyuan"><meta property="og:description" content="将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Model Routing 需要明确能力、成本与失败契约 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/model-routing-policy/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Model Routing 需要明确能力、成本与失败契约</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Model Routing 需要明确能力、成本与失败契约 | Xiaoyuan"><meta property="og:description" content="将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/model-routing-policy/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/model-routing-policy/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Model Routing 需要明确能力、成本与失败契约 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/model-routing-policy/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Model Routing 需要明确能力、成本与失败契约</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设一个 Agent 要读取截图，整理其中的问题，再调用 <code>create_ticket</code>。这里的 <code>create_ticket</code> 是由本地 Runtime 执行的 client Tool：provider request 只生成 Tool proposal，本身不能执行 provider-side Tool 或产生票据副作用。这次执行要求模型同时具备：</p>
 <ul>
 <li>图片输入能力。</li>
@@ -11,7 +27,7 @@
 <p>所以 Model Routing 不只是从一个字符串切换到另一个字符串。它需要先回答两件事：<strong>哪个模型满足本次执行契约，以及当前失败是否允许换模型继续。</strong></p>
 <h2 id="先过滤不合格模型再比较成本和延迟">先过滤不合格模型，再比较成本和延迟</h2>
 <p>如果先按单价或平均延迟给所有模型排序，Router 可能选出一个便宜但无法完成任务的候选。更稳妥的顺序是先从 RunSpec 或当前任务中提取硬约束：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>required modalities</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>required modalities</span></span>
 <span class="line"><span>required tool / structured-output features</span></span>
 <span class="line"><span>estimated input and reserved output budget</span></span>
 <span class="line"><span>required context capacity and maximum output</span></span>
@@ -20,33 +36,33 @@
 <span class="line"><span>provider-side effect policy</span></span></code></pre>
 <p>模型目录则为每个候选维护 capability profile。它描述已知能力、限制和当前健康状态，但不是永远正确的静态表；模型版本、provider 行为和组织配置发生变化时，profile 也要更新并带 revision。</p>
 <p>Router 先排除不满足硬约束的候选，再在剩余集合中根据延迟目标、成本预算、质量等级和实时可用性做选择：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>all candidates</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>all candidates</span></span>
 <span class="line"><span>→ capability and policy eligibility</span></span>
 <span class="line"><span>→ latency / cost / quality ranking</span></span>
 <span class="line"><span>→ selected route with fallback set</span></span></code></pre>
 <p>这让“不可用”和“不优先”成为不同结果。一个不支持图片的模型不是得分较低，而是对当前请求不合格。</p>
 <h2 id="routing-decision-要能解释为什么选它">Routing Decision 要能解释为什么选它</h2>
 <p>回到截图任务。Router 可以生成一条概念性的 decision record：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "operation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_op_17"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "requirements"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "modalities"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"text"</span><span style="color:#24292E">, </span><span style="color:#032F62">"image"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">    "tool_contract"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ticket_tools@revision_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "estimated_input_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">18000</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "reserved_output_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4000</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "required_context_capacity_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">22000</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "minimum_max_output_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4000</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "provider_side_effects"</span><span style="color:#24292E">: </span><span style="color:#032F62">"none"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "data_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"region_a"</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "selected"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_primary"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "eligible_fallbacks"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"model_route_secondary"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "excluded"</span><span style="color:#24292E">: [</span></span>
-<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"route"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_fast"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"image_input_unsupported"</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"route"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_route_large"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"cost_budget_exceeded"</span><span style="color:#24292E">}</span></span>
-<span class="line"><span style="color:#24292E">  ],</span></span>
-<span class="line"><span style="color:#005CC5">  "policy_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "operation_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_op_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "requirements"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "modalities"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"text"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"image"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "tool_contract"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"ticket_tools@revision_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "estimated_input_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">18000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "reserved_output_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "required_context_capacity_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">22000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "minimum_max_output_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "provider_side_effects"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"none"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "data_policy"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"region_a"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "selected"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_route_primary"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "eligible_fallbacks"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_route_secondary"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "excluded"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"route"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_route_fast"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"reason"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"image_input_unsupported"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"route"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_route_large"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"reason"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"cost_budget_exceeded"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "policy_revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">6</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p><code>estimated_input_tokens</code> 是当前 Assembly 结果的估算，不是模型容量；Router 用它加上 <code>reserved_output_tokens</code> 得到所需 Context capacity，同时单独检查候选的 max output 是否至少满足 <code>minimum_max_output_tokens</code>。把这几个值压成一个 <code>min_input_tokens</code>，会让“请求有多大”和“模型能容纳多少”重新混在一起。</p>
 <p>这里记录的是 route，而不一定是一个裸 model name。Route 还可以固定 provider、模型版本、Adapter profile、区域和参数上限。这样 Trace 能区分“Router 做了错误选择”和“选中的模型调用失败”，Eval 也能按同一份 routing policy 比较结果。</p>
 <h2 id="fallback-取决于失败发生在哪里">Fallback 取决于失败发生在哪里</h2>
@@ -107,7 +123,7 @@
 <p>这一步解释了为什么 Router 与 Provider Adapter 必须分开：Router 决定“选哪个候选”，Adapter 负责回答“如何把 canonical request 表达成该 provider 的协议”。Adapter 报告不兼容后，Router 可以改选；Adapter 本身不应因为转换失败就私自换模型。</p>
 <h2 id="把开场例子走一遍">把开场例子走一遍</h2>
 <p>截图任务的完整选择与 fallback 可以是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 从 RunSpec 读取图片、Tool contract、Context、数据政策与 provider-side effect 要求。</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 从 RunSpec 读取图片、Tool contract、Context、数据政策与 provider-side effect 要求。</span></span>
 <span class="line"><span>2. 排除不支持图片、不满足区域政策或会在 provider 内执行 Tool 的 route。</span></span>
 <span class="line"><span>3. 在合格候选中选择 `provider_side_effects=none` 的主 route，并保存 Routing Decision。</span></span>
 <span class="line"><span>4. 主 attempt timeout，且没有完整 response item 被接受；该 route 本身不会执行外部动作。</span></span>
@@ -143,4 +159,52 @@
 <li><a href="https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use">Anthropic：Tool use</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

@@ -1,22 +1,38 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次结果未知的 Tool 写入出发，解释简单 Agent Loop 为什么会失去对任务真实状态的判断。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="为什么 while 循环还不是 Agent Runtime | Xiaoyuan"><meta property="og:description" content="从一次结果未知的 Tool 写入出发，解释简单 Agent Loop 为什么会失去对任务真实状态的判断。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>为什么 while 循环还不是 Agent Runtime | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-loop-runtime-protocol/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">为什么 while 循环还不是 Agent Runtime</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Systems%20Design/">Systems Design</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次结果未知的 Tool 写入出发，解释简单 Agent Loop 为什么会失去对任务真实状态的判断。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="为什么 while 循环还不是 Agent Runtime | Xiaoyuan"><meta property="og:description" content="从一次结果未知的 Tool 写入出发，解释简单 Agent Loop 为什么会失去对任务真实状态的判断。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>为什么 while 循环还不是 Agent Runtime | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-loop-runtime-protocol/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">为什么 while 循环还不是 Agent Runtime</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Systems%20Design/">Systems Design</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>最小的 Agent Loop 通常是这样写的：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">while</span><span style="color:#005CC5"> True</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">    response </span><span style="color:#D73A49">=</span><span style="color:#24292E"> model.generate(messages, tools)</span></span>
-<span class="line"><span style="color:#D73A49">    if</span><span style="color:#24292E"> response.tool_calls:</span></span>
-<span class="line"><span style="color:#24292E">        messages.extend(execute(response.tool_calls))</span></span>
-<span class="line"><span style="color:#D73A49">    else</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#D73A49">        return</span><span style="color:#24292E"> response.text</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">while</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> True</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    response </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> model.generate(messages, tools)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> response.tool_calls:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        messages.extend(execute(response.tool_calls))</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    else</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> response.text</span></span></code></pre>
 <p>模型提出 Tool Call，Runtime 执行，再把结果交回模型。模型不再调用 Tool 时，循环结束。</p>
 <p>在 Demo 里，这段代码完全够用。假设用户说：“查一下北京明天的天气，并写进我的笔记。”模型先调用 <code>get_weather</code>，再调用 <code>write_note</code>，最后告诉用户已经完成。每一步都成功时，整个过程确实像一个 <code>while</code> 循环。</p>
 <p>真正的问题不是它不能运行，而是它只描述了 <strong>happy path</strong>。只要一次 Tool 调用的结果不再明确，这个循环就不知道任务实际上进行到了哪里。</p>
 <h2 id="一次-timeout-就会破坏这个模型">一次 Timeout 就会破坏这个模型</h2>
 <p>继续使用写笔记的例子。</p>
 <p><code>write_note</code> 已经把内容保存成功，但返回响应时网络中断了。Runtime 最终只收到一个 timeout：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">try</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">    result </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> write_note(content)</span></span>
-<span class="line"><span style="color:#D73A49">except</span><span style="color:#005CC5"> TimeoutError</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#6A737D">    # 接下来应该做什么？</span></span>
-<span class="line"><span style="color:#005CC5">    ...</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">try</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    result </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> write_note(content)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">except</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> TimeoutError</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    # 接下来应该做什么？</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    ...</span></span></code></pre>
 <p>站在 Runtime 的角度，至少有三种可能：</p>
 <ol>
 <li>请求根本没有到达笔记服务。</li>
@@ -33,32 +49,32 @@
 <p>函数返回失败，不等于外部操作失败。对只读查询，这个区别可能只是多一次请求；对写文件、发邮件或创建订单，它会直接改变用户能看到的结果。</p>
 <h2 id="为什么一条-tool-error-不够">为什么一条 Tool error 不够</h2>
 <p>要理解简单 Loop 为什么无法处理这个 timeout，需要先分清三层事实：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>模型：提出调用 write_note</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>模型：提出调用 write_note</span></span>
 <span class="line"><span>Runtime：发出了调用，但没有收到确定响应</span></span>
 <span class="line"><span>笔记服务：可能已经创建 note_42</span></span></code></pre>
 <p>模型只能提出下一步，Runtime 只能确认自己是否拿到了响应，真正的写入结果由笔记服务掌握。正常返回时，这三层可以合并成一条 Tool Result；发生 timeout 后，它们却不再一致。</p>
 <p>如果 Runtime 只向 <code>messages</code> 追加一条错误：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool error: request timed out</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool error: request timed out</span></span></code></pre>
 <p>下一个 Model Turn 看到的只是“调用报错”，很自然会再次调用 <code>write_note</code>。但这条消息漏掉了最重要的事实：第一次写入不是已经失败，而是<strong>结果未知</strong>。</p>
 <p>结果未知是一种需要继续处理的执行状态，不是一句自然语言错误。Runtime 至少需要记住这是哪一次写入、是否拿到过 <code>note_id</code>，以及下一步应该确认原来的结果还是重新执行。否则，进程一旦重启，只恢复 <code>messages</code>，这些信息就会全部丢失。</p>
 <p>这也是问题从 timeout 走向 retry 的地方：在不知道第一次是否成功时，“再调用一次”到底意味着什么？</p>
 <h2 id="retry-之前先分清再试一次和再做一次">Retry 之前，先分清“再试一次”和“再做一次”</h2>
 <p>用户只要求创建一份笔记。第一次调用 timeout 后，Runtime 想要 retry，看起来很自然。但它必须先回答一个问题：这次 retry 是继续完成第一次写入，还是发起第二次写入？</p>
 <p>假设第一次调用其实已经创建了 <code>note_42</code>，只是响应在返回途中丢失。如果 Runtime 把 retry 当成一个全新的创建请求，结果会是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>用户意图：创建一份笔记</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>用户意图：创建一份笔记</span></span>
 <span class="line"><span></span></span>
 <span class="line"><span>第一次调用 → 已创建 note_42，但 Runtime 只看到 timeout</span></span>
 <span class="line"><span>第二次调用 → 又创建 note_43，并返回成功</span></span></code></pre>
 <p>第二次调用本身成功了，用户却得到了两份笔记。问题不在于 retry 失败，而在于系统把同一个用户意图执行了两次。</p>
 <p>要避免这种情况，笔记服务需要能够认出：“这两次请求是在尝试完成同一个写入。”常见做法是给这个逻辑动作分配一个稳定的 <code>idempotency key</code>，也就是同一动作多次尝试时始终不变的标识：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>第一次尝试（operation_7）→ 创建 note_42，响应丢失</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>第一次尝试（operation_7）→ 创建 note_42，响应丢失</span></span>
 <span class="line"><span>第二次尝试（operation_7）→ 识别为同一动作，返回已有的 note_42</span></span></code></pre>
 <p>这要求下游服务支持幂等处理，也要求 Runtime 在 timeout 后仍然记得 <code>operation_7</code>。如果进程重启后只恢复聊天记录，Runtime 就可能生成一个新的标识，把 retry 再次变成新的写入。</p>
 <p>所以 retry 不是简单地“失败后再调用一次”。它依赖两个前提：系统能识别哪些尝试属于同一个逻辑动作，并且能在结果未知或进程重启后保留这个身份。否则，retry 只会把一次不确定的执行变成多次可能重复的执行。</p>
 <h2 id="runtime-最少需要补上什么">Runtime 最少需要补上什么</h2>
 <p>到这里不需要立刻设计一套庞大的 Schema。这个例子只要求 Runtime 不再把一个逻辑动作、一次调用和最终结果当成同一件事。</p>
 <p>对于“创建一份笔记”这个目标，Runtime 需要保留三层关系：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>逻辑动作：创建一份笔记（operation_7）</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>逻辑动作：创建一份笔记（operation_7）</span></span>
 <span class="line"><span>执行尝试：attempt 1 timeout，attempt 2 返回成功</span></span>
 <span class="line"><span>确认结果：note_42 已创建</span></span></code></pre>
 <p>一个逻辑动作可以有多次执行尝试，但只能收敛到一个确认结果。这样，timeout 后的 retry 才是在继续 <code>operation_7</code>，而不是悄悄创建一个新动作。</p>
@@ -79,4 +95,52 @@
 <li>Middleware、Tracing 和 Eval 怎样消费同一组执行事实。</li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

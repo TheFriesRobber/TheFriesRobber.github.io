@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="New input during execution and the race at Run completion show why an Agent Runtime needs a durable steering inbox with explicit consumption."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Agent Steering Needs a Durable Inbox | Xiaoyuan"><meta property="og:description" content="New input during execution and the race at Run completion show why an Agent Runtime needs a durable steering inbox with explicit consumption."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Agent Steering Needs a Durable Inbox | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/durable-agent-steering-inbox/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why Agent Steering Needs a Durable Inbox</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Streaming/">Streaming</a><a class="pill" href="/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="New input during execution and the race at Run completion show why an Agent Runtime needs a durable steering inbox with explicit consumption."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Agent Steering Needs a Durable Inbox | Xiaoyuan"><meta property="og:description" content="New input during execution and the race at Run completion show why an Agent Runtime needs a durable steering inbox with explicit consumption."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/durable-agent-steering-inbox/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Agent Steering Needs a Durable Inbox | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/durable-agent-steering-inbox/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why Agent Steering Needs a Durable Inbox</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Streaming/">Streaming</a><a class="pill" href="/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>An Agent is calling a Tool that takes two minutes when the user sees an intermediate result and adds, “Keep only data from the last month.” The server immediately replies “received” and places the message in the in-memory queue of the background process executing the Run, referred to below as the worker.</p>
 <p>A few seconds later, the Tool returns just as the worker restarts. A new worker resumes from the existing messages, but the additional instruction is gone. The user was explicitly told that the system had received it; to the Runtime, the input never became a recoverable fact.</p>
 <p>Appending the message directly to the current <code>messages</code> array does not solve the problem. A model request may already be in flight, making it impossible to tell whether the current Model Turn saw the message. Mutating Context while it is being assembled or iterated also makes behavior depend on timing.</p>
@@ -13,7 +29,7 @@
 <p>Steering therefore needs a durable Inbox. It is not another copy of chat history. It owns the state “admitted by the system but not yet included in a Model Turn.” <code>accepted</code> also carries an important condition: both the input body and the Inbox record are durable. Persisting only a <code>payload_ref</code> that points to missing content still cannot satisfy the promise after recovery.</p>
 <h2 id="a-minimal-inbox-model">A minimal Inbox model</h2>
 <p>An input can retain these logical fields:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input_id</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input_id</span></span>
 <span class="line"><span>tenant_id</span></span>
 <span class="line"><span>subject_ref</span></span>
 <span class="line"><span>session_id</span></span>
@@ -37,7 +53,7 @@
 <p>After receiving <code>accepted</code>, a client knows only that the input entered the Inbox. A more precise interface can display “assigned to Model Turn” after the input is bound. A model request being sent and a model response arriving belong in later Model Turn events.</p>
 <h2 id="why-consumption-belongs-at-a-model-turn-boundary">Why consumption belongs at a Model Turn boundary</h2>
 <p>A Model Turn boundary is a point before the next model request has been assembled or after the previous round has ended. At that boundary, the Runtime can:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. read pending inputs in inbox_seq order</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. read pending inputs in inbox_seq order</span></span>
 <span class="line"><span>2. generate input messages in a stable order</span></span>
 <span class="line"><span>3. create the next Model Turn</span></span>
 <span class="line"><span>4. mark those inputs as consumed_by_model_turn</span></span></code></pre>
@@ -46,58 +62,58 @@
 <p>Return to the opening example. The additional instruction first becomes <code>pending</code>. The old worker crashes after the Tool returns, but the new worker can still see the input and bind it while creating the next Model Turn. The message no longer disappears with the process that received it.</p>
 <h2 id="completion-creates-the-hardest-race">Completion creates the hardest race</h2>
 <p>A subtler problem appears when the Run is about to complete. Assume first that the Run owner has verified final output for this Agent Loop, all child work owned by the Run has converged, and the current state permits a terminal transition. An empty Inbox does not prove that the parent Task is complete. The following protocol only linearizes an already-valid Run terminal decision against steering that arrives at the last moment.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1 Runtime checks the Inbox: empty</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1 Runtime checks the Inbox: empty</span></span>
 <span class="line"><span>T2 user sends new input</span></span>
 <span class="line"><span>T3 Runtime marks the Run completed</span></span>
 <span class="line"><span>T4 the new input is accepted, but no executor remains to consume it</span></span></code></pre>
 <p>Checking the Inbox “one more time” before completion is not enough because the check and admission can still interleave. The system needs a terminal admission boundary, and <strong>the admission transaction and finalization transaction must contend on the same serialization point</strong>.</p>
 <p>A rebuildable Run snapshot for a product page should not act as that coordinator. A small command-side <code>run_control</code> record is a better fit:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_id</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_id</span></span>
 <span class="line"><span>admission_epoch</span></span>
 <span class="line"><span>admission_state       open | closing | closed</span></span>
 <span class="line"><span>owner_fencing_token</span></span>
 <span class="line"><span>next_inbox_seq</span></span></code></pre>
 <p>This record owns only the admission window and current execution owner; it does not store the complete user-facing Run state. Decisions such as <code>steering.accepted</code>, <code>steering.consumed</code>, <code>run.continued</code>, and <code>run.completed</code> still enter the Event Log, and query-facing Run snapshots are built from those facts.</p>
 <p>For example, the admission path first authorizes the subject and queries for an existing record by the complete idempotency key. If one exists, it compares the subject, target, canonicalization, and digest, then returns the original admission result—even if the window has since closed. That first lookup is only a fast path: two identical retries may both miss the other’s uncommitted row. After locking <code>run_control</code>, the path must query the idempotency key again. Only when that second lookup still proves the key is new may it check the current epoch, allocate <code>inbox_seq</code>, persist the payload and Inbox row, and append the admission event:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">BEGIN</span><span style="color:#24292E">;</span></span>
-<span class="line"><span style="color:#6A737D">-- After authorization, look up the idempotency record first. If it exists</span></span>
-<span class="line"><span style="color:#6A737D">-- with matching content, return the original accepted result.</span></span>
-<span class="line"><span style="color:#D73A49">SELECT</span><span style="color:#24292E"> admission_epoch, admission_state</span></span>
-<span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> run_control</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
-<span class="line"><span style="color:#D73A49">FOR</span><span style="color:#D73A49"> UPDATE</span><span style="color:#24292E">;</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">BEGIN</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- After authorization, look up the idempotency record first. If it exists</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- with matching content, return the original accepted result.</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SELECT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> admission_epoch, admission_state</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> run_control</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> run_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FOR</span><span style="color:#D73A49;--shiki-dark:#F97583"> UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#6A737D">-- Recheck the idempotency key under the lock. If it exists, validate its</span></span>
-<span class="line"><span style="color:#6A737D">-- content and return the original result. INSERT ... ON CONFLICT DO NOTHING</span></span>
-<span class="line"><span style="color:#6A737D">-- followed by a read and comparison is another valid implementation.</span></span>
-<span class="line"><span style="color:#6A737D">-- Validate tenant, subject, and steering permission.</span></span>
-<span class="line"><span style="color:#6A737D">-- Allocate inbox_seq and insert a pending input only while the current epoch is open.</span></span>
-<span class="line"><span style="color:#D73A49">INSERT INTO</span><span style="color:#24292E"> steering_inbox(...);</span></span>
-<span class="line"><span style="color:#6A737D">-- Append steering.accepted.</span></span>
-<span class="line"><span style="color:#D73A49">COMMIT</span><span style="color:#24292E">;</span></span></code></pre>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- Recheck the idempotency key under the lock. If it exists, validate its</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- content and return the original result. INSERT ... ON CONFLICT DO NOTHING</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- followed by a read and comparison is another valid implementation.</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- Validate tenant, subject, and steering permission.</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- Allocate inbox_seq and insert a pending input only while the current epoch is open.</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">INSERT INTO</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> steering_inbox(...);</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- Append steering.accepted.</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">COMMIT</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span></code></pre>
 <p>The finalization path takes the same lock. It first moves the current epoch to <code>closing</code>, preventing new input from silently entering the round that is about to end, and then reads pending input:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">BEGIN</span><span style="color:#24292E">;</span></span>
-<span class="line"><span style="color:#D73A49">SELECT</span><span style="color:#24292E"> admission_epoch, admission_state, owner_fencing_token</span></span>
-<span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> run_control</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
-<span class="line"><span style="color:#D73A49">FOR</span><span style="color:#D73A49"> UPDATE</span><span style="color:#24292E">;</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">BEGIN</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SELECT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> admission_epoch, admission_state, owner_fencing_token</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> run_control</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> run_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FOR</span><span style="color:#D73A49;--shiki-dark:#F97583"> UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> run_control</span></span>
-<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> admission_state </span><span style="color:#D73A49">=</span><span style="color:#032F62"> 'closing'</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> admission_state </span><span style="color:#D73A49">=</span><span style="color:#032F62"> 'open'</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> owner_fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :owner_token;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> run_control</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> admission_state </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'closing'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> run_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> admission_state </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'open'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> owner_fencing_token </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :owner_token;</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">SELECT</span><span style="color:#24292E"> input_id</span></span>
-<span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> steering_inbox</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> target_run_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :run_id</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> 'pending'</span></span>
-<span class="line"><span style="color:#D73A49">FOR</span><span style="color:#D73A49"> UPDATE</span><span style="color:#24292E">;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SELECT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> steering_inbox</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> target_run_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :run_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#D73A49;--shiki-dark:#F97583"> state</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'pending'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FOR</span><span style="color:#D73A49;--shiki-dark:#F97583"> UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#6A737D">-- Pending input: create and bind the next Model Turn, mark the inputs consumed,</span></span>
-<span class="line"><span style="color:#6A737D">--                advance admission_epoch, and reopen the window.</span></span>
-<span class="line"><span style="color:#6A737D">-- No pending input: append run.completed and set the window to closed.</span></span>
-<span class="line"><span style="color:#D73A49">COMMIT</span><span style="color:#24292E">;</span></span></code></pre>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- Pending input: create and bind the next Model Turn, mark the inputs consumed,</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">--                advance admission_epoch, and reopen the window.</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">-- No pending input: append run.completed and set the window to closed.</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">COMMIT</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span></code></pre>
 <p>This SQL is a conceptual model. Creating the Model Turn, marking Inbox rows consumed, and appending the decision event must also participate in one commit protocol, and the application must inspect the actual result of every statement. A serializable transaction retried as a whole or an equivalent versioned CAS protocol can provide the same boundary. The particular database syntax is not the point. The two paths must not each read <code>admission_state</code> once from an ordinary snapshot and then commit independently.</p>
 <p>The race now has only two deterministic outcomes:</p>
 <ul>
@@ -155,4 +171,52 @@
 <li><a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL: Transaction Isolation</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

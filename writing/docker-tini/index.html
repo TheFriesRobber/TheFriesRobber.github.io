@@ -1,7 +1,23 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="What is Tini, and why is it useful as the entrypoint of a container?"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Use Tini as a Docker Container Entrypoint? | Xiaoyuan"><meta property="og:description" content="What is Tini, and why is it useful as the entrypoint of a container?"><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/docker-tini/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Use Tini as a Docker Container Entrypoint? | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/docker-tini/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Docker</p> <h1 class="page-title">Why Use Tini as a Docker Container Entrypoint?</h1> <div class="meta"> <time datetime="2020-01-16T07:33:21.000Z">01/16/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Docker/">Docker</a><a class="pill" href="/tags/Process/">Process</a><a class="pill" href="/tags/Linux/">Linux</a><a class="pill" href="/tags/TechNotes/">TechNotes</a> </div> </header>  <h2 id="the-question">The question</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="What is Tini, and why is it useful as the entrypoint of a container?"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Use Tini as a Docker Container Entrypoint? | Xiaoyuan"><meta property="og:description" content="What is Tini, and why is it useful as the entrypoint of a container?"><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/docker-tini/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/docker-tini/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Use Tini as a Docker Container Entrypoint? | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/docker-tini/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Docker</p> <h1 class="page-title">Why Use Tini as a Docker Container Entrypoint?</h1> <div class="meta"> <time datetime="2020-01-16T07:33:21.000Z">01/16/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Docker/">Docker</a><a class="pill" href="/tags/Process/">Process</a><a class="pill" href="/tags/Linux/">Linux</a><a class="pill" href="/tags/TechNotes/">TechNotes</a> </div> </header>  <h2 id="the-question">The question</h2>
 <p>I often saw the following lines in Dockerfiles for Jupyter Notebook images:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"tini"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-g"</span><span style="color:#24292E">, </span><span style="color:#032F62">"--"</span><span style="color:#24292E">]</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"start.sh"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">ENTRYPOINT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tini"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-g"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"--"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"start.sh"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
 <p>Curious about their purpose, I read the Tini documentation. It describes three benefits:</p>
 <blockquote>
 <ol>
@@ -38,27 +54,27 @@
 </ul>
 <p>Process state is particularly important when discussing zombie processes.</p>
 <h3 id="process-states-1">Process states <sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup></h3>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="c"><code><span class="line"><span style="color:#6A737D">/*</span></span>
-<span class="line"><span style="color:#6A737D"> * The task state array is a strange "bitmap" of</span></span>
-<span class="line"><span style="color:#6A737D"> * reasons to sleep. Thus "running" is zero, and</span></span>
-<span class="line"><span style="color:#6A737D"> * you can test for combinations of others with</span></span>
-<span class="line"><span style="color:#6A737D"> * simple bit tests.</span></span>
-<span class="line"><span style="color:#6A737D"> */</span></span>
-<span class="line"><span style="color:#D73A49">static</span><span style="color:#D73A49"> const</span><span style="color:#D73A49"> char</span><span style="color:#D73A49"> *</span><span style="color:#D73A49"> const</span><span style="color:#24292E"> task_state_array</span><span style="color:#D73A49">[]</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> {</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="c"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">/*</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"> * The task state array is a strange "bitmap" of</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"> * reasons to sleep. Thus "running" is zero, and</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"> * you can test for combinations of others with</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"> * simple bit tests.</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"> */</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">static</span><span style="color:#D73A49;--shiki-dark:#F97583"> const</span><span style="color:#D73A49;--shiki-dark:#F97583"> char</span><span style="color:#D73A49;--shiki-dark:#F97583"> *</span><span style="color:#D73A49;--shiki-dark:#F97583"> const</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> task_state_array</span><span style="color:#D73A49;--shiki-dark:#F97583">[]</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#6A737D">	/* states in TASK_REPORT: */</span></span>
-<span class="line"><span style="color:#032F62">	"R (running)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x00 */</span></span>
-<span class="line"><span style="color:#032F62">	"S (sleeping)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x01 */</span></span>
-<span class="line"><span style="color:#032F62">	"D (disk sleep)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">	/* 0x02 */</span></span>
-<span class="line"><span style="color:#032F62">	"T (stopped)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x04 */</span></span>
-<span class="line"><span style="color:#032F62">	"t (tracing stop)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">	/* 0x08 */</span></span>
-<span class="line"><span style="color:#032F62">	"X (dead)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x10 */</span></span>
-<span class="line"><span style="color:#032F62">	"Z (zombie)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x20 */</span></span>
-<span class="line"><span style="color:#032F62">	"P (parked)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x40 */</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">	/* states in TASK_REPORT: */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"R (running)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">		/* 0x00 */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"S (sleeping)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">		/* 0x01 */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"D (disk sleep)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">	/* 0x02 */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"T (stopped)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">		/* 0x04 */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"t (tracing stop)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">	/* 0x08 */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"X (dead)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">		/* 0x10 */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"Z (zombie)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">		/* 0x20 */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"P (parked)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">		/* 0x40 */</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#6A737D">	/* states beyond TASK_REPORT: */</span></span>
-<span class="line"><span style="color:#032F62">	"I (idle)"</span><span style="color:#24292E">,</span><span style="color:#6A737D">		/* 0x80 */</span></span>
-<span class="line"><span style="color:#24292E">};</span></span></code></pre>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">	/* states beyond TASK_REPORT: */</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">	"I (idle)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span><span style="color:#6A737D;--shiki-dark:#6A737D">		/* 0x80 */</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">};</span></span></code></pre>
 <h4 id="1-r--running-or-runnable-on-a-run-queue">1. R — running or runnable (on a run queue)</h4>
 <p>The process has all the resources it needs and is either running on a CPU or waiting for CPU time. Its <code>task_struct</code> is placed on the run queue of one CPU; a process can appear on at most one CPU’s run queue at a time.</p>
 <p>Some systems distinguish Running from Ready, but Linux represents both as <code>TASK_RUNNING</code>.</p>
@@ -97,8 +113,8 @@
 <p>If PID 1 does not handle and forward signals correctly, the application is much more likely to be killed forcibly than to shut down gracefully. Which process becomes PID 1 depends largely on how <code>ENTRYPOINT</code>, <code>CMD</code>, and related instructions are written, so the distinction between their forms matters.<sup><a href="#user-content-fn-4" id="user-content-fnref-4" data-footnote-ref="" aria-describedby="footnote-label">4</a></sup></p>
 <h2 id="back-to-the-question">Back to the question</h2>
 <p>With:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"tini"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-g"</span><span style="color:#24292E">, </span><span style="color:#032F62">"--"</span><span style="color:#24292E">]</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"start.sh"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">ENTRYPOINT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tini"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-g"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"--"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"start.sh"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
 <p>the container starts <code>tini</code> as PID 1. Acting as init, it waits for exited children and reaps orphaned descendants that are reparented to it. We should avoid creating zombies in the first place, but we do not always control every program that runs inside a container.</p>
 <p>With <code>-g</code>, Tini also forwards signals sent to the container to the child process group. This is one reason to prefer it over using a shell as init, even though a shell may be capable of reaping children in some situations.</p>
 <p>If a container runs multiple processes, or runs a process that creates many children, using Tini is a simple and reliable safeguard against lingering zombie processes.</p>
@@ -123,4 +139,52 @@
 <p><a href="https://github.com/krallin/tini">https://github.com/krallin/tini</a> <a href="#user-content-fnref-5" data-footnote-backref="" aria-label="Back to reference 5" class="data-footnote-backref">↩</a></p>
 </li>
 </ol>
-</section>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+</section>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

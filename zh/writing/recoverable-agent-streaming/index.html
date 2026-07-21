@@ -1,6 +1,22 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="区分可恢复的执行事件与低延迟实时通知，避免把 SSE 或 WebSocket 误当成事实源。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent 的实时输出为什么不能作为执行记录 | Xiaoyuan"><meta property="og:description" content="区分可恢复的执行事件与低延迟实时通知，避免把 SSE 或 WebSocket 误当成事实源。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/recoverable-agent-streaming/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent 的实时输出为什么不能作为执行记录 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/recoverable-agent-streaming/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent 的实时输出为什么不能作为执行记录</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Streaming/">Streaming</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="区分可恢复的执行事件与低延迟实时通知，避免把 SSE 或 WebSocket 误当成事实源。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent 的实时输出为什么不能作为执行记录 | Xiaoyuan"><meta property="og:description" content="区分可恢复的执行事件与低延迟实时通知，避免把 SSE 或 WebSocket 误当成事实源。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/recoverable-agent-streaming/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/recoverable-agent-streaming/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/recoverable-agent-streaming/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent 的实时输出为什么不能作为执行记录 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/recoverable-agent-streaming/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent 的实时输出为什么不能作为执行记录</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Streaming/">Streaming</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户让 Agent 生成一份报告。浏览器先后看到模型输出和 Tool 进度，就在文件写入完成后断网了。连接恢复时，页面仍停在“正在生成”：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Runtime     file.created(seq=27) → run.completed(seq=28)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Runtime     file.created(seq=27) → run.completed(seq=28)</span></span>
 <span class="line"><span>Browser     最后看到 seq=26，然后断线</span></span></code></pre>
 <p>这里的“实时输出”不只是模型逐字生成的 token，还包括 Tool 调用进度、Run 状态变化和最终结果如何持续到达客户端。</p>
 <p>SSE 通常会自动重连，WebSocket 也可以由应用重新建立连接。为什么这两件事仍不能保证用户看到 27 和 28？</p>
@@ -38,13 +54,13 @@
   <figcaption>Signal 优化延迟，cursor 与 durable log 负责恢复。</figcaption>
 </figure>
 <p>Runtime 提交事件时，顺序应该是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. append durable event，获得稳定 seq</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. append durable event，获得稳定 seq</span></span>
 <span class="line"><span>2. commit</span></span>
 <span class="line"><span>3. publish signal(session_id, high_watermark=seq)</span></span></code></pre>
 <p>这里的 <code>high_watermark</code> 是同一 Event Log 中当前已经提交的最大 Session sequence，不是 gateway 最后观察到的 signal，也不是某条连接的本地进度。只有来自事实源的 watermark，才能告诉客户端最多可以补到哪里。</p>
 <p>不要先发 signal 再写 event。否则客户端被唤醒时还读不到对应事实，随后若 signal 丢失，也不知道要再次查询。</p>
 <p>客户端首次打开页面或重新连接时，应使用一个明确的 application cursor。它只在事件按序、幂等应用成功后推进；若 cursor 无法与本地状态原子保存，客户端宁可从更早位置重放，也不能因为事件已经 dispatch 就跳过它。</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>GET /sessions/session_17/events?after=26</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>GET /sessions/session_17/events?after=26</span></span>
 <span class="line"><span>→ seq 27 file.created</span></span>
 <span class="line"><span>→ seq 28 run.completed</span></span>
 <span class="line"><span>→ next_cursor=28</span></span></code></pre>
@@ -62,7 +78,7 @@
 <p>这项补齐保证只在 Event Log 的 retention window 内成立。如果客户端的 cursor 早于最旧保留 sequence，服务端应明确返回 <code>cursor_expired</code> 或 gap，而不是悄悄从一个更晚位置继续。客户端随后从 current snapshot 或完整 Message projection 重建页面；这份响应必须携带自身对应的 <code>as_of_seq</code>，客户端再从 <code>seq > as_of_seq</code> 追赶。不能在读取 snapshot 之后另取一个更晚的 high watermark 作为新 cursor，否则两次读取之间产生的事件会被永久跳过。</p>
 <h2 id="token-streaming-与执行事件不是同一种粒度">Token streaming 与执行事件不是同一种粒度</h2>
 <p>模型 token 的数量可能很大，而且许多中间 token 不值得长期保存。可以把它们视为 lossy delta，同时定期提交较粗粒度的 durable event：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>assistant.output.started</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>assistant.output.started</span></span>
 <span class="line"><span>assistant.output.delta      # 可丢的实时片段</span></span>
 <span class="line"><span>assistant.message.completed # 持久化的最终消息</span></span></code></pre>
 <p>如果产品要求断线后逐字恢复，就需要把 delta 分块持久化，并承担更高的存储与重放成本。否则，更常见的边界是恢复到最后一条完整消息或 Tool event，而不是重建每一个曾显示过的 token。</p>
@@ -91,4 +107,52 @@
 <li><a href="https://redis.io/docs/latest/develop/pubsub/">Redis Pub/Sub delivery semantics</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

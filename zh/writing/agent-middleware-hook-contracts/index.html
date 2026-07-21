@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从 policy、request transformation 与 tracing 的顺序冲突出发，解释 Agent Runtime 的 Hook 为什么需要明确修改权、短路、异常和重放语义。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Middleware Hook 需要明确顺序与失败契约 | Xiaoyuan"><meta property="og:description" content="从 policy、request transformation 与 tracing 的顺序冲突出发，解释 Agent Runtime 的 Hook 为什么需要明确修改权、短路、异常和重放语义。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Middleware Hook 需要明确顺序与失败契约 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-middleware-hook-contracts/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Middleware Hook 需要明确顺序与失败契约</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Middleware/">Middleware</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从 policy、request transformation 与 tracing 的顺序冲突出发，解释 Agent Runtime 的 Hook 为什么需要明确修改权、短路、异常和重放语义。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Middleware Hook 需要明确顺序与失败契约 | Xiaoyuan"><meta property="og:description" content="从 policy、request transformation 与 tracing 的顺序冲突出发，解释 Agent Runtime 的 Hook 为什么需要明确修改权、短路、异常和重放语义。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Middleware Hook 需要明确顺序与失败契约 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-middleware-hook-contracts/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Middleware Hook 需要明确顺序与失败契约</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Middleware/">Middleware</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一个 Agent Runtime 在调用模型前注册了三个 Hook：</p>
 <ul>
 <li>capability policy 根据当前权限移除不可用 Tool；</li>
@@ -6,9 +22,9 @@
 <li>tracing 记录模型实际看到了哪些 instructions 和 Tool 的结构化信息，而不是默认保存完整敏感内容。</li>
 </ul>
 <p>初始 Tool 候选是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>read_file、write_file、delete_file</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>read_file、write_file、delete_file</span></span></code></pre>
 <p>当前用户只有读取和写入权限，<code>delete_file</code> 不得进入模型输入。如果 Hook 只按注册顺序依次执行，就会出现几个不同结果：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>transform → policy</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>transform → policy</span></span>
 <span class="line"><span>provider payload 已经包含 delete_file，之后修改内部列表也来不及</span></span>
 <span class="line"><span></span></span>
 <span class="line"><span>trace → policy → transform</span></span>
@@ -20,11 +36,11 @@
 <p>所以 Hook 能否成为稳定 extension point，取决于 composition contract，而不是 Runtime 暴露了多少个回调名称。</p>
 <h2 id="注册顺序不能代表执行语义">注册顺序不能代表执行语义</h2>
 <p>把 Hook 存进数组，再按顺序调用，是最容易实现的机制：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">for</span><span style="color:#24292E"> hook </span><span style="color:#D73A49">in</span><span style="color:#24292E"> before_model_hooks:</span></span>
-<span class="line"><span style="color:#24292E">    request </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> hook(request)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> hook </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> before_model_hooks:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    request </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> hook(request)</span></span></code></pre>
 <p>问题在于，这段代码让“谁先注册”同时决定了 policy 优先级、数据修改权和观察口径。新增一个 plugin，甚至只是调整初始化顺序，都可能改变最终 Tool surface。</p>
 <p>更稳妥的做法是先定义 phase，再允许同一 phase 内使用明确的 priority 或 dependency：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>trusted context</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>trusted context</span></span>
 <span class="line"><span>  → policy decision</span></span>
 <span class="line"><span>  → request transformation</span></span>
 <span class="line"><span>  → observation scope opens on the final request</span></span>
@@ -70,31 +86,31 @@
 <table><thead><tr><th>类型</th><th>可以做什么</th><th>不应该做什么</th></tr></thead><tbody><tr><td>Policy</td><td>allow、deny、要求确认或收窄能力</td><td>静默增加 Tool 或伪造 trusted context</td></tr><tr><td>Transformation</td><td>从已批准输入产生新的 typed value</td><td>修改身份、权限与审计主体</td></tr><tr><td>Control</td><td>short-circuit、fallback 或选择明确分支</td><td>返回一个无法区分于正常结果的任意字符串</td></tr><tr><td>Observation</td><td>记录 event、metric 和 trace</td><td>改写业务结果或偷偷触发新的业务动作</td></tr></tbody></table>
 <p>这里不是要建立抽象分类学，而是限制修改权。Tracing 如果只需要读取最终请求，就不应拿到可变 request；request transformer 如果只负责 provider shaping，就不应能够替换 Runtime 注入的 subject 或 credential。</p>
 <p>一种简单做法，是让 transformation 返回新值，而不是共享可变对象：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#24292E"> asyncio</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> asyncio</span></span>
 <span class="line"></span>
 <span class="line"></span>
-<span class="line"><span style="color:#24292E">decision </span><span style="color:#D73A49">=</span><span style="color:#24292E"> policy.evaluate(context, request)</span></span>
-<span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> decision.denied:</span></span>
-<span class="line"><span style="color:#D73A49">    return</span><span style="color:#24292E"> denied_result(decision.reason)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">decision </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> policy.evaluate(context, request)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> decision.denied:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> denied_result(decision.reason)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#24292E">provider_request </span><span style="color:#D73A49">=</span><span style="color:#24292E"> transform(decision.allowed_request)</span></span>
-<span class="line"><span style="color:#D73A49">with</span><span style="color:#24292E"> trace.model_span(provider_request) </span><span style="color:#D73A49">as</span><span style="color:#24292E"> span:</span></span>
-<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">        response </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> model.generate(provider_request)</span></span>
-<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> asyncio.CancelledError:</span></span>
-<span class="line"><span style="color:#24292E">        span.record_cancelled()</span></span>
-<span class="line"><span style="color:#D73A49">        raise</span></span>
-<span class="line"><span style="color:#D73A49">    except</span><span style="color:#005CC5"> BaseException</span><span style="color:#D73A49"> as</span><span style="color:#24292E"> error:</span></span>
-<span class="line"><span style="color:#24292E">        span.record_error(error)</span></span>
-<span class="line"><span style="color:#D73A49">        raise</span></span>
-<span class="line"><span style="color:#D73A49">    else</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">        span.record_result(response)</span></span></code></pre>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">provider_request </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> transform(decision.allowed_request)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">with</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> trace.model_span(provider_request) </span><span style="color:#D73A49;--shiki-dark:#F97583">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> span:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    try</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        response </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> model.generate(provider_request)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    except</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> asyncio.CancelledError:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        span.record_cancelled()</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        raise</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    except</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> BaseException</span><span style="color:#D73A49;--shiki-dark:#F97583"> as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> error:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        span.record_error(error)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        raise</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    else</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        span.record_result(response)</span></span></code></pre>
 <p>这里的 <code>model_span</code> 是概念接口，不对应某个 SDK 的具体 API。例子假设 <code>record_*</code> 和 scope cleanup 是 no-throw 或先写入本地 buffer：observation 失败会被单独记录和重试，不能覆盖已经得到的模型结果、原始异常或 cancellation。它要表达的是：observation 在最终 provider request 形成后开始，无论模型成功、抛出异常还是被取消，同一个 observation scope 都能正确关闭。</p>
 <p>回到开头的例子，policy 先得到三个候选 Tool 和可信权限，输出只包含 <code>read_file</code>、<code>write_file</code> 的 allowed request；transformer 只能渲染这个集合；trace 记录最终 provider request 的 Tool 名称或稳定 hash。<code>delete_file</code> 不会因为 transformer 重新读取原始 registry 而回来。</p>
 <h2 id="short-circuit-必须是可见结果">Short-circuit 必须是可见结果</h2>
 <p>Policy 拒绝高风险 Tool、缓存命中跳过 model call、或预算耗尽直接结束当前阶段，都可能需要 short-circuit。</p>
 <p>如果 Hook 只返回 <code>None</code> 表示“不要继续”，调用方很难区分拒绝、缓存命中和 Hook bug。更清楚的 contract 是返回 typed outcome：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>continue(transformed_request)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>continue(transformed_request)</span></span>
 <span class="line"><span>deny(reason, policy_id)</span></span>
 <span class="line"><span>require_approval(action_id)</span></span>
 <span class="line"><span>use_cached(response_id)</span></span>
@@ -104,7 +120,7 @@
 <h2 id="before-与-after-的顺序通常不是对称列表">Before 与 After 的顺序通常不是对称列表</h2>
 <p>有些 Hook 会成对管理资源。例如 tracing span 在调用前打开，在调用后关闭；temporary credential 在进入 Tool 前注入，在离开后撤销。</p>
 <p>这类 Hook 更接近嵌套 scope：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>before A</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>before A</span></span>
 <span class="line"><span>  before B</span></span>
 <span class="line"><span>    execute</span></span>
 <span class="line"><span>  after B</span></span>
@@ -115,10 +131,10 @@
 <h2 id="hook-失败不能改写已经发生的-tool-结果">Hook 失败不能改写已经发生的 Tool 结果</h2>
 <p>顺序问题在 happy path 已经可见，retry 会让失败契约更加重要。</p>
 <p>假设 <code>write_file</code> 已经成功保存报告，随后一个 <code>afterTool</code> Hook 要把 tracing event 写入远端 collector，但 collector timeout。如果 middleware 把整个 chain 都当成 failed，外层 retry 可能再次执行 <code>write_file</code>：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt 1：write_file succeeded → trace delivery timeout</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt 1：write_file succeeded → trace delivery timeout</span></span>
 <span class="line"><span>attempt 2：write_file succeeded again</span></span></code></pre>
 <p>第二次写入不是 tracing 的 retry，而是业务副作用被重复执行。Runtime 必须保留两个独立事实：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Execution：succeeded，artifact = report.md@v3</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Execution：succeeded，artifact = report.md@v3</span></span>
 <span class="line"><span>Trace delivery：failed，等待单独重试或降级</span></span></code></pre>
 <p>因此，每类 Hook 都需要预先决定失败策略：</p>
 <ul>
@@ -170,4 +186,52 @@
 <li><a href="https://code.claude.com/docs/en/hooks">Claude Code：Hooks reference</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

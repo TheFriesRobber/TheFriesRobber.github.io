@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Adaptive Query Execution lets Spark SQL revise its physical plan using runtime statistics, including coalescing shuffle partitions, handling skewed joins, and changing join strategies."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Notes on Spark Adaptive Query Execution | Xiaoyuan"><meta property="og:description" content="Adaptive Query Execution lets Spark SQL revise its physical plan using runtime statistics, including coalescing shuffle partitions, handling skewed joins, and changing join strategies."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Notes on Spark Adaptive Query Execution | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-adaptive-query-execution/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Notes on Spark Adaptive Query Execution</h1> <div class="meta"> <time datetime="2022-02-17T17:23:10.000Z">02/17/2022</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a><a class="pill" href="/tags/SQL/">SQL</a><a class="pill" href="/tags/Performance/">Performance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Adaptive Query Execution lets Spark SQL revise its physical plan using runtime statistics, including coalescing shuffle partitions, handling skewed joins, and changing join strategies."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Notes on Spark Adaptive Query Execution | Xiaoyuan"><meta property="og:description" content="Adaptive Query Execution lets Spark SQL revise its physical plan using runtime statistics, including coalescing shuffle partitions, handling skewed joins, and changing join strategies."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Notes on Spark Adaptive Query Execution | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-adaptive-query-execution/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Notes on Spark Adaptive Query Execution</h1> <div class="meta"> <time datetime="2022-02-17T17:23:10.000Z">02/17/2022</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a><a class="pill" href="/tags/SQL/">SQL</a><a class="pill" href="/tags/Performance/">Performance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>Before execution, Spark SQL uses the Catalyst optimizer to produce logical and physical plans. Many optimizations depend on data volume and distribution, but that information may be inaccurate when a query is submitted.</p>
 <p>For example:</p>
 <ul>
@@ -15,7 +31,7 @@
 <p>Many jobs use a relatively high value for <code>spark.sql.shuffle.partitions</code> to avoid partitions that are too large under heavy workloads. When the actual data volume is small, however, excessive partitioning creates many tiny tasks and makes scheduling overhead significant.</p>
 <p>AQE can use shuffle output sizes to combine adjacent small partitions and reduce the number of downstream tasks.</p>
 <p>Relevant settings include:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
 <span class="line"><span>spark.sql.adaptive.coalescePartitions.enabled</span></span>
 <span class="line"><span>spark.sql.adaptive.advisoryPartitionSizeInBytes</span></span></code></pre>
 <p>This is usually a relatively safe optimization because it reduces the number of tasks after the shuffle has already completed.</p>
@@ -23,27 +39,27 @@
 <p>When Spark creates a physical plan, it uses statistics to choose among strategies such as sort-merge join, broadcast hash join, and shuffle hash join.</p>
 <p>If AQE discovers that one side is small after the shuffle, it can replace a sort-merge join with a broadcast join, avoiding some subsequent shuffle and sort work.</p>
 <p>Relevant settings include:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
 <span class="line"><span>spark.sql.autoBroadcastJoinThreshold</span></span>
 <span class="line"><span>spark.sql.adaptive.localShuffleReader.enabled</span></span></code></pre>
 <p>A broadcast join still consumes executor memory. If the broadcast side is not actually small, or its statistics are misleading, this optimization can introduce new memory pressure.</p>
 <h3 id="3-handling-skewed-joins">3. Handling skewed joins</h3>
 <p>With skewed data, some shuffle partitions become much larger than others. AQE can identify partitions that are substantially larger than the rest and split them into smaller pieces.</p>
 <p>Relevant settings include:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.skewJoin.enabled</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.skewJoin.enabled</span></span>
 <span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionFactor</span></span>
 <span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes</span></span></code></pre>
 <p>This is useful for skew that only becomes visible at runtime. It still depends on SQL or DataFrame execution plans, however, and does not replace fixing abnormal keys, dirty data, or an inappropriate business-level join grain.</p>
 <h2 id="enabling-aqe">Enabling AQE</h2>
 <p>For a Spark SQL workload, start by enabling AQE:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">spark.conf.set(</span><span style="color:#032F62">"spark.sql.adaptive.enabled"</span><span style="color:#24292E">, </span><span style="color:#032F62">"true"</span><span style="color:#24292E">)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">spark.conf.set(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"spark.sql.adaptive.enabled"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"true"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span></code></pre>
 <p>Then adjust individual behaviors according to the problem at hand. AQE is enabled by default in many Spark versions, but production environments should still verify the setting explicitly so that behavior does not depend on version- or platform-specific defaults.</p>
 <p>With <code>spark-submit</code>, the settings might look like this:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">spark-submit</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.coalescePartitions.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.skewJoin.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#032F62">  ...</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">spark-submit</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --conf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> spark.sql.adaptive.enabled=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --conf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> spark.sql.adaptive.coalescePartitions.enabled=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --conf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> spark.sql.adaptive.skewJoin.enabled=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ...</span></span></code></pre>
 <h2 id="confirming-that-aqe-is-working">Confirming that AQE is working</h2>
 <p>The most direct approach is to inspect the Spark UI and the execution plan.</p>
 <p>The SQL tab displays the adaptive plan. While the query runs, the initial plan may be replaced by a final plan. Look for:</p>
@@ -55,7 +71,7 @@
 <li>Stage and task counts that match your expectations.</li>
 </ul>
 <p>You can also inspect a plan in code:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">df.explain(</span><span style="color:#032F62">"formatted"</span><span style="color:#24292E">)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">df.explain(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"formatted"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span></code></pre>
 <p>Keep in mind that AQE’s final plan depends on runtime statistics. An <code>explain</code> captured before execution may not reveal the final changes.</p>
 <h2 id="aqe-is-not-a-cure-all">AQE is not a cure-all</h2>
 <p>AQE is well suited to cases where runtime data volume or distribution differs from the optimizer’s estimate. It should not become an excuse to ignore data modeling and data quality.</p>
@@ -83,4 +99,52 @@
 <p>Reference:</p>
 <ul>
 <li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
-</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

@@ -1,10 +1,26 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一组失去 owner 的 Tool `asyncio.Task` 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Python Agent Runtime 中的 Structured Concurrency | Xiaoyuan"><meta property="og:description" content="从一组失去 owner 的 Tool `asyncio.Task` 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-concurrency-agent-runtimes-python/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Python Agent Runtime 中的 Structured Concurrency | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-concurrency-agent-runtimes-python/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Python Agent Runtime 中的 Structured Concurrency</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Python/">Python</a><a class="pill" href="/zh/tags/Asyncio/">Asyncio</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一组失去 owner 的 Tool `asyncio.Task` 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Python Agent Runtime 中的 Structured Concurrency | Xiaoyuan"><meta property="og:description" content="从一组失去 owner 的 Tool `asyncio.Task` 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-concurrency-agent-runtimes-python/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-concurrency-agent-runtimes-python/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Python Agent Runtime 中的 Structured Concurrency | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-concurrency-agent-runtimes-python/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Python Agent Runtime 中的 Structured Concurrency</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Python/">Python</a><a class="pill" href="/zh/tags/Asyncio/">Asyncio</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>Python Agent Runtime 已经完成三个 Tool Call 的 admission，并创建了三个可以并行推进的 Tool Execution。最直接的写法是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> def</span><span style="color:#6F42C1"> start_tools</span><span style="color:#24292E">(executions):</span></span>
-<span class="line"><span style="color:#D73A49">    for</span><span style="color:#24292E"> execution </span><span style="color:#D73A49">in</span><span style="color:#24292E"> executions:</span></span>
-<span class="line"><span style="color:#24292E">        asyncio.create_task(execute_tool_execution(execution))</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#D73A49;--shiki-dark:#F97583"> def</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> start_tools</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(executions):</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> execution </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> executions:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        asyncio.create_task(execute_tool_execution(execution))</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">    return</span><span style="color:#032F62"> "started"</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "started"</span></span></code></pre>
 <p>这段代码确实让三个 coroutine 同时运行，却在创建 Task 后立刻返回。接下来几个问题没有 owner：</p>
 <ul>
 <li>父 Run 什么时候可以进入完成状态？</li>
@@ -21,23 +37,23 @@
 <p>这会产生两个互相冲突的事实：父 Run 认为这个阶段结束了，子 Task 仍认为自己可以继续执行。</p>
 <h2 id="taskgroup-把并发工作放回父级-scope">TaskGroup 把并发工作放回父级 Scope</h2>
 <p><code>asyncio.TaskGroup</code> 是一个 async context manager。离开 <code>async with</code> 之前，它会等待组内 Task 全部结束：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#24292E"> asyncio</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> asyncio</span></span>
 <span class="line"></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> def</span><span style="color:#6F42C1"> execute_tools</span><span style="color:#24292E">(executions):</span></span>
-<span class="line"><span style="color:#24292E">    tasks </span><span style="color:#D73A49">=</span><span style="color:#24292E"> {}</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#D73A49;--shiki-dark:#F97583"> def</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> execute_tools</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(executions):</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    tasks </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {}</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">    async</span><span style="color:#D73A49"> with</span><span style="color:#24292E"> asyncio.TaskGroup() </span><span style="color:#D73A49">as</span><span style="color:#24292E"> group:</span></span>
-<span class="line"><span style="color:#D73A49">        for</span><span style="color:#24292E"> execution </span><span style="color:#D73A49">in</span><span style="color:#24292E"> executions:</span></span>
-<span class="line"><span style="color:#24292E">            tasks[execution.id] </span><span style="color:#D73A49">=</span><span style="color:#24292E"> group.create_task(</span></span>
-<span class="line"><span style="color:#24292E">                execute_tool_execution(execution),</span></span>
-<span class="line"><span style="color:#E36209">                name</span><span style="color:#D73A49">=</span><span style="color:#D73A49">f</span><span style="color:#032F62">"tool:</span><span style="color:#005CC5">{</span><span style="color:#24292E">execution.id</span><span style="color:#005CC5">}</span><span style="color:#032F62">"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#24292E">            )</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    async</span><span style="color:#D73A49;--shiki-dark:#F97583"> with</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> asyncio.TaskGroup() </span><span style="color:#D73A49;--shiki-dark:#F97583">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> group:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> execution </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> executions:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            tasks[execution.id] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> group.create_task(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">                execute_tool_execution(execution),</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">                name</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#D73A49;--shiki-dark:#F97583">f</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool:</span><span style="color:#005CC5;--shiki-dark:#79B8FF">{</span><span style="color:#24292E;--shiki-dark:#E1E4E8">execution.id</span><span style="color:#005CC5;--shiki-dark:#79B8FF">}</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            )</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">    return</span><span style="color:#24292E"> {</span></span>
-<span class="line"><span style="color:#24292E">        execution_id: task.result()</span></span>
-<span class="line"><span style="color:#D73A49">        for</span><span style="color:#24292E"> execution_id, task </span><span style="color:#D73A49">in</span><span style="color:#24292E"> tasks.items()</span></span>
-<span class="line"><span style="color:#24292E">    }</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        execution_id: task.result()</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> execution_id, task </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tasks.items()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span></code></pre>
 <p>现在 <code>execute_tools()</code> 只有两种清晰结果：要么所有子 Task 已经收敛，可以返回结果；要么组内出现未处理失败，异常向父级传播。它不会在子 Task 仍运行时假装阶段已经完成。</p>
 <p>默认情况下，一个子 Task 抛出 <code>CancelledError</code> 之外的未处理异常后，TaskGroup 会请求取消其余 Task，并等待它们结束。普通失败会按类型合并成 <code>ExceptionGroup</code> 或 <code>BaseExceptionGroup</code>；<code>KeyboardInterrupt</code> 和 <code>SystemExit</code> 则会在其他 Task 收敛后重新抛出。</p>
 <p>这不代表所有 Tool Execution failure 都应该让整组 fail-fast。参数无效、资源不存在等预期业务失败，可以在 <code>execute_tool_execution()</code> 内转换为 typed result，让其他独立 Tool Execution 继续执行；Runtime bug 或未分类异常则继续抛出，让父级知道当前阶段没有可靠完成。</p>
@@ -45,21 +61,21 @@
 <h2 id="cancellation-需要子级配合收敛">Cancellation 需要子级配合收敛</h2>
 <p>TaskGroup 的失败处理依赖 cancellation。Python 中调用 <code>task.cancel()</code> 是发出取消请求，<code>CancelledError</code> 会在 coroutine 下一次获得执行机会时抛出；它不是强制立即终止。</p>
 <p>子任务需要在 <code>finally</code> 中释放资源，并在捕获 <code>CancelledError</code> 做完必要清理后继续传播：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> def</span><span style="color:#6F42C1"> write_artifact</span><span style="color:#24292E">(stream, sink):</span></span>
-<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#D73A49">        async</span><span style="color:#D73A49"> for</span><span style="color:#24292E"> chunk </span><span style="color:#D73A49">in</span><span style="color:#24292E"> stream:</span></span>
-<span class="line"><span style="color:#D73A49">            await</span><span style="color:#24292E"> sink.write(chunk)</span></span>
-<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> asyncio.CancelledError:</span></span>
-<span class="line"><span style="color:#D73A49">        await</span><span style="color:#24292E"> sink.mark_interrupted()</span></span>
-<span class="line"><span style="color:#D73A49">        raise</span></span>
-<span class="line"><span style="color:#D73A49">    finally</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#D73A49">        await</span><span style="color:#24292E"> stream.aclose()</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#D73A49;--shiki-dark:#F97583"> def</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> write_artifact</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(stream, sink):</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    try</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        async</span><span style="color:#D73A49;--shiki-dark:#F97583"> for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> chunk </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> stream:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">            await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> sink.write(chunk)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    except</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> asyncio.CancelledError:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> sink.mark_interrupted()</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        raise</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    finally</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> stream.aclose()</span></span></code></pre>
 <p>如果代码吞掉 <code>CancelledError</code>，父 TaskGroup 可能一直等不到子级按预期收敛。反过来，即使本地 Task 已经取消，也不能直接推断远端副作用已经撤销：HTTP 请求可能已经提交写入，subprocess 也可能已经修改文件。</p>
 <p>所以 Structured Concurrency 能保证本地 Task lifecycle 有 owner，却不能代替 Tool Runtime 对外部结果进行确认。</p>
 <h2 id="真正的后台-job-不能只靠裸-task">真正的后台 Job 不能只靠裸 Task</h2>
 <p>有些 Job 本来就需要在请求返回后继续，例如一个可能运行几分钟的报告生成 Job。这不意味着 fire-and-forget 的内存 Task 就变得安全。</p>
 <p>请求结束后仍需执行的工作，应该先获得 durable Job identity 和可恢复状态，再交给 Queue 或 Workflow worker。这样，新 owner 是后台 worker，而不是已经消失的 HTTP request scope。</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>请求内并发：TaskGroup 拥有并等待子 Task</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>请求内并发：TaskGroup 拥有并等待子 Task</span></span>
 <span class="line"><span>请求外 Job：Queue / Workflow 拥有 durable Job</span></span>
 <span class="line"><span>无 owner Task：生命周期没有明确归属</span></span></code></pre>
 <p>区分标准不是工作运行多久，而是谁负责在进程重启、取消和失败后继续解释它的状态。</p>
@@ -93,4 +109,52 @@
 <li><a href="https://docs.python.org/3/library/asyncio-task.html">Python <code>asyncio</code> Coroutines and Tasks</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

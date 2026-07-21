@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用 checkpoint summary、增量压缩与来源回链管理长 conversation。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="长对话需要增量压缩 | Xiaoyuan"><meta property="og:description" content="用 checkpoint summary、增量压缩与来源回链管理长 conversation。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>长对话需要增量压缩 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/incremental-conversation-compression/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">长对话需要增量压缩</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Memory/">Memory</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用 checkpoint summary、增量压缩与来源回链管理长 conversation。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="长对话需要增量压缩 | Xiaoyuan"><meta property="og:description" content="用 checkpoint summary、增量压缩与来源回链管理长 conversation。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>长对话需要增量压缩 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/incremental-conversation-compression/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">长对话需要增量压缩</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Memory/">Memory</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设用户与 Agent 通过 100 次用户交互完成一份报告：前 30 次确定范围，中间 40 次搜索资料，最后 30 次修改结论。</p>
 <p>到第 70 次用户交互时，完整 history 已经放不进 Context。最直接的处理有两种：</p>
 <ol>
@@ -18,7 +34,7 @@
 <p>这里说的 compression checkpoint 是“历史压缩到哪个位置”的水位，不是 Runtime 恢复执行所用的 Checkpoint。它不负责恢复 Tool attempt、外部副作用或进程状态。</p>
 <h2 id="一次增量压缩包含三个区间">一次增量压缩包含三个区间</h2>
 <p>可以把当前 history 分成三部分：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>checkpoint summary | stable raw prefix | recent raw window</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>checkpoint summary | stable raw prefix | recent raw window</span></span>
 <span class="line"><span>     已压缩             可以继续压缩          暂时保留原文</span></span></code></pre>
 <ul>
 <li><code>checkpoint summary</code> 覆盖更早、已经稳定的消息。</li>
@@ -32,7 +48,7 @@
 </figure>
 <h2 id="checkpoint-需要记录覆盖范围">Checkpoint 需要记录覆盖范围</h2>
 <p>一条可用的 summary 记录不只有正文：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_id: summary_3</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_id: summary_3</span></span>
 <span class="line"><span>covers: event_seq 1..checkpoint_seq</span></span>
 <span class="line"><span>dependencies:</span></span>
 <span class="line"><span>  previous_summary_backlinks: [summary_2]</span></span>
@@ -46,7 +62,7 @@
 <span class="line"><span>created_at: 2026-07-15T10:00:00Z</span></span></code></pre>
 <p>这里的 <code>event_seq</code> 是 Session Event Log 中的顺序，覆盖用户消息、模型回复、Tool Call 与 Tool Result；它与 <code>message_id=msg_evidence_42</code> 这类稳定内容 identity 不是同一种编号。<code>covers</code> 只描述 summary 代表哪段 event interval，让 Assembly 判断它与 recent window 是否重叠或存在缺口；<code>dependencies</code> 才记录影响 summary 内容的完整依赖，包括原始来源、Assembly Decision，以及生成时实际复用的 previous-summary backlink。依赖检查会递归沿 backlink 展开，所以不能用 coverage interval 代替 dependency closure。<code>policy_revision</code> 说明压缩规则，authorization 与 retention revision 则记录生成时采用的数据可见性边界。</p>
 <p>正文还应尽量保留结构，而不是把所有内容写成一段散文：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>当前目标：完成欧洲市场报告</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>当前目标：完成欧洲市场报告</span></span>
 <span class="line"><span>已确认约束：只使用公开资料；引用必须可追踪</span></span>
 <span class="line"><span>已完成：资料搜索、数据清洗</span></span>
 <span class="line"><span>仍未解决：2025 年口径是否与 2024 年一致</span></span>
@@ -63,24 +79,17 @@
 <p>来源删除或权限撤销不是普通 rebase。系统应沿完整 dependency closure 将直接或传递依赖该来源的 summary 标记为不可用，而不能只查找 coverage interval；然后再只用剩余可读、仍获授权且不依赖失效来源的记录重建。后续消息、Assembly Decision 或 Tool Result 如果复述了该来源，也属于依赖链；无法确认独立时，应保守排除关联后缀。如果仍无法安全重建，就把这段 Context 标记为 <code>needs_rebuild</code> 并排除旧 summary；不能因为摘要还在，就继续暴露已经失效的来源内容。</p>
 <p>这与数据库的增量物化视图类似：平时消费新增变化，发现依赖失效时重新构建受影响范围。它只是一个帮助理解的类比，并不要求实现成数据库视图。</p>
 <h2 id="用户更正后summary-应该怎样更新">用户更正后，summary 应该怎样更新</h2>
-<p>前一节列出了需要触发重建的情况，但“重新读取仍然可用的内容”仍然比较抽象。下面用一次用户更正说明完整过程：Context Assembly 先判断这次更正如何生效；如果它还应影响之后的对话，再据此重建 summary。</p>
-<p>假设现有的 summary 仍然包含“欧洲和北美”，用户随后明确要求“只保留欧洲”：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_3：报告覆盖欧洲与北美，covers event_seq 1..checkpoint_seq</span></span>
-<span class="line"><span>event_seq correction_seq：user.correction(message_id=msg_scope_correction)</span></span>
-<span class="line"><span>message payload：用户明确说“只保留欧洲”</span></span></code></pre>
-<p>系统先把更正作为新 event 追加到 Raw history，得到 <code>correction_seq</code>；它的 payload 引用稳定的 <code>msg_scope_correction</code>，而不是回写旧消息。系统也不能把这条更正简单追加到 summary 后面，留下两条互相冲突的范围。Context Assembly 可以先产生决定：当前 Task 采用这条更正，而且它需要继续影响后续对话。在新 summary 可用前，包含旧范围的 <code>summary_3</code> 整体不进入当前 Run 的模型输入，Assembly 也暂不渲染模型请求，而是把这次 decision 交给压缩层。</p>
-<p>随后，压缩层根据 <code>covers</code> 确定需要重建的稳定区间，再沿 <code>dependencies</code> 找到受影响来源并生成新版本：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_4：covers event_seq 1..checkpoint_seq</span></span>
+<p>假设 active summary 仍写着“欧洲和北美”，用户随后明确要求“只保留欧洲”：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_3：报告覆盖欧洲与北美，covers event_seq 1..checkpoint_seq</span></span>
+<span class="line"><span>correction_seq：用户说“只保留欧洲”（message_id=msg_scope_correction）</span></span></code></pre>
+<p>系统先把更正追加到 Raw history，不改写 <code>summary_3</code>。Context Assembly 再判断两件事：当前 Task 采用“只保留欧洲”，而且这项更正需要影响后续对话。由于旧 summary 与它冲突，Assembly 暂不渲染模型请求，而是让压缩层沿 <code>dependencies</code> 读取仍获授权的来源，重建 <code>covers</code> 对应的稳定区间：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_4：covers event_seq 1..checkpoint_seq</span></span>
 <span class="line"><span>replaces：summary_3</span></span>
 <span class="line"><span>dependencies：</span></span>
-<span class="line"><span>  previous_summary_backlinks：[summary_3]</span></span>
-<span class="line"><span>  source_spans：仍获授权的受影响原始区间</span></span>
-<span class="line"><span>  decision_refs：[event_seq correction_seq / message_id msg_scope_correction]</span></span>
-<span class="line"><span>当前目标：仅完成欧洲市场报告</span></span>
-<span class="line"><span>已排除：北美相关结论，原因是 msg_scope_correction 更正范围</span></span>
-<span class="line"><span>保留证据：与欧洲结论相关的原始 message 与 Tool Result reference</span></span></code></pre>
-<p><code>summary_4</code> 仍然只覆盖原来的稳定区间；更正作为完整依赖中的 decision provenance 参与重建，但 <code>checkpoint_seq</code> 之后的记录（包括 <code>correction_seq</code>）仍属于 recent window，所以这条最新 instruction 会继续以原文进入 Context。<code>summary_4</code> 完整生成并通过 coverage 与 dependency closure 检查后，系统才尝试切换 active checkpoint。CAS predicate 同时绑定预期的 active-summary version、raw/event watermark、authorization revision 与 retention revision；其中任何一项变化，都放弃这次切换并按新边界重新生成。Assembly 在真正渲染模型请求前还要再次验证当前 authorization/retention revision，避免切换后发生的撤权被旧 snapshot 绕过。旧 <code>summary_3</code> 不必被物理覆盖。保留版本关系后，系统能解释更正前后为什么出现不同 Context。即使 summary_4 生成失败，原始历史仍可作为重建来源；当前 Run 以 <code>state=failed, failure_reason=context_needs_rebuild</code> 结束，而不是把冲突的旧 summary 或超预算的完整 history 交给模型。</p>
-<p>如果用户只说“这次展示时先隐藏北美”，则不应把它改写成永久范围变更。Context Assembly 只生成影响当前 Run 的 decision，用它渲染 current-only Context view；这次决定不进入压缩层，也不改写 <code>summary_3</code>。只有更正需要影响后续对话时，压缩层才把 Assembly Decision 及其来源写入新 summary。</p>
+<span class="line"><span>  decision_refs：[correction_seq / msg_scope_correction]</span></span>
+<span class="line"><span>当前目标：仅完成欧洲市场报告</span></span></code></pre>
+<p><code>summary_4</code> 只重建旧的稳定区间；<code>correction_seq</code> 仍在 recent window 中以原文进入 Context。校验通过后，系统用 CAS 切换 active summary；CAS 同时检查 active version、event watermark 和 authorization/retention revision，任一项变化都放弃本次结果并重建。失败时保留 Raw history 和旧 summary 版本，当前 Run 以 <code>failure_reason=context_needs_rebuild</code> 结束，不把冲突内容交给模型。</p>
+<p>如果用户说的是“这次展示先隐藏北美”，Assembly 只为当前 Run 生成 Context view，不重建 summary。是否重建，取决于更正的适用范围，而不是句子里是否出现“隐藏”或“删除”。</p>
 <figure>
   <img src="/posts/zh/incremental-conversation-compression/correction-summary-rebuild-sequence.svg" alt="用户更正进入 Raw history 后，Context Assembly 先读取旧 checkpoint 与更正并判断适用范围；需要影响后续对话时，Compression 从仍可用来源生成 summary_4，校验后切换 active checkpoint，再由 Assembly 渲染模型请求。重建失败时不调用模型，只在当前 Run 生效时也不重建 summary。" loading="lazy">
   <figcaption>更正先由 Assembly 判断适用范围；只有需要影响后续对话时才重建并切换 summary，临时更正停留在当前 Run 的 Context view。</figcaption>
@@ -121,4 +130,52 @@
 <li><a href="https://developers.openai.com/api/docs/guides/compaction">OpenAI Responses API：Compaction</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

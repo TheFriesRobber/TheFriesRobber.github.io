@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用信息源配额、优先级与分层降级代替超预算后的尾部截断。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Budget 需要结构化降级 | Xiaoyuan"><meta property="og:description" content="用信息源配额、优先级与分层降级代替超预算后的尾部截断。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Budget 需要结构化降级 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-context-budget-degradation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Budget 需要结构化降级</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用信息源配额、优先级与分层降级代替超预算后的尾部截断。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Budget 需要结构化降级 | Xiaoyuan"><meta property="og:description" content="用信息源配额、优先级与分层降级代替超预算后的尾部截断。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Budget 需要结构化降级 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-context-budget-degradation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Budget 需要结构化降级</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设一个 Agent 正在根据项目文件修改设计文档。下一个 Model Turn 之前，Context Assembly 收集到了这些内容：</p>
 
 
@@ -47,7 +63,7 @@
 <h2 id="先算可用预算而不是把窗口全部分给输入">先算可用预算，而不是把窗口全部分给输入</h2>
 <p>模型公布的 Context window 通常同时容纳输入与输出。Runtime 如果把整个窗口都当作输入上限，模型可能在生成到一半时触顶；如果 token 估算与 provider 实际计数不同，也可能在请求发送后才收到超限错误。</p>
 <p>可以先把预算写成一个简单关系：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input budget</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input budget</span></span>
 <span class="line"><span>= context window</span></span>
 <span class="line"><span>- reserved output</span></span>
 <span class="line"><span>- protocol and estimation margin</span></span></code></pre>
@@ -56,15 +72,15 @@
 <h2 id="budget-的对象应该是有语义的候选项">Budget 的对象应该是有语义的候选项</h2>
 <p>如果 Assembly 已经把所有来源拼成一个大字符串，Budget 层只能看到 token，无法知道删掉的是安全约束还是重复日志。</p>
 <p>更合适的输入是保留来源与用途的候选项：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file_chunk_27"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "source"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "role"</span><span style="color:#24292E">: </span><span style="color:#032F62">"evidence"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1800</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "priority"</span><span style="color:#24292E">: </span><span style="color:#005CC5">70</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "degradation"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"full"</span><span style="color:#24292E">, </span><span style="color:#032F62">"excerpt"</span><span style="color:#24292E">, </span><span style="color:#032F62">"reference"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "provenance"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"file_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"design_4"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">}</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file_chunk_27"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "source"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "role"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"evidence"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1800</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "priority"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">70</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "degradation"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"full"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"excerpt"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"reference"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "provenance"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"file_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"design_4"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">8</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>这里的 <code>priority</code> 只是策略输入，不应单独决定结果。一个低相关性的安全约束仍然不能删除；一段高相关性的文件内容也可能因为无权限而根本不能成为候选。权限、来源角色和冲突应先由 Context Assembly 处理，Budget 只在合格候选中做取舍。</p>
 <p>候选项可以按降级能力分成四类：</p>
 
@@ -112,14 +128,14 @@
 <p>如果 <code>pinned</code> 内容本身已经超过输入预算，系统也不能继续静默截断。它应缩小 Tool Surface、要求用户缩小任务，或明确返回 Context 无法安全组装。<code>pinned</code> 表示不能偷偷丢，不表示它可以无限增长。</p>
 <h2 id="降级应该沿着预先定义的阶梯发生">降级应该沿着预先定义的阶梯发生</h2>
 <p>回到开场的 31,000 token。系统需要减少至少 5,000 token，可以按下面的顺序处理：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>31,000  原始候选</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>31,000  原始候选</span></span>
 <span class="line"><span> -2,000 删除重复的 Tool log 与重复文件片段</span></span>
 <span class="line"><span> -4,000 把已完成阶段的 5,000-token history</span></span>
 <span class="line"><span>        替换为 1,000-token checkpoint summary</span></span>
 <span class="line"><span>=25,000 进入模型输入</span></span></code></pre>
 <p>这次没有截断任意字符串，也没有删除用户要求。完整旧 history 仍保存在原始记录中；下一个 Model Turn 只使用带来源范围的 summary。文件正文如果之后继续增长，还可以从 <code>full</code> 降为 <code>excerpt</code>，再降为可按需读取的 <code>reference</code>。</p>
 <p>一个通用的降级阶梯可以是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>去重</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>去重</span></span>
 <span class="line"><span>→ 缩小 Tool Surface 或移除未使用 Schema</span></span>
 <span class="line"><span>→ 压缩已稳定的 history</span></span>
 <span class="line"><span>→ 将大内容替换为 excerpt 或 reference</span></span>
@@ -129,14 +145,14 @@
 <h2 id="每次降级都要留下决定">每次降级都要留下决定</h2>
 <p>当模型漏掉一个约束时，只保存最终 prompt 很难判断原因。它可能从未被检索，也可能通过权限检查后因预算不足被排除，还可能被 summary 错误压缩。</p>
 <p>Budget 层可以为候选项记录简短决定：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "candidate_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_result_18"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "decision"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summarized"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "from_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3200</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "to_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"completed_phase"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "summary_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summary_9"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "candidate_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_result_18"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "decision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"summarized"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "from_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3200</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "to_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">480</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "reason"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"completed_phase"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "summary_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"summary_9"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>这些记录让系统能分别评测三个问题：重要信息有没有成为候选、Budget 是否保留了它、模型看到后是否正确使用。只观察最终任务成功率，很难定位究竟是哪一层出了问题。</p>
 <h2 id="怎样判断降级策略是否有效">怎样判断降级策略是否有效</h2>
 <p>Token 使用量下降不代表策略变好。一个把所有输入都删掉的系统最省 token，却无法完成任务。</p>
@@ -165,4 +181,52 @@
 <li><a href="https://platform.claude.com/docs/en/build-with-claude/context-editing">Anthropic：Context editing</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Replace tail truncation with source quotas, priorities, and layered degradation when Context exceeds its budget."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Budgets Need Structured Degradation | Xiaoyuan"><meta property="og:description" content="Replace tail truncation with source quotas, priorities, and layered degradation when Context exceeds its budget."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Budgets Need Structured Degradation | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/structured-context-budget-degradation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Budgets Need Structured Degradation</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Replace tail truncation with source quotas, priorities, and layered degradation when Context exceeds its budget."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Budgets Need Structured Degradation | Xiaoyuan"><meta property="og:description" content="Replace tail truncation with source quotas, priorities, and layered degradation when Context exceeds its budget."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/structured-context-budget-degradation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Budgets Need Structured Degradation | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/structured-context-budget-degradation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Budgets Need Structured Degradation</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>Suppose an Agent is updating a design document from project files. Before the next Model Turn, Context Assembly has collected:</p>
 
 
@@ -47,7 +63,7 @@
 <h2 id="calculate-the-usable-budget-before-assigning-the-whole-window-to-input">Calculate the usable budget before assigning the whole window to input</h2>
 <p>A model’s published context window usually accommodates both input and output. If the Runtime treats the full window as its input limit, generation may hit the boundary before it finishes. If local token estimates differ from the provider’s actual count, the request may not fail until after submission.</p>
 <p>Start with a simple relationship:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input budget</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input budget</span></span>
 <span class="line"><span>= context window</span></span>
 <span class="line"><span>- reserved output</span></span>
 <span class="line"><span>- protocol and estimation margin</span></span></code></pre>
@@ -56,15 +72,15 @@
 <h2 id="budget-candidates-need-semantics">Budget candidates need semantics</h2>
 <p>Once Assembly has flattened every source into one large string, the Budget layer can see token counts but cannot tell whether it is removing a safety constraint or a duplicate log.</p>
 <p>A better input preserves each candidate’s source and purpose:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file_chunk_27"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "source"</span><span style="color:#24292E">: </span><span style="color:#032F62">"file"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "role"</span><span style="color:#24292E">: </span><span style="color:#032F62">"evidence"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1800</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "priority"</span><span style="color:#24292E">: </span><span style="color:#005CC5">70</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "degradation"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"full"</span><span style="color:#24292E">, </span><span style="color:#032F62">"excerpt"</span><span style="color:#24292E">, </span><span style="color:#032F62">"reference"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "provenance"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"file_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"design_4"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">}</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file_chunk_27"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "source"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "role"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"evidence"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1800</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "priority"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">70</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "degradation"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"full"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"excerpt"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"reference"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "provenance"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"file_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"design_4"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">8</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Here, <code>priority</code> is only one policy input; it must not determine the result by itself. A safety constraint with low task relevance still cannot be removed. Highly relevant file content may be ineligible because the current user lacks permission to read it. Context Assembly should resolve permissions, source roles, and conflicts first. Budgeting chooses only among eligible candidates.</p>
 <p>Candidates can be grouped by their degradation behavior:</p>
 
@@ -112,14 +128,14 @@
 <p>If <code>pinned</code> content alone exceeds the input budget, the system still must not truncate it silently. It should narrow the Tool Surface, ask the user to reduce the Task, or return an explicit error that Context cannot be assembled safely. <code>pinned</code> means “do not drop without saying so,” not “may grow without limit.”</p>
 <h2 id="degradation-should-follow-a-predefined-ladder">Degradation should follow a predefined ladder</h2>
 <p>Return to the 31,000-token example. The system must remove at least 5,000 tokens. It could proceed as follows:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>31,000  original candidates</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>31,000  original candidates</span></span>
 <span class="line"><span> -2,000 remove duplicate Tool logs and duplicate file excerpts</span></span>
 <span class="line"><span> -4,000 replace 5,000 tokens of history from a completed phase</span></span>
 <span class="line"><span>        with a 1,000-token checkpoint summary</span></span>
 <span class="line"><span>=25,000 sent as model input</span></span></code></pre>
 <p>This path does not truncate an arbitrary string or remove a user requirement. The complete earlier history remains in the raw record; the next Model Turn uses only the summary with its source range. If file content later grows further, it can degrade from <code>full</code> to <code>excerpt</code>, then to a <code>reference</code> that can be resolved on demand.</p>
 <p>One general degradation ladder is:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>deduplicate</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>deduplicate</span></span>
 <span class="line"><span>→ narrow the Tool Surface or remove unused Schemas</span></span>
 <span class="line"><span>→ compress stable history</span></span>
 <span class="line"><span>→ replace large content with excerpts or references</span></span>
@@ -129,14 +145,14 @@
 <h2 id="record-every-degradation-decision">Record every degradation decision</h2>
 <p>When the model misses a constraint, the final prompt alone does not explain why. The constraint may never have been retrieved, may have passed permission checks but lost its budget allocation, or may have been distorted by a summary.</p>
 <p>The Budget layer can record a compact decision for each candidate:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "candidate_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_result_18"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "decision"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summarized"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "from_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">3200</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "to_tokens"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "reason"</span><span style="color:#24292E">: </span><span style="color:#032F62">"completed_phase"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "summary_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"summary_9"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "candidate_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_result_18"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "decision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"summarized"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "from_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3200</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "to_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">480</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "reason"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"completed_phase"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "summary_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"summary_9"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>These records allow the system to evaluate three separate questions: did important information become a candidate, did the Budget policy retain it, and did the model use it correctly after seeing it? Overall Task success alone makes it difficult to locate which layer failed.</p>
 <h2 id="how-to-evaluate-a-degradation-policy">How to evaluate a degradation policy</h2>
 <p>Lower token usage does not imply a better policy. A system that deletes every input uses the fewest tokens and cannot complete the Task.</p>
@@ -165,4 +181,52 @@
 <li><a href="https://platform.claude.com/docs/en/build-with-claude/context-editing">Anthropic: Context editing</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A conflict among policy, request transformation, and tracing shows why Agent Runtime Hooks need explicit mutation, short-circuit, error, and replay semantics."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Middleware Hooks Need Ordering and Failure Contracts | Xiaoyuan"><meta property="og:description" content="A conflict among policy, request transformation, and tracing shows why Agent Runtime Hooks need explicit mutation, short-circuit, error, and replay semantics."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Middleware Hooks Need Ordering and Failure Contracts | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-middleware-hook-contracts/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Middleware Hooks Need Ordering and Failure Contracts</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Middleware/">Middleware</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A conflict among policy, request transformation, and tracing shows why Agent Runtime Hooks need explicit mutation, short-circuit, error, and replay semantics."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Middleware Hooks Need Ordering and Failure Contracts | Xiaoyuan"><meta property="og:description" content="A conflict among policy, request transformation, and tracing shows why Agent Runtime Hooks need explicit mutation, short-circuit, error, and replay semantics."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-middleware-hook-contracts/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Middleware Hooks Need Ordering and Failure Contracts | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-middleware-hook-contracts/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Middleware Hooks Need Ordering and Failure Contracts</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Middleware/">Middleware</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>An Agent Runtime registers three Hooks before calling a model:</p>
 <ul>
 <li>a capability policy removes Tools unavailable under the current permissions;</li>
@@ -6,9 +22,9 @@
 <li>tracing records structured information about the instructions and Tools the model actually received rather than capturing complete sensitive content by default.</li>
 </ul>
 <p>The initial Tool candidates are:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>read_file, write_file, delete_file</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>read_file, write_file, delete_file</span></span></code></pre>
 <p>The current user has read and write permissions, so <code>delete_file</code> must not enter the model input. If Hooks merely execute in registration order, several different outcomes are possible:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>transform → policy</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>transform → policy</span></span>
 <span class="line"><span>the provider payload already contains delete_file; changing the internal list is too late</span></span>
 <span class="line"><span></span></span>
 <span class="line"><span>trace → policy → transform</span></span>
@@ -20,11 +36,11 @@
 <p>A Hook becomes a stable Runtime extension point only when it has a composition contract—not when the Runtime exposes a large set of callback names.</p>
 <h2 id="registration-order-cannot-define-execution-semantics">Registration order cannot define execution semantics</h2>
 <p>The easiest implementation stores Hooks in an array and calls them in order:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">for</span><span style="color:#24292E"> hook </span><span style="color:#D73A49">in</span><span style="color:#24292E"> before_model_hooks:</span></span>
-<span class="line"><span style="color:#24292E">    request </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> hook(request)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> hook </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> before_model_hooks:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    request </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> hook(request)</span></span></code></pre>
 <p>This code lets “who registered first” decide policy precedence, mutation authority, and the observation boundary at the same time. Adding a plugin—or merely changing initialization order—can change the final Tool surface.</p>
 <p>A safer design defines phases first, then allows explicit priority or dependency within a phase:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>trusted context</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>trusted context</span></span>
 <span class="line"><span>  → policy decision</span></span>
 <span class="line"><span>  → request transformation</span></span>
 <span class="line"><span>  → observation scope opens on the final request</span></span>
@@ -70,31 +86,31 @@
 <table><thead><tr><th>Kind</th><th>What it may do</th><th>What it should not do</th></tr></thead><tbody><tr><td>Policy</td><td>allow, deny, require approval, or narrow capability</td><td>silently add a Tool or fabricate trusted context</td></tr><tr><td>Transformation</td><td>produce a new typed value from approved input</td><td>change identity, permissions, or the audit subject</td></tr><tr><td>Control</td><td>short-circuit, fall back, or choose an explicit branch</td><td>return an arbitrary string indistinguishable from a normal result</td></tr><tr><td>Observation</td><td>record events, metrics, and traces</td><td>rewrite a business result or secretly initiate another business action</td></tr></tbody></table>
 <p>This is not an attempt to create a callback taxonomy. It limits mutation authority. Tracing that needs only to read the final request should not receive a mutable request. A request transformer responsible only for provider shaping should not be able to replace the subject or credential injected by the Runtime.</p>
 <p>One simple approach is for transformations to return new values rather than share a mutable object:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#24292E"> asyncio</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> asyncio</span></span>
 <span class="line"></span>
 <span class="line"></span>
-<span class="line"><span style="color:#24292E">decision </span><span style="color:#D73A49">=</span><span style="color:#24292E"> policy.evaluate(context, request)</span></span>
-<span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> decision.denied:</span></span>
-<span class="line"><span style="color:#D73A49">    return</span><span style="color:#24292E"> denied_result(decision.reason)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">decision </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> policy.evaluate(context, request)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> decision.denied:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> denied_result(decision.reason)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#24292E">provider_request </span><span style="color:#D73A49">=</span><span style="color:#24292E"> transform(decision.allowed_request)</span></span>
-<span class="line"><span style="color:#D73A49">with</span><span style="color:#24292E"> trace.model_span(provider_request) </span><span style="color:#D73A49">as</span><span style="color:#24292E"> span:</span></span>
-<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">        response </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> model.generate(provider_request)</span></span>
-<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> asyncio.CancelledError:</span></span>
-<span class="line"><span style="color:#24292E">        span.record_cancelled()</span></span>
-<span class="line"><span style="color:#D73A49">        raise</span></span>
-<span class="line"><span style="color:#D73A49">    except</span><span style="color:#005CC5"> BaseException</span><span style="color:#D73A49"> as</span><span style="color:#24292E"> error:</span></span>
-<span class="line"><span style="color:#24292E">        span.record_error(error)</span></span>
-<span class="line"><span style="color:#D73A49">        raise</span></span>
-<span class="line"><span style="color:#D73A49">    else</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">        span.record_result(response)</span></span></code></pre>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">provider_request </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> transform(decision.allowed_request)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">with</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> trace.model_span(provider_request) </span><span style="color:#D73A49;--shiki-dark:#F97583">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> span:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    try</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        response </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> model.generate(provider_request)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    except</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> asyncio.CancelledError:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        span.record_cancelled()</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        raise</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    except</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> BaseException</span><span style="color:#D73A49;--shiki-dark:#F97583"> as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> error:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        span.record_error(error)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        raise</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    else</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        span.record_result(response)</span></span></code></pre>
 <p><code>model_span</code> is a conceptual interface, not the API of a particular SDK. The example assumes that <code>record_*</code> methods and scope cleanup are no-throw or write to a local buffer first: observation failures are recorded and retried separately, and must not replace a model result, original exception, or cancellation. The example expresses that observation begins after the final provider request exists, and that the same observation scope closes correctly whether the model succeeds, raises an exception, or is cancelled.</p>
 <p>Return to the opening example. Policy receives the three Tool candidates plus trusted permissions and produces an allowed request containing only <code>read_file</code> and <code>write_file</code>. The transformer can render only that set. The trace records Tool names or a stable hash from the final provider request. The transformer cannot reintroduce <code>delete_file</code> by rereading the original registry.</p>
 <h2 id="a-short-circuit-must-be-a-visible-result">A short-circuit must be a visible result</h2>
 <p>A policy that rejects a high-risk Tool, a cache hit that skips a model call, and an exhausted budget may all need to short-circuit execution.</p>
 <p>If a Hook returns only <code>None</code> to mean “do not continue,” the caller has no reliable way to distinguish denial, cache hit, and a Hook bug. A clearer contract returns a typed outcome:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>continue(transformed_request)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>continue(transformed_request)</span></span>
 <span class="line"><span>deny(reason, policy_id)</span></span>
 <span class="line"><span>require_approval(action_id)</span></span>
 <span class="line"><span>use_cached(response_id)</span></span>
@@ -104,7 +120,7 @@
 <h2 id="before-and-after-are-not-usually-symmetric-lists">Before and After are not usually symmetric lists</h2>
 <p>Some Hooks manage resources in pairs. A tracing span opens before a call and closes afterward. A temporary credential may be injected before a Tool and revoked when the Tool exits.</p>
 <p>These Hooks behave more like nested scopes:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>before A</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>before A</span></span>
 <span class="line"><span>  before B</span></span>
 <span class="line"><span>    execute</span></span>
 <span class="line"><span>  after B</span></span>
@@ -115,10 +131,10 @@
 <h2 id="a-hook-failure-must-not-rewrite-a-tool-result-that-already-happened">A Hook failure must not rewrite a Tool result that already happened</h2>
 <p>Ordering problems appear on the happy path; retries make the failure contract even more important.</p>
 <p>Suppose <code>write_file</code> successfully saves a report. An <code>afterTool</code> Hook then sends a trace event to a remote collector, but the collector times out. If middleware marks the whole chain as failed, an outer retry may execute <code>write_file</code> again:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt 1: write_file succeeds → trace delivery times out</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt 1: write_file succeeds → trace delivery times out</span></span>
 <span class="line"><span>attempt 2: write_file succeeds again</span></span></code></pre>
 <p>The second write is not a tracing retry. It repeats the business side effect. The Runtime must preserve two separate facts:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Execution: succeeded, artifact = report.md@v3</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool Execution: succeeded, artifact = report.md@v3</span></span>
 <span class="line"><span>Trace delivery: failed, pending an independent retry or degradation</span></span></code></pre>
 <p>Each Hook kind therefore needs a predefined failure policy:</p>
 <ul>
@@ -170,4 +186,52 @@
 <li><a href="https://code.claude.com/docs/en/hooks">Claude Code: Hooks reference</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

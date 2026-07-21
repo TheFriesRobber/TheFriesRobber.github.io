@@ -1,6 +1,22 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从 Plan 或 Agent Loop 产生的子问题出发，按状态所有权、持久性、取消方式和结果消费方式选择执行原语。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent 拆出子任务后，应该交给谁执行？ | Xiaoyuan"><meta property="og:description" content="从 Plan 或 Agent Loop 产生的子问题出发，按状态所有权、持久性、取消方式和结果消费方式选择执行原语。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent 拆出子任务后，应该交给谁执行？ | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-delegation-primitives/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent 拆出子任务后，应该交给谁执行？</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Workflow/">Workflow</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从 Plan 或 Agent Loop 产生的子问题出发，按状态所有权、持久性、取消方式和结果消费方式选择执行原语。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent 拆出子任务后，应该交给谁执行？ | Xiaoyuan"><meta property="og:description" content="从 Plan 或 Agent Loop 产生的子问题出发，按状态所有权、持久性、取消方式和结果消费方式选择执行原语。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent 拆出子任务后，应该交给谁执行？ | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-delegation-primitives/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent 拆出子任务后，应该交给谁执行？</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Workflow/">Workflow</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户让 Agent 比较三个技术方案。主 Agent 在 Plan 中拆出三个研究方向，或者在推理过程中临时发现它们：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subproblem A  研究方案 A</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subproblem A  研究方案 A</span></span>
 <span class="line"><span>subproblem B  研究方案 B</span></span>
 <span class="line"><span>subproblem C  研究方案 C</span></span></code></pre>
 <p>这里先固定三个概念：<strong>SubAgent</strong> 是父 Agent 在当前 Run 内动态发起并继续拥有的 Child Run；<strong>Child Job</strong> 是由持久调度系统拥有、可以由其他 worker 接管的工作单元；<strong>Workflow Fanout</strong> 则由 workflow controller 按已知依赖启动多个节点并负责汇合。具体框架可能使用不同名字，本文比较的是它们各自的状态 owner。</p>
@@ -15,7 +31,7 @@
 <li>确定性的业务流程预先声明一组分支。</li>
 </ul>
 <p>来源只能解释“为什么出现这项工作”，不能决定“谁负责让它完成”。比较执行原语前，可以先把请求压缩成几个与 owner 有关的条件：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>goal                 要交付什么</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>goal                 要交付什么</span></span>
 <span class="line"><span>needed_within_parent 父 Run 是否要在进入终态前消费结果</span></span>
 <span class="line"><span>survive_restart      是否要求跨 worker / process 恢复</span></span>
 <span class="line"><span>independent_lifecycle 是否允许父 Run 先结束，或单独取消、重试和交付</span></span>
@@ -73,7 +89,7 @@
 </figure>
 <h2 id="什么时候选择-subagent">什么时候选择 SubAgent</h2>
 <p>如果主 Agent 在推理中发现需要一个临时专家，父 Run 会在进入终态前消费结果，并且仍负责收敛 child 状态，SubAgent 通常最自然：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>父 Agent：我需要先比较数据库方案</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>父 Agent：我需要先比较数据库方案</span></span>
 <span class="line"><span>→ 启动 database-research SubAgent</span></span>
 <span class="line"><span>→ 等待结构化结论与证据</span></span>
 <span class="line"><span>→ 父 Agent 验证并继续回答</span></span></code></pre>
@@ -92,7 +108,7 @@
 <p>Child Job 不等于“放到 Queue 就完成了”。Queue 可能重复投递，外部副作用仍需幂等，父子之间也要明确取消和结果保留策略。</p>
 <h2 id="什么时候使用-durable-workflow-fanout">什么时候使用 durable Workflow Fanout</h2>
 <p>如果三个分支在运行前已经由业务流程确定，而且只有全部完成后才能进入固定汇总步骤，workflow fanout 更合适：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>prepare input</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>prepare input</span></span>
 <span class="line"><span>├─ analyze A</span></span>
 <span class="line"><span>├─ analyze B</span></span>
 <span class="line"><span>└─ analyze C</span></span>
@@ -157,7 +173,7 @@
 <h2 id="组合通常比统一更合理">组合通常比统一更合理</h2>
 <p>复杂系统不必三选一。一个 durable workflow node 可以启动 Agent Run，Agent 在某个 Model Turn 内再使用 SubAgent；SubAgent 发现长任务后，也可以通过受控 Tool 创建 Child Job。</p>
 <p>组合时要避免身份丢失：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>workflow_execution_id</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>workflow_execution_id</span></span>
 <span class="line"><span>→ job_id</span></span>
 <span class="line"><span>→ run_id</span></span>
 <span class="line"><span>→ child_run_id</span></span></code></pre>
@@ -176,4 +192,52 @@
 <li><a href="https://github.com/temporalio/api/blob/master/temporal/api/enums/v1/workflow.proto#L49-L58">Temporal API：ParentClosePolicy definition</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

@@ -1,21 +1,37 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A file write shows why a Tool needs a complete lifecycle across model selection, trusted execution, and result delivery."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="A Tool Lifecycle Is More Than a Function Call | Xiaoyuan"><meta property="og:description" content="A file write shows why a Tool needs a complete lifecycle across model selection, trusted execution, and result delivery."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>A Tool Lifecycle Is More Than a Function Call | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-tool-lifecycle/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">A Tool Lifecycle Is More Than a Function Call</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A file write shows why a Tool needs a complete lifecycle across model selection, trusted execution, and result delivery."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="A Tool Lifecycle Is More Than a Function Call | Xiaoyuan"><meta property="og:description" content="A file write shows why a Tool needs a complete lifecycle across model selection, trusted execution, and result delivery."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-tool-lifecycle/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>A Tool Lifecycle Is More Than a Function Call | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-tool-lifecycle/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">A Tool Lifecycle Is More Than a Function Call</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>An Agent Tool is often described as “a function with a JSON Schema”: the model generates arguments, the Runtime invokes the function, and the return value goes back to the model.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool definition → Model arguments → Handler → Tool Result</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool definition → Model arguments → Handler → Tool Result</span></span></code></pre>
 <p>That model works well for demonstrating function calling. Suppose the user says, “Save the report in the project directory,” and the model calls:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"write_file"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "arguments"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/project/report.md"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "content"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span></span>
-<span class="line"><span style="color:#24292E">  }</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"write_file"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "arguments"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "path"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/project/report.md"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "content"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Even if the handler has no bug, the call can fail elsewhere. The user may not be allowed to write to the directory. The model may have seen an outdated Tool definition. The file may have been written while the Runtime received only a timeout. Or the handler may return a complete file object that still does not tell the next Model Turn whether the write succeeded.</p>
 <p>The function body alone cannot solve these problems because they occur before the model sees the Tool, before the action executes, while an external side effect occurs, and after the result returns.</p>
 <p>The purpose of a Tool Lifecycle is not to invent more stages. It is to preserve identity, authority, and outcome as one logical action crosses those boundaries.</p>
 <h2 id="a-registered-tool-should-not-always-be-visible">A registered Tool should not always be visible</h2>
 <p>A registry answers “which capabilities exist in the system?” The current Tool surface answers “which capabilities may this Model Turn use?” Those sets are not the same.</p>
 <p><code>write_file</code> may be registered but absent from the model input because the user has read-only access, the project workspace is not mounted, or the current Model Turn permits analysis but not modification.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>registered tools</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>registered tools</span></span>
 <span class="line"><span>      ↓ identity, permission, environment</span></span>
 <span class="line"><span>allowed tools</span></span>
 <span class="line"><span>      ↓ eager, deferred, on-demand</span></span>
@@ -53,11 +69,11 @@
 <table><thead><tr><th>Information</th><th>Source</th><th>Example</th></tr></thead><tbody><tr><td>Model arguments</td><td>Generated from the task</td><td><code>path</code>, <code>content</code></td></tr><tr><td>Runtime context</td><td>Injected by authentication and policy layers</td><td>subject, actor, tenant, deadline</td></tr><tr><td>Backend state</td><td>Maintained by the resource owner</td><td>file version, directory permission, current lease</td></tr></tbody></table>
 <p>Only the first category belongs in model output. Putting <code>tenant_id</code> or authorization scope in a Tool Schema lets untrusted input claim its own authority.</p>
 <p>The conceptual handler interface is therefore closer to:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">type</span><span style="color:#6F42C1"> ToolHandler</span><span style="color:#24292E">&#x3C;</span><span style="color:#6F42C1">Args</span><span style="color:#24292E">, </span><span style="color:#6F42C1">Result</span><span style="color:#24292E">> </span><span style="color:#D73A49">=</span><span style="color:#24292E"> (</span></span>
-<span class="line"><span style="color:#E36209">  args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> Args</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#E36209">  context</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> TrustedToolContext</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#E36209">  signal</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> AbortSignal</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#24292E">) </span><span style="color:#D73A49">=></span><span style="color:#6F42C1"> Promise</span><span style="color:#24292E">&#x3C;</span><span style="color:#6F42C1">Result</span><span style="color:#24292E">></span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ToolHandler</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#6F42C1;--shiki-dark:#B392F0">Args</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#6F42C1;--shiki-dark:#B392F0">Result</span><span style="color:#24292E;--shiki-dark:#E1E4E8">> </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">  args</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Args</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">  context</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> TrustedToolContext</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">  signal</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> AbortSignal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">=></span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Promise</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#6F42C1;--shiki-dark:#B392F0">Result</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span></code></pre>
 <p><code>args</code> carries the model’s proposal, <code>context</code> supplies trusted identity and execution boundaries, and <code>signal</code> carries deadline or cancellation. They meet at the function boundary but must retain their different provenance.</p>
 <h2 id="schema-valid-does-not-mean-executable">Schema-valid does not mean executable</h2>
 <p>A JSON Schema can verify that <code>path</code> is a string and that <code>content</code> stays within a length limit. It cannot prove that the user may modify <code>/project/report.md</code>, or know whether the file changed after the model read it.</p>
@@ -71,21 +87,21 @@
 <h2 id="a-handler-exception-does-not-prove-that-the-action-failed">A handler exception does not prove that the action failed</h2>
 <p>Suppose the file service saves <code>report.md</code>, but the response is lost on its way back. The Runtime sees a timeout. Calling the Tool again may overwrite the file, create a new version, or trigger downstream work twice.</p>
 <p>An authorized write therefore needs a stable Tool Execution identity. Several Attempts may belong to one Tool Execution, but a retry must not silently become a new user action:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_write_7</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_write_7</span></span>
 <span class="line"><span>  ├─ attempt 1: timeout, outcome unknown</span></span>
 <span class="line"><span>  └─ attempt 2: confirms that file_version_12 exists</span></span></code></pre>
 <p>The Runtime must retain the Tool Execution identity, and the downstream service should provide idempotency or result lookup where possible. At this point the lifecycle records <code>succeeded</code>, definitely <code>failed</code>, or <code>unknown</code>; it does not translate every exception into “nothing happened.”</p>
 <h2 id="a-successful-backend-response-still-should-not-enter-context-unchanged">A successful backend response still should not enter Context unchanged</h2>
 <p>An external file API may return permission lists, internal storage fields, version history, and several megabytes of content. A successful handler call does not make all of that suitable for the next Model Turn.</p>
 <p>The Runtime should normalize the backend response into a bounded, interpretable Tool Result:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "file"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/project/report.md"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">12</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "content_included"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"succeeded"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "file"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "path"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/project/report.md"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">12</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "content_included"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>The result should say whether it is complete or truncated, where its facts came from, and where large content can be read as an Artifact. Without those boundaries, the model may treat a partial result as complete or mistake instructions embedded in external data for trusted instructions.</p>
 <h2 id="the-lifecycle-connects-one-action">The lifecycle connects one action</h2>
 <p>The <code>write_file</code> call has now crossed several owners. The Registry supplied the definition. Policy decided visibility. The model generated arguments. The Runtime injected trusted context. The backend confirmed the side effect. A result normalizer decided what the model would see.</p>
@@ -104,4 +120,52 @@
 <li>How should Tool selection, arguments, execution reliability, and result consumption be evaluated separately?</li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

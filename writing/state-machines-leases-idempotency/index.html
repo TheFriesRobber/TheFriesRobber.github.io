@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Reliable long-running tasks depend on explicit state machines, expiring ownership, fencing tokens, and idempotent side effects—not on avoiding retries."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="State Machines, Leases, and Idempotency for Long-Running Tasks | Xiaoyuan"><meta property="og:description" content="Reliable long-running tasks depend on explicit state machines, expiring ownership, fencing tokens, and idempotent side effects—not on avoiding retries."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>State Machines, Leases, and Idempotency for Long-Running Tasks | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/state-machines-leases-idempotency/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Systems Design</p> <h1 class="page-title">State Machines, Leases, and Idempotency for Long-Running Tasks</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Distributed%20Systems/">Distributed Systems</a><a class="pill" href="/tags/State%20Machine/">State Machine</a><a class="pill" href="/tags/Lease/">Lease</a><a class="pill" href="/tags/Idempotency/">Idempotency</a> </div> </header>  <h2 id="the-problem">The Problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Reliable long-running tasks depend on explicit state machines, expiring ownership, fencing tokens, and idempotent side effects—not on avoiding retries."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="State Machines, Leases, and Idempotency for Long-Running Tasks | Xiaoyuan"><meta property="og:description" content="Reliable long-running tasks depend on explicit state machines, expiring ownership, fencing tokens, and idempotent side effects—not on avoiding retries."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/state-machines-leases-idempotency/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>State Machines, Leases, and Idempotency for Long-Running Tasks | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/state-machines-leases-idempotency/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Systems Design</p> <h1 class="page-title">State Machines, Leases, and Idempotency for Long-Running Tasks</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Distributed%20Systems/">Distributed Systems</a><a class="pill" href="/tags/State%20Machine/">State Machine</a><a class="pill" href="/tags/Lease/">Lease</a><a class="pill" href="/tags/Idempotency/">Idempotency</a> </div> </header>  <h2 id="the-problem">The Problem</h2>
 <p>Consider a task that runs for half an hour: read its input, generate a result, call an external API, and finally persist the artifact location. Worker A claims the task and calls the external API, but receives no response. It then loses network connectivity and its lease expires. Worker B takes over and starts the work again. At that point, A resumes and the delayed API response arrives.</p>
 <p>The system now has to answer several questions:</p>
 <ul>
@@ -50,7 +66,7 @@
 <li><code>succeeded</code>, <code>terminal_failed</code>, and <code>cancelled</code> are terminal. A delayed callback must not move the task back to <code>running</code>.</li>
 </ul>
 <p>A current task record needs at least the following information:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_id</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_id</span></span>
 <span class="line"><span>state</span></span>
 <span class="line"><span>state_version</span></span>
 <span class="line"><span>attempt</span></span>
@@ -65,39 +81,39 @@
 <span class="line"><span>last_error_code</span></span>
 <span class="line"><span>last_error_at</span></span></code></pre>
 <p><code>state_version</code> provides optimistic concurrency control. A worker transition must be an atomic conditional write, not a read followed by an unconditional overwrite:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
-<span class="line"><span style="color:#D73A49">SET</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> :next_state,</span></span>
-<span class="line"><span style="color:#24292E">    state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> :expected_state</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :expected_version</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token;</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tasks</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#D73A49;--shiki-dark:#F97583"> state</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :next_state,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    state_version </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> state_version </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> task_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#D73A49;--shiki-dark:#F97583"> state</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :expected_state</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> state_version </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :expected_version</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> fencing_token </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :fencing_token;</span></span></code></pre>
 <p>If this statement updates zero rows, the state, version, or owner has changed. The worker must reload the durable facts instead of continuing under the assumption that it still controls the task.</p>
 <p>User cancellation is a control-plane write. It should also check the current state and <code>state_version</code>, but it should not impersonate a worker by reusing the worker’s fencing token. The two write paths can use different permissions while the state machine resolves their ordering. If cancellation commits first, a completion based on the worker’s old version must fail. If success commits first, a delayed cancellation must not replace the terminal state with <code>cancel_requested</code>.</p>
 <p>A snapshot answers “what state is the task in now?” but cannot explain how it got there. A practical design normally appends transition events containing <code>from_state</code>, <code>to_state</code>, reason, actor, attempt, fencing token, and timestamp. The snapshot serves online reads; the event log serves audit, debugging, and recovery analysis. History should not be encoded in an ever-growing state string.</p>
 <h2 id="a-lease-represents-temporary-ownership">A Lease Represents Temporary Ownership</h2>
 <p>Long-running work should not hold a database transaction or row lock for its entire execution. A worker can claim a task in a short transaction, receive an expiring lease, and renew it periodically while it runs.</p>
 <p>The following is a conceptual claim operation; exact syntax depends on the database:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
-<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> lease_owner </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :worker_id,</span></span>
-<span class="line"><span style="color:#24292E">    lease_expires_at </span><span style="color:#D73A49">=</span><span style="color:#24292E"> CURRENT_TIMESTAMP </span><span style="color:#D73A49">+</span><span style="color:#24292E"> :lease_duration,</span></span>
-<span class="line"><span style="color:#24292E">    fencing_token </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> COALESCE</span><span style="color:#24292E">(fencing_token, </span><span style="color:#005CC5">0</span><span style="color:#24292E">) </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#D73A49">    state</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> 'running'</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#24292E">    state_version </span><span style="color:#D73A49">=</span><span style="color:#24292E"> state_version </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#24292E">    attempt </span><span style="color:#D73A49">=</span><span style="color:#24292E"> attempt </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#D73A49"> state</span><span style="color:#D73A49"> IN</span><span style="color:#24292E"> (</span><span style="color:#032F62">'pending'</span><span style="color:#24292E">, </span><span style="color:#032F62">'running'</span><span style="color:#24292E">, </span><span style="color:#032F62">'retryable_failed'</span><span style="color:#24292E">)</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (next_attempt_at </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span><span style="color:#D73A49"> OR</span><span style="color:#24292E"> next_attempt_at </span><span style="color:#D73A49">&#x3C;=</span><span style="color:#24292E"> CURRENT_TIMESTAMP)</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (lease_expires_at </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span><span style="color:#D73A49"> OR</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">&#x3C;=</span><span style="color:#24292E"> CURRENT_TIMESTAMP)</span></span>
-<span class="line"><span style="color:#24292E">RETURNING fencing_token, state_version, lease_expires_at;</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tasks</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> lease_owner </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :worker_id,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    lease_expires_at </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> CURRENT_TIMESTAMP </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :lease_duration,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    fencing_token </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> COALESCE</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(fencing_token, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    state</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'running'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    state_version </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> state_version </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    attempt </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> attempt </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> task_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#D73A49;--shiki-dark:#F97583"> state</span><span style="color:#D73A49;--shiki-dark:#F97583"> IN</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'pending'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'running'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'retryable_failed'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (next_attempt_at </span><span style="color:#D73A49;--shiki-dark:#F97583">IS</span><span style="color:#D73A49;--shiki-dark:#F97583"> NULL</span><span style="color:#D73A49;--shiki-dark:#F97583"> OR</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> next_attempt_at </span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> CURRENT_TIMESTAMP)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (lease_expires_at </span><span style="color:#D73A49;--shiki-dark:#F97583">IS</span><span style="color:#D73A49;--shiki-dark:#F97583"> NULL</span><span style="color:#D73A49;--shiki-dark:#F97583"> OR</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> lease_expires_at </span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> CURRENT_TIMESTAMP)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">RETURNING fencing_token, state_version, lease_expires_at;</span></span></code></pre>
 <p>Claiming the task and incrementing the fencing token must be one atomic operation. Expiration should preferably be decided using the clock of the system that stores the lease, rather than each worker’s local clock. Otherwise, clock skew becomes part of the ownership decision.</p>
 <p>Renewal must also match the current owner and token:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> tasks</span></span>
-<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">=</span><span style="color:#24292E"> CURRENT_TIMESTAMP </span><span style="color:#D73A49">+</span><span style="color:#24292E"> :lease_duration</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> lease_owner </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :worker_id</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> lease_expires_at </span><span style="color:#D73A49">></span><span style="color:#24292E"> CURRENT_TIMESTAMP;</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tasks</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> lease_expires_at </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> CURRENT_TIMESTAMP </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :lease_duration</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> task_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> lease_owner </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :worker_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> fencing_token </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :fencing_token</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> lease_expires_at </span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#24292E;--shiki-dark:#E1E4E8"> CURRENT_TIMESTAMP;</span></span></code></pre>
 <p>After a renewal updates zero rows, the worker should stop starting new work. That is still not a correctness guarantee: the process may pause before renewal, resume after another worker has taken over, and have no opportunity to observe the failed renewal first.</p>
 <p>Lease duration trades off two costs. A lease that is too short causes unnecessary takeovers during transient delays; one that is too long delays recovery after a real failure. The heartbeat interval should be comfortably shorter than the lease and leave room for storage latency and short pauses. This choice affects availability, but it does not replace fencing.</p>
 <h2 id="lease-expiration-does-not-stop-the-old-worker">Lease Expiration Does Not Stop the Old Worker</h2>
@@ -107,25 +123,25 @@
   <figcaption>The lease enables takeover; the resource uses a fencing token to reject writes from an old owner.</figcaption>
 </figure>
 <p>A fencing token is a strictly increasing number issued on every successful acquisition. The protected resource stores the greatest token it has accepted and rejects smaller values:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#24292E"> task_outputs</span></span>
-<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> payload </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :payload,</span></span>
-<span class="line"><span style="color:#24292E">    last_fencing_token </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :fencing_token</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> task_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :task_id</span></span>
-<span class="line"><span style="color:#D73A49">  AND</span><span style="color:#24292E"> (last_fencing_token </span><span style="color:#D73A49">IS</span><span style="color:#D73A49"> NULL</span></span>
-<span class="line"><span style="color:#D73A49">       OR</span><span style="color:#24292E"> last_fencing_token </span><span style="color:#D73A49">&#x3C;</span><span style="color:#24292E"> :fencing_token);</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">UPDATE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> task_outputs</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> payload </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :payload,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    last_fencing_token </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :fencing_token</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> task_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :task_id</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  AND</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (last_fencing_token </span><span style="color:#D73A49;--shiki-dark:#F97583">IS</span><span style="color:#D73A49;--shiki-dark:#F97583"> NULL</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">       OR</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> last_fencing_token </span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :fencing_token);</span></span></code></pre>
 <p>A random UUID can distinguish owners, but it does not order them and therefore cannot serve as a fencing token by itself. Another common mistake is checking the owner only when releasing the lease. That prevents A from deleting B’s lease, but it does not stop A from modifying the actual business resource after it resumes.</p>
 <p>The final resource that receives the write must enforce fencing. If an external API does not understand the token, fencing does not protect that side effect. The design then has to depend on the API’s idempotency contract, a stable business identifier, and reconciliation.</p>
 <h2 id="an-idempotency-key-must-represent-a-business-intent">An Idempotency Key Must Represent a Business Intent</h2>
 <p>Retries are unavoidable. The goal is not to make code “run only once,” but to ensure that every attempt and every worker uses the same idempotency key for the same logical action.</p>
 <p>For example, “publish revision 3 of the report for this task” could use:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key = hash(task_id, "publish-report", input_revision=3)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key = hash(task_id, "publish-report", input_revision=3)</span></span></code></pre>
 <p>The following keys are usually wrong:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request_uuid()       # different on every retry</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request_uuid()       # different on every retry</span></span>
 <span class="line"><span>worker_id            # changes after takeover</span></span>
 <span class="line"><span>attempt_number       # deliberately turns each retry into a new action</span></span>
 <span class="line"><span>current_timestamp    # cannot identify two calls as the same intent</span></span></code></pre>
 <p>The system can maintain an effect ledger:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key        unique</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>effect_key        unique</span></span>
 <span class="line"><span>task_id</span></span>
 <span class="line"><span>step_name</span></span>
 <span class="line"><span>input_revision</span></span>
@@ -157,47 +173,47 @@
 <p>A transactional outbox solves the dual write between committing local database state and publishing a message: update business data and insert an outbox row in one transaction, then let a relay deliver the message. The relay or broker can still deliver duplicates, so the consumer remains responsible for idempotency. An outbox also cannot make an arbitrary external API atomic with the local database.</p>
 <h2 id="how-one-execution-converges">How One Execution Converges</h2>
 <p>Putting these mechanisms together, a worker execution looks roughly like this:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">def</span><span style="color:#6F42C1"> run</span><span style="color:#24292E">(task_id, worker_id):</span></span>
-<span class="line"><span style="color:#24292E">    lease </span><span style="color:#D73A49">=</span><span style="color:#24292E"> claim_task(task_id, worker_id)</span></span>
-<span class="line"><span style="color:#D73A49">    if</span><span style="color:#24292E"> lease </span><span style="color:#D73A49">is</span><span style="color:#005CC5"> None</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#D73A49">        return</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">def</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> run</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(task_id, worker_id):</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    lease </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> claim_task(task_id, worker_id)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> lease </span><span style="color:#D73A49;--shiki-dark:#F97583">is</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> None</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        return</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#6A737D">    # A separate heartbeat renews only a lease matching owner + fencing_token.</span></span>
-<span class="line"><span style="color:#24292E">    heartbeat.start(task_id, worker_id, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    # A separate heartbeat renews only a lease matching owner + fencing_token.</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    heartbeat.start(task_id, worker_id, lease.fencing_token)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">    try</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">        task </span><span style="color:#D73A49">=</span><span style="color:#24292E"> load_task(task_id)</span></span>
-<span class="line"><span style="color:#D73A49">        if</span><span style="color:#24292E"> task.state </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "cancel_requested"</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">            reconcile_then_cancel(task, lease)</span></span>
-<span class="line"><span style="color:#D73A49">            return</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    try</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        task </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> load_task(task_id)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> task.state </span><span style="color:#D73A49;--shiki-dark:#F97583">==</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "cancel_requested"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            reconcile_then_cancel(task, lease)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">            return</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#24292E">        key </span><span style="color:#D73A49">=</span><span style="color:#24292E"> stable_effect_key(</span></span>
-<span class="line"><span style="color:#E36209">            task_id</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.id,</span></span>
-<span class="line"><span style="color:#E36209">            step</span><span style="color:#D73A49">=</span><span style="color:#032F62">"publish-report"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#E36209">            input_revision</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.input_revision,</span></span>
-<span class="line"><span style="color:#24292E">        )</span></span>
-<span class="line"><span style="color:#24292E">        effect </span><span style="color:#D73A49">=</span><span style="color:#24292E"> get_or_create_effect(key, payload_hash(task.input))</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        key </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> stable_effect_key(</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            task_id</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">task.id,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            step</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"publish-report"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            input_revision</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">task.input_revision,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        )</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        effect </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> get_or_create_effect(key, payload_hash(task.input))</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">        if</span><span style="color:#24292E"> effect.status </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "succeeded"</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">            complete_task(task, effect.result, lease.fencing_token)</span></span>
-<span class="line"><span style="color:#D73A49">            return</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> effect.status </span><span style="color:#D73A49;--shiki-dark:#F97583">==</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "succeeded"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            complete_task(task, effect.result, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">            return</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#24292E">        result </span><span style="color:#D73A49">=</span><span style="color:#24292E"> provider.publish_report(</span></span>
-<span class="line"><span style="color:#24292E">            task.input,</span></span>
-<span class="line"><span style="color:#E36209">            idempotency_key</span><span style="color:#D73A49">=</span><span style="color:#24292E">key,</span></span>
-<span class="line"><span style="color:#24292E">        )</span></span>
-<span class="line"><span style="color:#24292E">        record_effect_and_complete_task(</span></span>
-<span class="line"><span style="color:#E36209">            task</span><span style="color:#D73A49">=</span><span style="color:#24292E">task,</span></span>
-<span class="line"><span style="color:#E36209">            effect_key</span><span style="color:#D73A49">=</span><span style="color:#24292E">key,</span></span>
-<span class="line"><span style="color:#E36209">            result</span><span style="color:#D73A49">=</span><span style="color:#24292E">result,</span></span>
-<span class="line"><span style="color:#E36209">            expected_state_version</span><span style="color:#D73A49">=</span><span style="color:#24292E">task.state_version,</span></span>
-<span class="line"><span style="color:#E36209">            fencing_token</span><span style="color:#D73A49">=</span><span style="color:#24292E">lease.fencing_token,</span></span>
-<span class="line"><span style="color:#24292E">        )</span></span>
-<span class="line"><span style="color:#D73A49">    except</span><span style="color:#24292E"> NetworkTimeout:</span></span>
-<span class="line"><span style="color:#24292E">        mark_effect_unknown_if_owner(task_id, key, lease.fencing_token)</span></span>
-<span class="line"><span style="color:#24292E">        move_to_waiting_external_if_owner(task_id, lease.fencing_token)</span></span>
-<span class="line"><span style="color:#D73A49">    finally</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">        heartbeat.stop()</span></span></code></pre>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        result </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> provider.publish_report(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            task.input,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            idempotency_key</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">key,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        )</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        record_effect_and_complete_task(</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            task</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">task,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            effect_key</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">key,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            result</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">result,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            expected_state_version</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">task.state_version,</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">            fencing_token</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">lease.fencing_token,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        )</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    except</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> NetworkTimeout:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        mark_effect_unknown_if_owner(task_id, key, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        move_to_waiting_external_if_owner(task_id, lease.fencing_token)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    finally</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        heartbeat.stop()</span></span></code></pre>
 <p>The example omits database-specific transactions and error classification, but preserves the important boundaries: the effect intent exists before the remote call; retries reuse a stable key; completion is guarded by the state version and fencing token; and a timeout enters unknown-outcome handling instead of becoming a confirmed failure.</p>
 <p>If <code>record_effect_and_complete_task</code> writes the effect and task to the same database, it should commit them in one short transaction where possible. If they do not share a transaction boundary, the design must identify the source of truth and define how the other view converges through reconciliation.</p>
 <h2 id="recovering-from-common-failures">Recovering from Common Failures</h2>
@@ -290,4 +306,52 @@
 <li><a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">Making retries safe with idempotent APIs</a></li>
 <li><a href="https://docs.stripe.com/api/idempotent_requests">Stripe API: Idempotent requests</a></li>
 <li><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html">Transactional outbox pattern</a></li>
-</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

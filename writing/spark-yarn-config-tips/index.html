@@ -1,24 +1,40 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A practical example of Spark resource-request settings on YARN, followed by considerations for data representation in Spark."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Notes on Spark Resource Requests and Data Representation on YARN | Xiaoyuan"><meta property="og:description" content="A practical example of Spark resource-request settings on YARN, followed by considerations for data representation in Spark."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Notes on Spark Resource Requests and Data Representation on YARN | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-yarn-config-tips/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark / Yarn</p> <h1 class="page-title">Notes on Spark Resource Requests and Data Representation on YARN</h1> <div class="meta"> <time datetime="2020-04-15T08:56:31.000Z">04/15/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a> </div> </header>  <h2 id="the-questions">The questions</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A practical example of Spark resource-request settings on YARN, followed by considerations for data representation in Spark."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Notes on Spark Resource Requests and Data Representation on YARN | Xiaoyuan"><meta property="og:description" content="A practical example of Spark resource-request settings on YARN, followed by considerations for data representation in Spark."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Notes on Spark Resource Requests and Data Representation on YARN | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/spark-yarn-config-tips/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark / Yarn</p> <h1 class="page-title">Notes on Spark Resource Requests and Data Representation on YARN</h1> <div class="meta"> <time datetime="2020-04-15T08:56:31.000Z">04/15/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Spark/">Spark</a><a class="pill" href="/tags/Bigdata/">Bigdata</a> </div> </header>  <h2 id="the-questions">The questions</h2>
 <p>How should a Spark application request resources from a YARN cluster with six nodes, each providing 16 cores and 64 GB of memory, in order to use the cluster efficiently? How many partitions should it use, and how should records in an RDD be represented?</p>
 <h2 id="requesting-cluster-resources-from-yarn">Requesting cluster resources from YARN</h2>
 <p>This discussion considers only CPU and memory. Disk and network performance also matter greatly to Spark, but neither Spark nor YARN directly manages them as allocatable resources in the same way.</p>
 <p>A Spark application requests cluster resources by setting the number of executors and the cores and memory assigned to each executor.</p>
 <h3 id="number-of-executors">Number of executors</h3>
 <p>This setting determines how many executors a Spark application uses. Dynamic allocation can acquire and release executors at runtime through settings such as <code>spark.dynamicAllocation.enabled</code>.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
 <span class="line"><span>--num-executors</span></span>
 <span class="line"><span>// spark-defaults.conf or a SparkConf object</span></span>
 <span class="line"><span>spark.executor.instances</span></span></code></pre>
 <h3 id="cpu">CPU</h3>
 <p>The number of executor cores controls how many tasks one executor can run concurrently.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
 <span class="line"><span>--executor-cores</span></span>
 <span class="line"><span>// spark-defaults.conf or a SparkConf object</span></span>
 <span class="line"><span>spark.executor.cores</span></span></code></pre>
 <p>For example, <code>--executor-cores 5</code> allows each executor to run five tasks at the same time.</p>
 <h3 id="memory">Memory</h3>
 <p>Executor memory controls the heap-size limit of each executor. Too much can waste resources and increase garbage-collection pauses; too little restricts the amount of data processed in memory and pushes more work to external storage.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>// spark-submit</span></span>
 <span class="line"><span>--executor-memory</span></span>
 <span class="line"><span>// spark-defaults.conf or a SparkConf object</span></span>
 <span class="line"><span>spark.executor.memory</span></span></code></pre>
@@ -72,4 +88,52 @@
 <p>The <code>spark.serializer</code> setting selects the serializer. Kryo—<code>org.apache.spark.serializer.KryoSerializer</code>—is generally a good choice when the application can register and handle its types correctly.</p>
 <p>Data formats such as Avro, Parquet, Thrift, and Protobuf can also reduce data size. Their format-specific features, such as columnar storage in Parquet, may accelerate processing as well.</p>
 <h2 id="back-to-the-questions">Back to the questions</h2>
-<p>Choosing appropriate CPU and memory requests is an important part of Spark application performance. At the same time, records move across the network and disk between stages, so serializer and data-format choices also deserve deliberate attention.</p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p>Choosing appropriate CPU and memory requests is an important part of Spark application performance. At the same time, records move across the network and disk between stages, so serializer and data-format choices also deserve deliberate attention.</p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

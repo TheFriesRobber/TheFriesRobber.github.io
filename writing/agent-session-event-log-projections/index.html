@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="An ordered Session Event Log unifies execution facts while messages, Run state, and realtime events become rebuildable projections."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="The Session Event Log Is the Source of Truth; Messages and State Are Projections | Xiaoyuan"><meta property="og:description" content="An ordered Session Event Log unifies execution facts while messages, Run state, and realtime events become rebuildable projections."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>The Session Event Log Is the Source of Truth; Messages and State Are Projections | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-session-event-log-projections/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">The Session Event Log Is the Source of Truth; Messages and State Are Projections</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Event%20Log/">Event Log</a><a class="pill" href="/tags/Data%20Modeling/">Data Modeling</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="An ordered Session Event Log unifies execution facts while messages, Run state, and realtime events become rebuildable projections."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="The Session Event Log Is the Source of Truth; Messages and State Are Projections | Xiaoyuan"><meta property="og:description" content="An ordered Session Event Log unifies execution facts while messages, Run state, and realtime events become rebuildable projections."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>The Session Event Log Is the Source of Truth; Messages and State Are Projections | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-session-event-log-projections/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">The Session Event Log Is the Source of Truth; Messages and State Are Projections</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Event%20Log/">Event Log</a><a class="pill" href="/tags/Data%20Modeling/">Data Modeling</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>Suppose an Agent has generated its final reply: “The report is complete.” Finishing the execution must reflect that result in three places:</p>
 <ol>
 <li>Mark this Agent Loop as <code>succeeded</code> in the Run table.</li>
@@ -6,21 +22,21 @@
 <li>Send a realtime <code>run.completed</code> notification to the browser that is currently open.</li>
 </ol>
 <p>These write paths are independent and are not guaranteed to finish in list order. Now suppose this timeline occurs:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  Run state is updated to succeeded</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  Run state is updated to succeeded</span></span>
 <span class="line"><span>T2  the realtime channel sends run.completed</span></span>
 <span class="line"><span>T3  the database write for the final assistant message fails</span></span></code></pre>
 <p>The system is left with:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>backend Run state   succeeded</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>backend Run state   succeeded</span></span>
 <span class="line"><span>message list        missing “The report is complete”</span></span>
 <span class="line"><span>current browser     received run.completed once</span></span></code></pre>
 <p>The user may briefly see “complete” on the current page, but after a refresh the realtime notification is gone and the message list still lacks the final reply. The backend sees a successful Run and will not automatically execute it again. The system cannot answer a basic question: was the final reply saved reliably?</p>
 <p>Retrying the message write once does not solve the underlying problem. The same execution result was written independently into Run state, the message list, and the realtime channel. After any write fails, no unified record exists from which the other copies can be repaired.</p>
 <h2 id="more-tables-do-not-create-consistency">More tables do not create consistency</h2>
 <p>A common implementation performs several writes when the Runtime finishes. The order below matches the opening timeline, but the actual problem is that the writes do not share one atomic boundary:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#24292E">update_run_state(</span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">)</span></span>
-<span class="line"><span style="color:#24292E">publish_realtime_event(</span><span style="color:#032F62">"run.completed"</span><span style="color:#24292E">)</span></span>
-<span class="line"><span style="color:#24292E">insert_assistant_message(final_text)</span></span>
-<span class="line"><span style="color:#24292E">increment_success_metric()</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">update_run_state(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"succeeded"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">publish_realtime_event(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run.completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">insert_assistant_message(final_text)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">increment_success_metric()</span></span></code></pre>
 <p>If these operations are not atomic together, the process may exit between any two of them. Even when Run state and the message list share a database and can use one transaction, Redis, WebSocket, and a metric sink usually do not participate in that transaction.</p>
 <p>More importantly, they serve different read requirements:</p>
 <ul>
@@ -38,31 +54,31 @@
   <figcaption>The Event Log records what happened; each projection interprets the same facts for a particular read requirement.</figcaption>
 </figure>
 <p>A minimal event might contain:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "session_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"session_17"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "seq"</span><span style="color:#24292E">: </span><span style="color:#005CC5">42</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "event_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"event_9a2"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant.message.completed"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "model_turn_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_turn_6"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "payload"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "message_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"message_31"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "content_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"content_31"</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "occurred_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T08:30:00Z"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">2</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "session_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"session_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "seq"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">42</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "event_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"event_9a2"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"assistant.message.completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "model_turn_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_turn_6"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "payload"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "message_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"message_31"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "content_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"content_31"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "occurred_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-17T08:30:00Z"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "schema_version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p><code>seq</code> records the committed order within this Session. <code>event_id</code> identifies an event. They are not interchangeable: a global UUID can support deduplication but cannot tell a projector what to read next; a sequence establishes a read position but still needs an explicit scope.</p>
 <p>The first lifecycle fact for a Run should also connect its execution contract, for example <code>run.created(run_8, runspec_ref, fingerprint)</code>. The Event Log records which contract started the Run. The RunSpec remains an immutable contract that can be read independently, while the Run snapshot is current state derived from subsequent facts.</p>
 <p>The <code>content_ref</code> in the example must also point to content that has already been persisted. If content and event share a database, they should commit in the same transaction. Across storage boundaries, write immutable content first, then append an event that references it, and retain reconciliation for cleanup after failure. An Event Log cannot become authoritative by referencing an object that has not committed.</p>
 <h2 id="repairing-the-opening-failure">Repairing the opening failure</h2>
 <p>Return to the missing final reply. Instead of letting Run state, the message list, and the realtime channel each record the result, the Runtime first appends two events:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>seq 41  assistant.message.completed(message_31)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>seq 41  assistant.message.completed(message_31)</span></span>
 <span class="line"><span>seq 42  run.completed(run_8)</span></span></code></pre>
 <p>First consider the case where both events committed and only a projection is behind. If the Runtime exits between the two appends, it should resume finalization from the last committed event instead of invoking the model again. The two events may also be submitted as one atomic batch.</p>
 <p>One more term matters here: a <strong>Cursor</strong> is the read position of one Projector. A cursor of 40 means it has finished processing <code>seq 40</code> and should read <code>seq 41</code> next.</p>
 <p>Suppose the system looks like this after the failure:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Event Log              committed through seq 42</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Event Log              committed through seq 42</span></span>
 <span class="line"><span>Run-state projector    processed through seq 42</span></span>
 <span class="line"><span>Message projector      processed only through seq 40</span></span></code></pre>
 <p>The Agent execution itself has completed; only the message list is two events behind. Recovery does not invoke the model again or move the Run back to <code>running</code>. The Message projector resumes after cursor 40:</p>
@@ -71,7 +87,7 @@
 <li>It reads <code>seq 42</code>, determines that the event affects only Run state, leaves the message list unchanged, and advances its cursor to 42.</li>
 </ol>
 <p>The first step should ideally use one database transaction:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>begin transaction</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>begin transaction</span></span>
 <span class="line"><span>→ write message_31 with message_id as a unique key</span></span>
 <span class="line"><span>→ update the Message projector cursor to 41</span></span>
 <span class="line"><span>→ commit transaction</span></span></code></pre>
@@ -89,13 +105,13 @@
 <h2 id="the-append-boundary-must-be-more-trustworthy-than-a-projector">The append boundary must be more trustworthy than a projector</h2>
 <p>“The Event Log is the source of truth” is valid only when append itself is reliable. Concurrent writers for one Session must obtain an explicit order. They cannot each compute <code>seq + 1</code> in memory and then write independently.</p>
 <p>One conceptual database operation is:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#D73A49"> sessions</span></span>
-<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> next_seq </span><span style="color:#D73A49">=</span><span style="color:#24292E"> next_seq </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> session_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :session_id</span></span>
-<span class="line"><span style="color:#24292E">RETURNING next_seq;</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">UPDATE</span><span style="color:#D73A49;--shiki-dark:#F97583"> sessions</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> next_seq </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> next_seq </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> session_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :session_id</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">RETURNING next_seq;</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">INSERT INTO</span><span style="color:#24292E"> session_events(session_id, seq, event_id, </span><span style="color:#D73A49">type</span><span style="color:#24292E">, payload)</span></span>
-<span class="line"><span style="color:#D73A49">VALUES</span><span style="color:#24292E"> (:session_id, :seq, :event_id, :</span><span style="color:#D73A49">type</span><span style="color:#24292E">, :payload);</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">INSERT INTO</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> session_events(session_id, seq, event_id, </span><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, payload)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">VALUES</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (:session_id, :seq, :event_id, :</span><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, :payload);</span></span></code></pre>
 <p>Sequence allocation and event insertion must share one atomic boundary, with unique constraints on <code>(session_id, seq)</code> and <code>event_id</code>. An implementation may instead use a log system that supports ordered append. The important point is that the fact store decides the order; a short-lived worker does not guess it.</p>
 <p>An established order does not by itself make every event a valid fact. A Run lifecycle event must be submitted by its authoritative transition owner. In the same atomic boundary, the owner checks the expected state and version, the writer’s fencing token, the legal transition, and invariants such as “a Run converges to only one terminal state” before it allocates <code>seq</code> and appends. Otherwise, competing cancellation and completion writers could append both <code>run.cancelled</code> and <code>run.completed</code>, leaving contradictory outcomes in the source of truth.</p>
 <p>Requests must also remain distinct from facts that have taken effect. A user cancellation can first append <code>run.cancel.requested</code>; only after the current owner resolves the race may it append <code>run.cancelled</code> or <code>run.completed</code>. A Projector may prevent an older event from overwriting a newer read view, but it cannot decide after the fact whether an authoritative event was legal.</p>
@@ -151,4 +167,52 @@
 <li>How should event schema evolution, projection rebuilds, snapshots, and log retention interact?</li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

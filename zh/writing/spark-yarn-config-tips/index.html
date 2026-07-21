@@ -1,23 +1,39 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="本文以一个简单的例子来聊聊Apache Spark在YARN上资源申请上相关的configures，以及在Spark中处理数据的结构。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Apache Spark on YARN 资源配置笔记 | Xiaoyuan"><meta property="og:description" content="本文以一个简单的例子来聊聊Apache Spark在YARN上资源申请上相关的configures，以及在Spark中处理数据的结构。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Apache Spark on YARN 资源配置笔记 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-yarn-config-tips/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark / Yarn</p> <h1 class="page-title">Apache Spark on YARN 资源配置笔记</h1> <div class="meta"> <time datetime="2020-04-15T08:56:31.000Z">2020/04/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="本文以一个简单的例子来聊聊Apache Spark在YARN上资源申请上相关的configures，以及在Spark中处理数据的结构。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Apache Spark on YARN 资源配置笔记 | Xiaoyuan"><meta property="og:description" content="本文以一个简单的例子来聊聊Apache Spark在YARN上资源申请上相关的configures，以及在Spark中处理数据的结构。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-yarn-config-tips/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-yarn-config-tips/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Apache Spark on YARN 资源配置笔记 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-yarn-config-tips/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark / Yarn</p> <h1 class="page-title">Apache Spark on YARN 资源配置笔记</h1> <div class="meta"> <time datetime="2020-04-15T08:56:31.000Z">2020/04/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>如何向一个拥有6个node，每个node有16个core和64GB内存大小的YARN Cluster申请资源，以最大化利用集群资源？并行度（partitions）设置多少合适？RDD中的数据用什么格式合适？</p>
 <h2 id="yarn集群资源申请">YARN集群资源申请</h2>
 <p>这里我们只考虑CPU和Memory（Disk和Network对Spark的性能影响也很大，不过Spark和YARN都没有提供主动管理他们的方式）。Apache Spark可以通过设置executor的数量，以及每个executor中的core和memory相关的config来申请集群资源。</p>
 <h3 id="executor数量">Executor数量</h3>
 <p>指定一个Spark Application中executor的数量。支持动态的申请和释放executor，通过设置dynamic allocation相关参数，如<code>spark.dynamicAllocation.enabled</code>.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span> // spark-submit</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span> // spark-submit</span></span>
 <span class="line"><span> --num-executors</span></span>
 <span class="line"><span> // spark-defaults.conf or SparkConf object</span></span>
 <span class="line"><span> spark.executor.instances</span></span></code></pre>
 <h3 id="cpu">CPU</h3>
 <p>通过指定executor cores可以指定一个executor中task执行的并行度。</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>// spark-submit</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>// spark-submit</span></span>
 <span class="line"><span>--executor-cores</span></span>
 <span class="line"><span>// spark-defaults.conf or SparkConf object</span></span>
 <span class="line"><span>spark.executor.cores</span></span></code></pre>
 <p><code>--executor-cores = 5</code> 意味着每个executor可以同时跑5个task。</p>
 <h2 id="memory">Memory</h2>
 <p>同样通过指定executor memory可以指定一个executor中内存的大小限制。 内存太大会造成资源浪费，太小会导致内存中可处理的数据集小，要频繁的使用外存，影响performance。</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>// spark-submit</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>// spark-submit</span></span>
 <span class="line"><span>--executor-memory</span></span>
 <span class="line"><span>// spark-defaults.conf or SparkConf object</span></span>
 <span class="line"><span>spark.executor.memory</span></span></code></pre>
@@ -70,4 +86,52 @@
 <code>spark.serializer</code>可以指定serializer（推荐使用kryo，org.apache.spark.serializer.KryoSerializer）</p>
 <p>另外，我们还需要考虑使用一些数据格式（Avro, Parquet, Thrift, or Protobuf），第一可以减少data的size，第二可以利用格式的特性来加速数据处理，如columnar storage。这里就不做展开了。</p>
 <h2 id="回到问题">回到问题</h2>
-<p>所以在提交spark application时，如何请求合适的resource（core，memory）对提高performance十分重要。同时，考虑到data会通过网络，disk在各个stage中流动，选择合适的serializer和数据格式也需要我们注意。</p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p>所以在提交spark application时，如何请求合适的resource（core，memory）对提高performance十分重要。同时，考虑到data会通过网络，disk在各个stage中流动，选择合适的serializer和数据格式也需要我们注意。</p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

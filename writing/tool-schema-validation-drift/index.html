@@ -1,25 +1,41 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Why the same Tool Schema may accept different arguments after provider adapters and executors, and how contract tests keep its semantics stable."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Tool Validation Drifts Across Runtimes | Xiaoyuan"><meta property="og:description" content="Why the same Tool Schema may accept different arguments after provider adapters and executors, and how contract tests keep its semantics stable."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Tool Validation Drifts Across Runtimes | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/tool-schema-validation-drift/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why Tool Validation Drifts Across Runtimes</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Why the same Tool Schema may accept different arguments after provider adapters and executors, and how contract tests keep its semantics stable."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why Tool Validation Drifts Across Runtimes | Xiaoyuan"><meta property="og:description" content="Why the same Tool Schema may accept different arguments after provider adapters and executors, and how contract tests keep its semantics stable."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/tool-schema-validation-drift/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why Tool Validation Drifts Across Runtimes | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/tool-schema-validation-drift/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why Tool Validation Drifts Across Runtimes</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>Suppose an Agent has a Tool for archiving notes in bulk:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"archive_notes"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "parameters"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "$schema"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://json-schema.org/draft/2020-12/schema"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"object"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "properties"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "note_ids"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">        "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"array"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">        "items"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">        "minItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">        "uniqueItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span></span>
-<span class="line"><span style="color:#24292E">      }</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#005CC5">    "required"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"note_ids"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">    "additionalProperties"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
-<span class="line"><span style="color:#24292E">  }</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"archive_notes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "parameters"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "$schema"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"https://json-schema.org/draft/2020-12/schema"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "properties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">        "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"array"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">        "items"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">        "minItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">        "uniqueItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "required"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "additionalProperties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Its intent is straightforward: archive at least one note, reject unknown properties, and reject duplicate IDs within the <code>note_ids</code> array of one Tool Call.</p>
 <p>Runtime A passes the Schema unchanged to a binding that supports these constraints. Runtime B’s Adapter preserves <code>type</code>, <code>properties</code>, <code>required</code>, and <code>additionalProperties</code>, but removes unsupported array constraints. The model returns this under Runtime B:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: []}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: []}</span></span></code></pre>
 <p>The same canonical Tool definition is rejected on one path but may reach the handler on another. If the handler happens to interpret an empty list as “archive everything,” an ordinary compatibility difference can become a high-risk side effect.</p>
 <p>This is validation drift: <strong>Tool arguments no longer follow the same effective constraints across transformation and execution paths.</strong></p>
 <h2 id="schema-compliant-can-mean-three-different-things">“Schema-compliant” can mean three different things</h2>
@@ -33,7 +49,7 @@
 <p>Schema validity, authorization, and business-state validation therefore need separate boundaries. This article covers structural validation across the three stages above; it does not attempt to define a complete Tool security model.</p>
 <h2 id="drift-emerges-along-a-transformation-chain">Drift emerges along a transformation chain</h2>
 <p>A Tool definition commonly passes through this chain:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical schema</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical schema</span></span>
 <span class="line"><span>→ provider adapter</span></span>
 <span class="line"><span>→ provider tool binding</span></span>
 <span class="line"><span>→ model arguments</span></span>
@@ -53,7 +69,7 @@
 <h2 id="a-canonical-schema-must-pin-down-its-dialect-first">A canonical Schema must pin down its dialect first</h2>
 <p>Keeping one Schema without a dialect is not enough to create a cross-Runtime contract. JSON Schema drafts and vocabularies can interpret keywords differently. The contract must also decide whether <code>format</code> is only an annotation or is evaluated as an assertion.</p>
 <p>A canonical binding contract should therefore specify at least:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>schema dialect: https://json-schema.org/draft/2020-12/schema</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>schema dialect: https://json-schema.org/draft/2020-12/schema</span></span>
 <span class="line"><span>required vocabularies: as declared by the dialect</span></span>
 <span class="line"><span>format policy: annotation only</span></span>
 <span class="line"><span>coercion policy: disabled</span></span>
@@ -62,41 +78,41 @@
 <h2 id="the-canonical-validator-is-the-shared-structural-validation-boundary">The canonical validator is the shared structural-validation boundary</h2>
 <p>A provider-facing Schema constrains how the model generates a Tool Call. Strict mode can provide stronger Schema conformance within the subset a provider supports. Non-strict mode and lossy transformations are closer to generation guidance. Neither should be the sole trusted execution boundary across providers, because the Runtime must still unify dialect, transformation, and handler-entry semantics.</p>
 <p>The Runtime should retain the original canonical Schema and apply the same validation rules after arguments are complete but before the handler executes:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>provider says complete tool call</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>provider says complete tool call</span></span>
 <span class="line"><span>→ parse without hidden coercion</span></span>
 <span class="line"><span>→ canonical validation</span></span>
 <span class="line"><span>→ repairable error or structurally validated handler input</span></span></code></pre>
 <p>Return to the empty-array example. Even if Runtime B’s Provider Adapter removes <code>minItems</code>, the local canonical validator still rejects the arguments:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"invalid_arguments"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "tool"</span><span style="color:#24292E">: </span><span style="color:#032F62">"archive_notes"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "path"</span><span style="color:#24292E">: </span><span style="color:#032F62">"/note_ids"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "constraint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"minItems"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "message"</span><span style="color:#24292E">: </span><span style="color:#032F62">"At least one note_id is required."</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"invalid_arguments"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"archive_notes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "path"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "constraint"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"minItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "message"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"At least one note_id is required."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>This error can become repair input for the next Model Turn, but the handler is not invoked. Removing a provider-side constraint may reduce the probability that model-generated arguments pass canonical validation on the first try, but it does not silently expand the structural-validation boundary.</p>
 <h2 id="an-adapter-must-report-what-it-changed">An Adapter must report what it changed</h2>
 <p>If the system saves only the final Provider Schema, it is difficult to tell whether a failure came from the model or from a constraint the Adapter removed. Each Tool Surface compilation can produce a transform report:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "tool"</span><span style="color:#24292E">: </span><span style="color:#032F62">"archive_notes"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "canonical_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">7</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "canonical_dialect"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://json-schema.org/draft/2020-12/schema"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "adapter_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">12</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "provider_profile_revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "preserved"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"type"</span><span style="color:#24292E">, </span><span style="color:#032F62">"properties"</span><span style="color:#24292E">, </span><span style="color:#032F62">"required"</span><span style="color:#24292E">, </span><span style="color:#032F62">"additionalProperties"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "dropped"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"minItems"</span><span style="color:#24292E">, </span><span style="color:#032F62">"uniqueItems"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "classification"</span><span style="color:#24292E">: </span><span style="color:#032F62">"lossy"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"archive_notes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "canonical_revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">7</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "canonical_dialect"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"https://json-schema.org/draft/2020-12/schema"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "adapter_revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">12</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "provider_profile_revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "preserved"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"properties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"required"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"additionalProperties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "dropped"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"minItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"uniqueItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "classification"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"lossy"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Not every dropped keyword requires rejecting the route. The important questions are whether the change alters the accepted argument set and whether the Runtime still enforces the constraint reliably before execution. For differences that affect side-effect scope, data types, or required properties, policy may require the Adapter to return <code>unsupported</code>. For descriptive information that affects only generation quality, policy may allow a lossy transformation, but the loss must remain observable.</p>
 <h2 id="contract-tests-should-start-with-a-case-set">Contract tests should start with a case set</h2>
 <p>Comparing two Schema documents as text cannot prove that they behave the same way. A more direct approach is to maintain provider-neutral cases for every Tool contract:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">[</span></span>
-<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"one id"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"n1"</span><span style="color:#24292E">]}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"empty"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: []}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"duplicate"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"n1"</span><span style="color:#24292E">, </span><span style="color:#032F62">"n1"</span><span style="color:#24292E">]}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"unknown field"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"n1"</span><span style="color:#24292E">], </span><span style="color:#005CC5">"all"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#24292E">  {</span><span style="color:#005CC5">"name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"wrong type"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"args"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"note_ids"</span><span style="color:#24292E">: </span><span style="color:#032F62">"n1"</span><span style="color:#24292E">}, </span><span style="color:#005CC5">"valid"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">}</span></span>
-<span class="line"><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"one id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"args"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"n1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]}, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"valid"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"empty"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"args"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: []}, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"valid"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"duplicate"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"args"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"n1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"n1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]}, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"valid"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"unknown field"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"args"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"n1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">], </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"all"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"valid"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"wrong type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"args"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note_ids"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"n1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"valid"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
 <p>The tests have two layers:</p>
 <ol>
 <li><strong>Canonical validator test</strong>: every Runtime must load the same dialect and validator policy and produce the same result for these cases. An implementation that does not support the dialect fails immediately.</li>
@@ -106,7 +122,7 @@
 <h2 id="do-not-hide-defaults-and-coercion-in-an-adapter">Do not hide defaults and coercion in an Adapter</h2>
 <p>JSON Schema defines <code>default</code> as an annotation. It does not require a validator to fill in a missing property. Some SDKs or DTO layers inject defaults while others do not. Likewise, automatically converting strings to numbers expands the accepted input set. The canonical validator policy must standardize these behaviors.</p>
 <p>If the product needs them, the canonical binding contract should say so explicitly:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>missing optional field → runtime applies declared default</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>missing optional field → runtime applies declared default</span></span>
 <span class="line"><span>string "3" for integer → rejected</span></span>
 <span class="line"><span>unknown property → rejected</span></span></code></pre>
 <p>Every provider path then returns to the same rules before entering the handler. Otherwise, changing an SDK, validator, or language implementation can change the Tool’s effective input boundary.</p>
@@ -122,7 +138,7 @@
 <p>These checks do not reimplement JSON Schema. They protect facts owned by different layers. The provider binding helps the model generate arguments. The Runtime validator enforces the structural contract. The handler and backend protect authorization, business state, and side effects.</p>
 <h2 id="versions-belong-in-traces-and-evals">Versions belong in traces and Evals</h2>
 <p>When validation drift appears on only one route, a trace should link at least:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool definition revision</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool definition revision</span></span>
 <span class="line"><span>tool surface revision</span></span>
 <span class="line"><span>adapter revision</span></span>
 <span class="line"><span>provider capability profile revision</span></span>
@@ -149,4 +165,52 @@
 <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/strict-tool-use">Anthropic: Strict tool use</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

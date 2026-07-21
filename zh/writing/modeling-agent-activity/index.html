@@ -1,13 +1,29 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次 Tool retry 出发，解释为什么 Agent 的 Task、Run、Model Turn、Tool Execution 与 Attempt 不能混在同一行数据里。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Activity 建模先明确 Grain | Xiaoyuan"><meta property="og:description" content="从一次 Tool retry 出发，解释为什么 Agent 的 Task、Run、Model Turn、Tool Execution 与 Attempt 不能混在同一行数据里。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Activity 建模先明确 Grain | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/modeling-agent-activity/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Data Platform</p> <h1 class="page-title">Agent Activity 建模先明确 Grain</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Data%20Modeling/">Data Modeling</a><a class="pill" href="/zh/tags/Observability/">Observability</a><a class="pill" href="/zh/tags/Lineage/">Lineage</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次 Tool retry 出发，解释为什么 Agent 的 Task、Run、Model Turn、Tool Execution 与 Attempt 不能混在同一行数据里。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Activity 建模先明确 Grain | Xiaoyuan"><meta property="og:description" content="从一次 Tool retry 出发，解释为什么 Agent 的 Task、Run、Model Turn、Tool Execution 与 Attempt 不能混在同一行数据里。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/modeling-agent-activity/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/modeling-agent-activity/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Activity 建模先明确 Grain | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/modeling-agent-activity/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Data Platform</p> <h1 class="page-title">Agent Activity 建模先明确 Grain</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Data%20Modeling/">Data Modeling</a><a class="pill" href="/zh/tags/Observability/">Observability</a><a class="pill" href="/zh/tags/Lineage/">Lineage</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一次 Agent Run 执行了文件读取 Tool。第一次请求 timeout，第二次 retry 成功，Agent 最终回复“报告已生成”。</p>
 <p>系统记录了两条 Tool 日志：一条 timeout、结果未知，一条确认成功。现在要回答“这次 Tool 执行成功了吗”，至少会得到两个看似矛盾的答案：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>按物理请求计算：1 次成功 / 2 次尝试 = 50%</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>按物理请求计算：1 次成功 / 2 次尝试 = 50%</span></span>
 <span class="line"><span>按逻辑 Tool Execution 计算：最终成功 / 1 次执行 = 100%</span></span></code></pre>
 <p>如果这次 Run 正常给出最终回复，Run 层也是成功；如果报告 Artifact 还没有交付，用户的 Task 则可能仍未完成。这些数字都可能正确，只是回答的问题不同。</p>
 <p>Agent Activity 建模最先要解决的不是字段够不够多，而是 grain：<strong>一行数据究竟代表一个用户目标、一次 Agent Loop、一个模型轮次、一次逻辑执行，还是一次物理尝试。</strong></p>
 <h2 id="先沿一次执行把对象分开">先沿一次执行把对象分开</h2>
 <p>继续使用生成报告的例子：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>用户 Message：“根据这个文件生成报告”</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>用户 Message：“根据这个文件生成报告”</span></span>
 <span class="line"><span>  └─ Task：生成并交付报告</span></span>
 <span class="line"><span>       └─ Run：处理这次用户输入的 Agent Loop</span></span>
 <span class="line"><span>            ├─ Model Turn 1：模型提出读取文件</span></span>
@@ -32,7 +48,7 @@
 <p>假设分析表把每次 HTTP 请求都当成一次 Tool Execution。第一次 timeout 和第二次成功就会被统计成两个不同动作，系统看起来读取了两次文件。</p>
 <p>如果反过来让 retry 覆盖同一行，最终状态会变成 <code>succeeded</code>，却看不到第一次 timeout 带来的延迟、成本和错误。</p>
 <p>正确的关系是让逻辑执行身份与尝试身份同时存在：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_id = tool_exec_42</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_id = tool_exec_42</span></span>
 <span class="line"><span>  ├─ attempt_id = attempt_1  → timeout</span></span>
 <span class="line"><span>  └─ attempt_id = attempt_2  → succeeded</span></span></code></pre>
 <p><code>tool_call_id</code> 可以继续保存模型的原始提议，<code>tool_execution_id</code> 回答“Runtime 最终执行的是哪个逻辑动作”，<code>attempt_id</code> 回答“物理上试了几次”。分开以后，系统才能同时分析模型行为、Tool 结果与下游可靠性。</p>
@@ -41,7 +57,7 @@
 <p>Agent 执行可能跨 Queue、SubAgent 和外部 callback。两条 event 到达日志系统的顺序，不一定是实际发生顺序。</p>
 <p>例如，第一次 Tool Attempt 的 timeout 先到达，外部服务稍后才回传“读取已完成”。如果只按 <code>ingested_at</code> 排序，分析可能把 callback 误认为 retry 之后发生的新动作。</p>
 <p>因此，需要显式保存关系，而不是事后猜测：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task task_report_7</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task task_report_7</span></span>
 <span class="line"><span>  └─ Run run_12</span></span>
 <span class="line"><span>       └─ Model Turn model_turn_3</span></span>
 <span class="line"><span>            └─ Tool Execution tool_exec_42</span></span>
@@ -92,7 +108,7 @@
 <p>更稳妥的做法是让 source event 保留过程，再按稳定 grain 幂等地产生分析事实。同一条底层事件可以进入多个派生模型，但每个模型仍需保留自己的 grain，不能在所有计算中都把它当成同一种记录。</p>
 <h2 id="指标必须把分母写清楚">指标必须把分母写清楚</h2>
 <p>“Tool 成功率”本身不是完整指标。它至少可能表示：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>successful attempts / all terminal attempts</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>successful attempts / all terminal attempts</span></span>
 <span class="line"><span>successful tool executions / all terminal tool executions</span></span>
 <span class="line"><span>successful runs using this tool / all terminal runs using this tool</span></span>
 <span class="line"><span>successful tasks using this tool / all terminal tasks using this tool</span></span></code></pre>
@@ -122,4 +138,52 @@
 <li>Trace、Eval dataset 与生产 bad case 应怎样关联同一组执行事实。</li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

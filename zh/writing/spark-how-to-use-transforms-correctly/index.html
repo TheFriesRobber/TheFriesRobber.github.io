@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Spark transformation 是延迟执行、可重算的分布式计算描述。正确使用它，需要理解 action、closure、副作用、shuffle、partition 和 cache 的边界。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="如何正确使用 Spark Transformation | Xiaoyuan"><meta property="og:description" content="Spark transformation 是延迟执行、可重算的分布式计算描述。正确使用它，需要理解 action、closure、副作用、shuffle、partition 和 cache 的边界。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>如何正确使用 Spark Transformation | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-how-to-use-transforms-correctly/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">如何正确使用 Spark Transformation</h1> <div class="meta"> <time datetime="2020-04-18T14:22:35.000Z">2020/04/18</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/RDD/">RDD</a><a class="pill" href="/zh/tags/Performance/">Performance</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Spark transformation 是延迟执行、可重算的分布式计算描述。正确使用它，需要理解 action、closure、副作用、shuffle、partition 和 cache 的边界。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="如何正确使用 Spark Transformation | Xiaoyuan"><meta property="og:description" content="Spark transformation 是延迟执行、可重算的分布式计算描述。正确使用它，需要理解 action、closure、副作用、shuffle、partition 和 cache 的边界。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-how-to-use-transforms-correctly/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-how-to-use-transforms-correctly/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>如何正确使用 Spark Transformation | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-how-to-use-transforms-correctly/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">如何正确使用 Spark Transformation</h1> <div class="meta"> <time datetime="2020-04-18T14:22:35.000Z">2020/04/18</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/RDD/">RDD</a><a class="pill" href="/zh/tags/Performance/">Performance</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>下面这些现象在刚开始使用 Spark 时很常见：</p>
 <ul>
 <li>调用了 <code>map</code>，日志却没有立即输出。</li>
@@ -15,12 +31,12 @@
 <li><strong>Action</strong>：真正请求结果或输出，例如 <code>count</code>、<code>collect</code>、<code>reduce</code>、<code>saveAsTextFile</code> 和 <code>foreach</code>。</li>
 </ul>
 <p>Transformation 默认是 lazy 的：调用时只记录依赖关系，不立即处理数据。直到 action 需要结果，Spark 才根据 lineage 构建 job 和 stage。</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> cleaned</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
-<span class="line"><span style="color:#24292E">  .filter(_.nonEmpty)</span></span>
-<span class="line"><span style="color:#24292E">  .map(_.trim)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> cleaned</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .filter(_.nonEmpty)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .map(_.trim)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#6A737D">// 到这里通常还没有执行集群计算</span></span>
-<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> cleaned.count()</span></span></code></pre>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 到这里通常还没有执行集群计算</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> count</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> cleaned.count()</span></span></code></pre>
 <p>Lazy evaluation 让 Spark 可以把多个步骤组合起来，并且避免生成不必要的中间结果。但它也带来一个重要结论：<strong>transformation 中的代码可能不执行、执行一次，也可能因为多个 action、失败恢复或推测执行而重复执行。</strong></p>
 <figure>
   <img src="/posts/zh/spark-how-to-use-transforms-correctly/execution-model.svg" alt="Driver 先用 map、filter 和 reduceByKey 建立 lineage；count action 提交 job 后，Spark 才执行 Stage 1，在 shuffle 边界后继续执行 Stage 2 并返回结果。" loading="lazy">
@@ -36,22 +52,22 @@
 </ul>
 <h3 id="driver-变量不会按本地代码的方式更新">Driver 变量不会按本地代码的方式更新</h3>
 <p>下面的写法看起来像是在统计记录数：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">var</span><span style="color:#E36209"> records</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 0L</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">var</span><span style="color:#E36209;--shiki-dark:#FFAB70"> records</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0L</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { value </span><span style="color:#D73A49">=></span></span>
-<span class="line"><span style="color:#24292E">  records </span><span style="color:#D73A49">+=</span><span style="color:#005CC5"> 1</span></span>
-<span class="line"><span style="color:#24292E">  value.trim</span></span>
-<span class="line"><span style="color:#24292E">}</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> normalized</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input.map { value </span><span style="color:#D73A49;--shiki-dark:#F97583">=></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  records </span><span style="color:#D73A49;--shiki-dark:#F97583">+=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  value.trim</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#24292E">normalized.count()</span></span>
-<span class="line"><span style="color:#24292E">println(records)</span></span></code></pre>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">normalized.count()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">println(records)</span></span></code></pre>
 <p>运行在 executor 上的是 closure 的序列化副本。每个 task 修改的是自己的副本，不是 driver 中的 <code>records</code>。local mode 下偶尔表现得“可以工作”，也不能说明 cluster mode 下语义正确。</p>
 <p>需要计数时，优先使用 action 或明确的 aggregation。Accumulator 适合监控和诊断，但也要理解 task 重试与 lazy evaluation 对更新时机的影响，不应把它作为业务结果的唯一来源。</p>
 <h3 id="外部写入可能发生多次">外部写入可能发生多次</h3>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { record </span><span style="color:#D73A49">=></span></span>
-<span class="line"><span style="color:#24292E">  externalClient.write(record)</span></span>
-<span class="line"><span style="color:#24292E">  transform(record)</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> result</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input.map { record </span><span style="color:#D73A49;--shiki-dark:#F97583">=></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  externalClient.write(record)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  transform(record)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>这段代码可能因为以下原因重复调用 <code>write</code>：</p>
 <ul>
 <li>同一 lineage 被多个 action 重新计算。</li>
@@ -62,20 +78,20 @@
 <p>如果必须产生外部副作用，需要在输出系统中设计幂等 key、去重或事务边界，并根据 task attempt 语义处理重试。更常见的做法是让 transformation 只生成待写数据，再交给具有明确交付语义的输出阶段。</p>
 <h2 id="多个-action-可能造成重复计算">多个 Action 可能造成重复计算</h2>
 <p>同一个未持久化 RDD 被多个 action 使用时，Spark 可以沿 lineage 重新计算它：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map(expensiveNormalize)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> normalized</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input.map(expensiveNormalize)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> normalized.count()</span></span>
-<span class="line"><span style="color:#24292E">normalized.saveAsTextFile(outputPath)</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> count</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> normalized.count()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">normalized.saveAsTextFile(outputPath)</span></span></code></pre>
 <p><code>expensiveNormalize</code> 可能执行两遍。如果中间结果计算昂贵、会被重复使用，并且适合当前内存与磁盘条件，可以显式持久化：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">import</span><span style="color:#6F42C1"> org</span><span style="color:#24292E">.</span><span style="color:#6F42C1">apache</span><span style="color:#24292E">.</span><span style="color:#6F42C1">spark</span><span style="color:#24292E">.</span><span style="color:#6F42C1">storage</span><span style="color:#24292E">.</span><span style="color:#6F42C1">StorageLevel</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> org</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">apache</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">spark</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">StorageLevel</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> normalized</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input</span></span>
-<span class="line"><span style="color:#24292E">  .map(expensiveNormalize)</span></span>
-<span class="line"><span style="color:#24292E">  .persist(</span><span style="color:#6F42C1">StorageLevel</span><span style="color:#24292E">.</span><span style="color:#6F42C1">MEMORY_AND_DISK</span><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> normalized</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .map(expensiveNormalize)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .persist(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">StorageLevel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">MEMORY_AND_DISK</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> count</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> normalized.count() </span><span style="color:#6A737D">// 同时物化 cache</span></span>
-<span class="line"><span style="color:#24292E">normalized.saveAsTextFile(outputPath)</span></span>
-<span class="line"><span style="color:#24292E">normalized.unpersist()</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> count</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> normalized.count() </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 同时物化 cache</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">normalized.saveAsTextFile(outputPath)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">normalized.unpersist()</span></span></code></pre>
 <p>不要机械地对所有中间结果调用 <code>cache()</code>：</p>
 <ul>
 <li>只使用一次的数据没有复用收益。</li>
@@ -92,12 +108,12 @@
 <li>closure 依赖只存在于 driver 本地的文件或环境。</li>
 </ul>
 <p>把需要的字段复制到局部变量，可以缩小 closure。较大的只读 lookup 数据适合 broadcast：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> lookupBroadcast</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> sc.broadcast(lookup)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> lookupBroadcast</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> sc.broadcast(lookup)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> enriched</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.map { record </span><span style="color:#D73A49">=></span></span>
-<span class="line"><span style="color:#D73A49">  val</span><span style="color:#E36209"> lookup</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> lookupBroadcast.value</span></span>
-<span class="line"><span style="color:#24292E">  enrich(record, lookup)</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> enriched</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input.map { record </span><span style="color:#D73A49;--shiki-dark:#F97583">=></span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> lookup</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> lookupBroadcast.value</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  enrich(record, lookup)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Broadcast 变量应视为只读数据。更新 driver 上的原始对象不会自动更新已经分发的 broadcast；不再使用时可以显式销毁。</p>
 <h2 id="窄依赖和宽依赖">窄依赖和宽依赖</h2>
 <p>Transformation 不只是数据处理函数，它还决定数据是否需要跨 partition 移动。</p>
@@ -122,16 +138,16 @@
 </ul>
 <p>Shuffle 需要网络传输、序列化、排序和磁盘文件。正确使用 transformation，不是完全避免宽依赖，而是知道它为什么存在，并减少不必要的数据移动。</p>
 <p>例如，对 key 做聚合时，通常优先考虑 <code>reduceByKey</code> 或 <code>aggregateByKey</code>，而不是先把所有 value 通过 <code>groupByKey</code> 拉到同一个 reducer 再求和：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> totals</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> pairs.reduceByKey(_ </span><span style="color:#D73A49">+</span><span style="color:#24292E"> _)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> totals</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> pairs.reduceByKey(_ </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> _)</span></span></code></pre>
 <p>这类算子可以在 shuffle 前做局部 combine，降低网络数据量。但选择聚合函数时必须满足相应的结合律和类型语义。</p>
 <h2 id="和-partition-相关的几个选择">和 Partition 相关的几个选择</h2>
 <h3 id="map-和-mappartitions"><code>map</code> 和 <code>mapPartitions</code></h3>
 <p><code>map</code> 对每条记录调用一次函数；<code>mapPartitions</code> 对每个 partition 调用一次函数并接收 iterator。</p>
 <p>当初始化解析器或只读辅助对象的成本很高时，可以在 <code>mapPartitions</code> 中每个 partition 初始化一次：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> parsed</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> input.mapPartitions { rows </span><span style="color:#D73A49">=></span></span>
-<span class="line"><span style="color:#D73A49">  val</span><span style="color:#E36209"> parser</span><span style="color:#D73A49"> =</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> ExpensiveParser</span><span style="color:#24292E">()</span></span>
-<span class="line"><span style="color:#24292E">  rows.map(parser.parse)</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> parsed</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> input.mapPartitions { rows </span><span style="color:#D73A49;--shiki-dark:#F97583">=></span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> parser</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> new</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ExpensiveParser</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  rows.map(parser.parse)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>它可以减少初始化开销，但也会扩大单次函数的责任范围。不要借此在 executor 中长期保存不可控的全局状态；涉及连接和外部写入时，还需要明确资源关闭、重试和幂等语义。</p>
 <h3 id="保留已有-partitioner">保留已有 partitioner</h3>
 <p>对 pair RDD 只转换 value 时，<code>mapValues</code> 可以保留 partitioner；普通 <code>map</code> 通常不能保证这一点。保留正确的 partitioner 有机会避免后续不必要的 shuffle。</p>
@@ -164,7 +180,7 @@
 </ul>
 <h3 id="测试-action而不只是定义-transformation">测试 action，而不只是定义 transformation</h3>
 <p>因为 transformation 是 lazy 的，只构造 RDD 并不能证明函数真的可序列化或能在 executor 上运行。测试至少要触发一个 action：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> result</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> transform(sc.parallelize(input, </span><span style="color:#005CC5">2</span><span style="color:#24292E">)).collect().toSeq</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">val</span><span style="color:#E36209;--shiki-dark:#FFAB70"> result</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> transform(sc.parallelize(input, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)).collect().toSeq</span></span></code></pre>
 <p><code>local[2]</code> 比 <code>local[1]</code> 更容易暴露并发和 partition 假设，但本地测试仍不能完整模拟 executor 丢失、task 重试和生产数据分布。对于外部副作用，还应单独验证幂等与重试行为。</p>
 <h3 id="检查这些信号">检查这些信号</h3>
 <ul>
@@ -191,4 +207,52 @@
 <li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html">Spark RDD Programming Guide</a></li>
 <li><a href="https://spark.apache.org/docs/latest/tuning.html">Spark Tuning Guide</a></li>
 <li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
-</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

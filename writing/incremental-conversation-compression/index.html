@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Use checkpoint summaries, incremental compression, and source backlinks to manage long conversations."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Long Conversations Need Incremental Compression | Xiaoyuan"><meta property="og:description" content="Use checkpoint summaries, incremental compression, and source backlinks to manage long conversations."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Long Conversations Need Incremental Compression | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/incremental-conversation-compression/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Long Conversations Need Incremental Compression</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Memory/">Memory</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Use checkpoint summaries, incremental compression, and source backlinks to manage long conversations."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Long Conversations Need Incremental Compression | Xiaoyuan"><meta property="og:description" content="Use checkpoint summaries, incremental compression, and source backlinks to manage long conversations."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/incremental-conversation-compression/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Long Conversations Need Incremental Compression | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/incremental-conversation-compression/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Long Conversations Need Incremental Compression</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Memory/">Memory</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>Suppose a user and an Agent complete a report over 100 user interactions: the first 30 establish scope, the next 40 search for evidence, and the final 30 revise the conclusions.</p>
 <p>By the seventieth user interaction, the complete history no longer fits in Context. Two direct responses are:</p>
 <ol>
@@ -18,7 +34,7 @@
 <p>The compression checkpoint in this article is a watermark that says “history has been compressed through this point.” It is not the Checkpoint used to recover Runtime execution. It does not restore a Tool Attempt, external side effect, or process state.</p>
 <h2 id="one-incremental-compression-spans-three-intervals">One incremental compression spans three intervals</h2>
 <p>Divide the current history into three parts:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>checkpoint summary | stable raw prefix | recent raw window</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>checkpoint summary | stable raw prefix | recent raw window</span></span>
 <span class="line"><span>   compressed          ready to compress       kept verbatim for now</span></span></code></pre>
 <ul>
 <li>The <code>checkpoint summary</code> covers older messages that have become stable.</li>
@@ -32,7 +48,7 @@
 </figure>
 <h2 id="a-checkpoint-must-record-its-coverage">A checkpoint must record its coverage</h2>
 <p>A useful summary record contains more than the summary body:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_id: summary_3</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_id: summary_3</span></span>
 <span class="line"><span>covers: event_seq 1..checkpoint_seq</span></span>
 <span class="line"><span>dependencies:</span></span>
 <span class="line"><span>  previous_summary_backlinks: [summary_2]</span></span>
@@ -46,7 +62,7 @@
 <span class="line"><span>created_at: 2026-07-15T10:00:00Z</span></span></code></pre>
 <p>Here, <code>event_seq</code> is the order in the Session Event Log across user messages, model responses, Tool Calls, and Tool Results. It is different from a stable content identity such as <code>message_id=msg_evidence_42</code>. <code>covers</code> says only which event interval the summary represents, so Assembly can detect overlaps or gaps against the recent window. <code>dependencies</code> records the complete set of inputs that affect summary content: raw sources, Assembly Decisions, and any previous-summary backlinks actually reused during generation. Dependency checks recursively follow those backlinks, so a coverage interval cannot stand in for the dependency closure. <code>policy_revision</code> identifies the compression rules, while the authorization and retention revisions record the data-visibility boundary used during generation.</p>
 <p>The body should preserve structure instead of flattening everything into prose:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>current goal: complete the European market report</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>current goal: complete the European market report</span></span>
 <span class="line"><span>confirmed constraints: use only public sources; every citation must be traceable</span></span>
 <span class="line"><span>completed: evidence search, data cleaning</span></span>
 <span class="line"><span>unresolved: whether the 2025 definition matches the 2024 definition</span></span>
@@ -63,24 +79,17 @@
 <p>Source deletion or permission revocation is not an ordinary rebase. First follow the complete dependency closure and mark every summary that directly or transitively depends on the source as unusable; a coverage-interval lookup is not sufficient. Then rebuild using only remaining records that are readable, still authorized, and independent of the invalid source. Later messages, Assembly Decisions, or Tool Results that repeat the source also belong to the dependency chain. If their independence cannot be established, conservatively exclude the related suffix. If a safe rebuild still cannot be produced, mark that Context as <code>needs_rebuild</code> and exclude the old summary. The existence of a cached summary must not continue exposing content from an invalid source.</p>
 <p>This resembles an incrementally maintained materialized view: consume new changes normally, then rebuild the affected range when a dependency becomes invalid. It is only a mental model; the implementation does not need to use a database view.</p>
 <h2 id="how-should-a-summary-change-after-a-user-correction">How should a summary change after a user correction?</h2>
-<p>The previous section lists conditions that trigger a rebuild, but “reread the sources that remain usable” is still abstract. Consider one complete user correction. Context Assembly first decides how the correction applies. If it should also affect later conversation, the compression layer rebuilds the summary from that decision.</p>
-<p>Suppose the active summary still says “Europe and North America,” and the user then explicitly says “keep Europe only”:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_3: report covers Europe and North America; covers event_seq 1..checkpoint_seq</span></span>
-<span class="line"><span>event_seq correction_seq: user.correction(message_id=msg_scope_correction)</span></span>
-<span class="line"><span>message payload: the user explicitly says “keep Europe only”</span></span></code></pre>
-<p>The system first appends the correction as a new event in Raw history, producing <code>correction_seq</code>. Its payload references the stable <code>msg_scope_correction</code> identity instead of rewriting an old message. The system also cannot append the correction to the end of the summary and leave two conflicting scopes in place. Context Assembly can first decide that the current Task uses the correction and that the decision must affect later conversation. Until a new summary is ready, <code>summary_3</code>, which contains the obsolete scope, is excluded from model input for the current Run. Assembly does not render a model request yet; it sends the decision to the compression layer.</p>
-<p>The compression layer then uses <code>covers</code> to identify the stable interval to rebuild, follows <code>dependencies</code> to find the affected sources, and generates a new version:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_4: covers event_seq 1..checkpoint_seq</span></span>
+<p>Suppose the active summary still says “Europe and North America,” and the user explicitly says “keep Europe only”:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_3: report covers Europe and North America; covers event_seq 1..checkpoint_seq</span></span>
+<span class="line"><span>correction_seq: user says “keep Europe only” (message_id=msg_scope_correction)</span></span></code></pre>
+<p>The system appends the correction to Raw history instead of rewriting <code>summary_3</code>. Context Assembly then decides two things: the current Task uses “keep Europe only,” and the correction should affect later conversation. Because the old summary conflicts with that decision, Assembly pauses request rendering while the compression layer follows <code>dependencies</code> to still-authorized sources and rebuilds the stable interval identified by <code>covers</code>:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_4: covers event_seq 1..checkpoint_seq</span></span>
 <span class="line"><span>replaces: summary_3</span></span>
 <span class="line"><span>dependencies:</span></span>
-<span class="line"><span>  previous_summary_backlinks: [summary_3]</span></span>
-<span class="line"><span>  source_spans: still-authorized affected raw intervals</span></span>
-<span class="line"><span>  decision_refs: [event_seq correction_seq / message_id msg_scope_correction]</span></span>
-<span class="line"><span>current goal: complete only the European market report</span></span>
-<span class="line"><span>excluded: conclusions about North America, because msg_scope_correction changed the scope</span></span>
-<span class="line"><span>retained evidence: references to raw messages and Tool Results that support conclusions about Europe</span></span></code></pre>
-<p><code>summary_4</code> still covers only the original stable interval. The correction participates in the rebuild as decision provenance in the complete dependency set, but records after <code>checkpoint_seq</code>, including <code>correction_seq</code>, remain in the recent window. The latest instruction therefore continues to enter Context verbatim. Only after <code>summary_4</code> has been generated completely and passes coverage and dependency-closure checks does the system attempt to switch the active checkpoint. The CAS predicate binds the expected active-summary version, raw/event watermark, authorization revision, and retention revision. A change to any of them abandons the switch and rebuilds under the new boundary. Before Assembly actually renders the model request, it validates the current authorization and retention revisions once more so a revocation after the switch cannot be bypassed through an old snapshot. The old <code>summary_3</code> does not need to be overwritten physically. Preserving the version relationship lets the system explain why Context differed before and after the correction. Even if generating <code>summary_4</code> fails, raw history remains available for a future rebuild. The current Run ends with <code>state=failed, failure_reason=context_needs_rebuild</code> instead of sending either the conflicting old summary or an over-budget complete history to the model.</p>
-<p>If the user says only “hide North America for this presentation,” the system must not turn that request into a permanent scope change. Context Assembly produces a decision for the current Run and uses it to render a current-only Context view. The decision does not enter the compression layer and does not rewrite <code>summary_3</code>. Only a correction that should affect later conversation causes the compression layer to write an Assembly Decision and its source into a new summary.</p>
+<span class="line"><span>  decision_refs: [correction_seq / msg_scope_correction]</span></span>
+<span class="line"><span>current goal: complete only the European market report</span></span></code></pre>
+<p><code>summary_4</code> rebuilds only the old stable interval; <code>correction_seq</code> remains verbatim in the recent window. After validation, the system switches the active summary with CAS. The predicate checks the active version, event watermark, and authorization/retention revisions; a change to any of them discards this result and triggers another rebuild. On failure, Raw history and the old summary version remain available, while the current Run ends with <code>failure_reason=context_needs_rebuild</code> instead of sending conflicting content to the model.</p>
+<p>If the user says “hide North America for this presentation,” Assembly creates a Context view for the current Run and does not rebuild the summary. Rebuilding depends on the correction’s scope, not on whether its wording contains “hide” or “delete.”</p>
 <figure>
   <img src="/posts/en/incremental-conversation-compression/correction-summary-rebuild-sequence.svg" alt="After a user correction enters Raw history, Context Assembly reads the old checkpoint and correction, then decides its scope. A persistent correction makes Compression rebuild summary_4 from still-valid sources and switch the active checkpoint after validation. Rebuild failure prevents a model call, while a correction for the current Run only does not rebuild the summary." loading="lazy">
   <figcaption>Assembly decides scope first. Only a correction that affects later conversation rebuilds and switches the summary; a temporary correction stays in the current Run's Context view.</figcaption>
@@ -121,4 +130,52 @@
 <li><a href="https://developers.openai.com/api/docs/guides/compaction">OpenAI Responses API: Compaction</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

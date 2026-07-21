@@ -1,7 +1,23 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Design a versioned, recoverable, and explainable Agent Checkpoint without pretending that it guarantees fully deterministic replay."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="A Checkpoint Is a Recovery Contract, Not a Runtime Object Snapshot | Xiaoyuan"><meta property="og:description" content="Design a versioned, recoverable, and explainable Agent Checkpoint without pretending that it guarantees fully deterministic replay."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>A Checkpoint Is a Recovery Contract, Not a Runtime Object Snapshot | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-checkpoint-recovery-contract/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">A Checkpoint Is a Recovery Contract, Not a Runtime Object Snapshot</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Recovery/">Recovery</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Design a versioned, recoverable, and explainable Agent Checkpoint without pretending that it guarantees fully deterministic replay."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="A Checkpoint Is a Recovery Contract, Not a Runtime Object Snapshot | Xiaoyuan"><meta property="og:description" content="Design a versioned, recoverable, and explainable Agent Checkpoint without pretending that it guarantees fully deterministic replay."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>A Checkpoint Is a Recovery Contract, Not a Runtime Object Snapshot | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-checkpoint-recovery-contract/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">A Checkpoint Is a Recovery Contract, Not a Runtime Object Snapshot</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Recovery/">Recovery</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>An Agent is generating a report. It has called <code>create_document</code>, the external service has returned <code>doc_42</code>, and the model is about to write the summary. At that point, the background process executing this Run—the worker—crashes.</p>
 <p>If the system serializes its Runtime objects once per minute, the latest snapshot may still describe the moment before the Tool call:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>in-memory snapshot: ready to call create_document</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>in-memory snapshot: ready to call create_document</span></span>
 <span class="line"><span>external fact: doc_42 has already been created</span></span></code></pre>
 <p>Resuming directly from the snapshot creates the document again. Marking the entire function as complete omits the summary. The problem is not the serialization format. An in-memory object never owned the complete state of the outside world.</p>
 <h2 id="four-persistent-objects-that-are-easy-to-conflate">Four persistent objects that are easy to conflate</h2>
@@ -42,29 +58,29 @@
 <p>For external side effects, the Runtime must also persist an effect intent before making the call: a stable <code>effect_key</code>, a parameter digest, the target system, and an initial state. The call can begin only after that intent commits. If the worker then crashes after the call, recovery at least knows that this logical action may have happened instead of assigning a new identity and executing it again.</p>
 <h2 id="the-minimum-a-checkpoint-should-contain">The minimum a Checkpoint should contain</h2>
 <p>For the Run in the opening example, a conceptual Checkpoint could look like this:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "checkpoint_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "run_spec_fingerprint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"sha256:..."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "resume_contract_revision"</span><span style="color:#24292E">: </span><span style="color:#032F62">"report-agent.v3"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "snapshot_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"snapshot_73"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "event_cursor"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"stream_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"session:session_17"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"seq"</span><span style="color:#24292E">: </span><span style="color:#005CC5">73</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "resume_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"reconcile_create_document"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "waiting"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "pending_effects"</span><span style="color:#24292E">: [</span></span>
-<span class="line"><span style="color:#24292E">    {</span></span>
-<span class="line"><span style="color:#005CC5">      "effect_key"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8:create_document:v1"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "provider"</span><span style="color:#24292E">: </span><span style="color:#032F62">"document-service"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "idempotency_scope"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tenant:tenant_9"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "idempotency_expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-18T09:00:00Z"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"in_progress"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "external_ref"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span></span>
-<span class="line"><span style="color:#24292E">    }</span></span>
-<span class="line"><span style="color:#24292E">  ],</span></span>
-<span class="line"><span style="color:#005CC5">  "artifact_refs"</span><span style="color:#24292E">: [],</span></span>
-<span class="line"><span style="color:#005CC5">  "budget"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"model_turns_used"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "created_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:00:00Z"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "checkpoint_version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_spec_fingerprint"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sha256:..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resume_contract_revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"report-agent.v3"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "snapshot_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"snapshot_73"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "event_cursor"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"stream_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"session:session_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"seq"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">73</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resume_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"reconcile_create_document"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "waiting"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "pending_effects"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "effect_key"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8:create_document:v1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "provider"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"document-service"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "idempotency_scope"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tenant:tenant_9"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "idempotency_expires_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-18T09:00:00Z"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"in_progress"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "external_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "artifact_refs"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "budget"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"model_turns_used"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">6</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "created_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-17T09:00:00Z"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Here, <code>snapshot_ref</code> points to the complete recoverable derived state through <code>seq=73</code> in Session stream <code>session:session_17</code>. Recovery verifies the binding among the Snapshot, stream, and sequence before reading later events. The bare number 73 has no meaning in another Session stream. To restore this Run, recovery still reads that Session stream in order and applies only events causally related to the current Run. A system that does not persist a Snapshot may instead replay the Event Log from the beginning, but it cannot start from a cursor in the middle without any base state.</p>
 <p>The RunSpec identifies the execution contract, while <code>resume_contract_revision</code> identifies the version of recovery semantics on which <code>resume_at</code> depends. An effect contract also records the downstream provider, idempotency scope, and key expiry. The <code>effect_key</code> alone does not prove that a retry days later will still deduplicate.</p>
 <p><code>resume_at</code> should not be an arbitrary source-code line. It should name a logical boundary that future code can continue to understand, such as a committed Tool Execution, a pending approval, or an effect that requires reconciliation.</p>
@@ -74,7 +90,7 @@
   <figcaption>A Checkpoint supplies the recovery boundary; event replay and external reconciliation determine whether execution can continue.</figcaption>
 </figure>
 <p>Recovery for <code>run_8</code> can proceed in this order:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Load Checkpoint version 4, its RunSpec, and snapshot_73; verify that the Snapshot covers exactly through cursor 73 in the specified Session stream.</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Load Checkpoint version 4, its RunSpec, and snapshot_73; verify that the Snapshot covers exactly through cursor 73 in the specified Session stream.</span></span>
 <span class="line"><span>2. Read events with seq > 73 from that stream and incorporate later facts related to this Run.</span></span>
 <span class="line"><span>3. For every effect with an intent but no terminal result, first query by a stable business reference. Retry with the original key only while it remains inside the provider's deduplication window; this includes in_progress, dispatched, and explicit unknown states.</span></span>
 <span class="line"><span>4. Revalidate authorization, Artifacts, and waiting conditions.</span></span>
@@ -85,12 +101,12 @@
 <p>A Checkpoint therefore does not replace idempotency or reconciliation. It tells recovery what must be reconciled.</p>
 <h2 id="pause-and-crash-use-the-same-recovery-contract">Pause and crash use the same recovery contract</h2>
 <p>Human approval, user input, and a scheduled pause can all be represented as explicit waiting conditions:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"approval"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"approval_9"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "resource_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">17</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-18T09:00:00Z"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "kind"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"approval"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "request_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"approval_9"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resource_version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">17</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "expires_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-18T09:00:00Z"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Before pausing, the Runtime commits the waiting event and Checkpoint, then releases the worker. Resume cannot check only whether someone clicked Approve. It must confirm that the approval is bound to the same action, parameters, and resource version; that it has not expired; and that the current authorization still holds.</p>
 <p>A crash and an intentional pause differ in how they begin, not in the recovery protocol. Both rebuild from the last committed boundary instead of depending on a call stack that still exists in the original process.</p>
 <h2 id="why-replay-is-usually-not-fully-deterministic">Why replay is usually not fully deterministic</h2>
@@ -133,4 +149,52 @@
 <li><a href="/writing/state-machines-leases-idempotency/">State Machines, Leases, and Idempotency for Long-Running Tasks</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

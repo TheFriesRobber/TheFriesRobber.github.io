@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A tool schema is not a copy of a backend DTO. It is an interface that helps a model select a capability, generate arguments, and recover from errors."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Tool Schemas Are Model-Facing APIs | Xiaoyuan"><meta property="og:description" content="A tool schema is not a copy of a backend DTO. It is an interface that helps a model select a capability, generate arguments, and recover from errors."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Tool Schemas Are Model-Facing APIs | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/tool-schemas-model-facing-apis/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Tool Schemas Are Model-Facing APIs</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time> <span>Updated 07/14/2026</span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A tool schema is not a copy of a backend DTO. It is an interface that helps a model select a capability, generate arguments, and recover from errors."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Tool Schemas Are Model-Facing APIs | Xiaoyuan"><meta property="og:description" content="A tool schema is not a copy of a backend DTO. It is an interface that helps a model select a capability, generate arguments, and recover from errors."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/tool-schemas-model-facing-apis/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Tool Schemas Are Model-Facing APIs | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/tool-schemas-model-facing-apis/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Tool Schemas Are Model-Facing APIs</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">07/12/2026</time> <span>Updated 07/14/2026</span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Tools/">Tools</a><a class="pill" href="/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>Suppose a backend already has an endpoint for creating calendar events. It accepts more than a dozen fields: user ID, organization ID, title, start and end times, attendees, notification policy, audit source, request ID, and retry settings.</p>
 <p>The most direct approach is to convert that request DTO (Data Transfer Object, a data structure used to pass parameters between services) into JSON Schema (a vocabulary for describing the shape and constraints of JSON data), then register it as an Agent Tool. The types line up and the execution code can be reused, so another interface may seem unnecessary.</p>
 <p>But a model is not an API client following fixed code. It must infer <strong>whether to call a Tool</strong>, <strong>which Tool to call</strong>, and then generate arguments that satisfy the contract. Every ambiguous field in a DTO—and every missing constraint—forces the model to make another unnecessary guess.</p>
@@ -73,17 +89,17 @@
 </figure>
 <h2 id="start-with-a-bad-backend-dto">Start with a bad backend DTO</h2>
 <p>The following input may be appropriate between services, but it is a poor interface for a model:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "user_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"u_123"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "tenant_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"t_456"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "title"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Project sync"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "starts_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:00:00+08:00"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "ends_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-16T10:30:00+08:00"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "notification_policy"</span><span style="color:#24292E">: </span><span style="color:#032F62">"default"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "actor_type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"req_789"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "retry_mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"safe"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "user_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"u_123"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tenant_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"t_456"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "title"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Project sync"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-16T10:00:00+08:00"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "ends_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-16T10:30:00+08:00"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "notification_policy"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"default"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "actor_type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"assistant"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "request_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"req_789"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "retry_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"safe"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>These fields mix three kinds of information:</p>
 <ol>
 <li>Business intent explicitly stated by the user, such as the title, time, and attendees.</li>
@@ -92,51 +108,51 @@
 </ol>
 <p>Once the last two categories enter the schema, the model has to make decisions about them. More importantly, fields such as <code>user_id</code> and <code>actor_type</code> may look like ordinary strings while actually belonging to the authorization and audit boundary. Even if a model usually fills them correctly, authorization cannot depend on the assumption that it usually will not fabricate them.</p>
 <p>A narrower model-facing Tool can accept only the information required to complete the task. To illustrate range constraints, assume this example product allows events from 5 to 480 minutes and at most 50 attendees. These numbers are example product policies, not universal calendar limits:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"object"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "properties"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "title"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "minLength"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event title visible to attendees."</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#005CC5">    "starts_at"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Start time with an explicit UTC offset."</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#005CC5">    "duration_minutes"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"integer"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "minimum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">5</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "maximum"</span><span style="color:#24292E">: </span><span style="color:#005CC5">480</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Event duration in minutes."</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#005CC5">    "attendee_emails"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"array"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "items"</span><span style="color:#24292E">: { </span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"string"</span><span style="color:#24292E"> },</span></span>
-<span class="line"><span style="color:#005CC5">      "minItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">1</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "maxItems"</span><span style="color:#24292E">: </span><span style="color:#005CC5">50</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "description"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Confirmed attendee email addresses. Omit when there are no attendees."</span></span>
-<span class="line"><span style="color:#24292E">    }</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "required"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"title"</span><span style="color:#24292E">, </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">, </span><span style="color:#032F62">"duration_minutes"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "additionalProperties"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "properties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "title"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "minLength"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Event title visible to attendees."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Start time with an explicit UTC offset."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "duration_minutes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"integer"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "minimum"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "maximum"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">480</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Event duration in minutes."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "attendee_emails"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"array"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "items"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: { </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "minItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "maxItems"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">50</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Confirmed attendee email addresses. Omit when there are no attendees."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "required"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"title"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"duration_minutes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "additionalProperties"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>The runtime then adds trusted context:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49">async</span><span style="color:#D73A49"> function</span><span style="color:#6F42C1"> executeScheduleEvent</span><span style="color:#24292E">(</span><span style="color:#E36209">args</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ScheduleEventArgs</span><span style="color:#24292E">, </span><span style="color:#E36209">ctx</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> ToolContext</span><span style="color:#24292E">) {</span></span>
-<span class="line"><span style="color:#D73A49">  const</span><span style="color:#005CC5"> input</span><span style="color:#D73A49"> =</span><span style="color:#6F42C1"> validateBusinessRules</span><span style="color:#24292E">(args, ctx.timezone)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#D73A49;--shiki-dark:#F97583"> function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> executeScheduleEvent</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">args</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ScheduleEventArgs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">ctx</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ToolContext</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> input</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> validateBusinessRules</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(args, ctx.timezone)</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> calendarClient.</span><span style="color:#6F42C1">createEvent</span><span style="color:#24292E">({</span></span>
-<span class="line"><span style="color:#D73A49">    ...</span><span style="color:#24292E">input,</span></span>
-<span class="line"><span style="color:#24292E">    userId: ctx.authenticatedUserId,</span></span>
-<span class="line"><span style="color:#24292E">    permissionScope: ctx.permissionScope,</span></span>
-<span class="line"><span style="color:#24292E">    actor: ctx.actor,</span></span>
-<span class="line"><span style="color:#24292E">    requestId: ctx.requestId,</span></span>
-<span class="line"><span style="color:#24292E">  })</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> calendarClient.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createEvent</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    ...</span><span style="color:#24292E;--shiki-dark:#E1E4E8">input,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    userId: ctx.authenticatedUserId,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    permissionScope: ctx.permissionScope,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    actor: ctx.actor,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    requestId: ctx.requestId,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>The point is not to make the Tool look simpler. It is to assign responsibilities clearly: the model expresses the task, the runtime supplies trusted context, and the backend performs final authorization and consistency checks.</p>
 <h2 id="name-and-description-form-a-routing-interface">Name and description form a routing interface</h2>
 <p>A Tool name should describe a stable action, not an internal service or class name.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>calendar_api_v2_execute       # exposes implementation, unclear intent</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>calendar_api_v2_execute       # exposes implementation, unclear intent</span></span>
 <span class="line"><span>manage_calendar              # too broad</span></span>
 <span class="line"><span>schedule_calendar_event      # explicit action and resource</span></span></code></pre>
 <p>The description should answer a few routing questions:</p>
@@ -148,7 +164,7 @@
 <li>What is the most important precondition?</li>
 </ul>
 <p>For example:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Create one calendar event for the current user. Use only after the title,</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Create one calendar event for the current user. Use only after the title,</span></span>
 <span class="line"><span>start time, and duration are known. This tool writes to the calendar; it</span></span>
 <span class="line"><span>does not search for availability or resolve ambiguous time zones.</span></span></code></pre>
 <p>This description does not explain how the backend stores an event or repeat every property type. It provides the distinctions needed to select the Tool.</p>
@@ -196,11 +212,11 @@
 </ul>
 <p>In JSON Schema, a property listed under <code>properties</code> is optional by default; it must also appear under <code>required</code> to be mandatory. Undeclared properties are also allowed by default. Only <code>additionalProperties: false</code> rejects near-synonyms invented by the model.</p>
 <p>Three states deserve separate treatment:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{}</span></span></code></pre>
 <p>The property is missing.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#032F62">""</span><span style="color:#24292E"> }</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">""</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }</span></span></code></pre>
 <p>The caller explicitly supplied an empty string.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{ </span><span style="color:#005CC5">"note"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span><span style="color:#24292E"> }</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"note"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }</span></span></code></pre>
 <p>The caller explicitly supplied <code>null</code>, which is valid only when the schema allows it.</p>
 <p>If the handler collapses all three with <code>value ?? ""</code>, a precise schema cannot preserve the distinction. For an interface where an empty string means “delete the current content,” the value may be empty while the property itself should still be required.</p>
 <h2 id="schema-validation-does-not-replace-handler-validation">Schema validation does not replace handler validation</h2>
@@ -240,16 +256,16 @@
 <h2 id="errors-are-also-part-of-the-model-facing-api">Errors are also part of the model-facing API</h2>
 <p>If the application or runtime returns a Tool error to the model, that error becomes input to the model’s next decision. <code>400 invalid body</code> may be enough for an engineer to start reading logs, but it tells a model almost nothing about what to do next.</p>
 <p>A recoverable error should at least include a stable code, the problematic field, and a repair hint. It can use a fixed error envelope:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "ok"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "error"</span><span style="color:#24292E">: </span><span style="color:#032F62">"ambiguous_time_zone"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "field"</span><span style="color:#24292E">: </span><span style="color:#032F62">"starts_at"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "message"</span><span style="color:#24292E">: </span><span style="color:#032F62">"The start time does not include a UTC offset."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "hint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"Ask the user for a time zone, then retry with an explicit offset."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "recoverable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "requires_user_input"</span><span style="color:#24292E">: </span><span style="color:#005CC5">true</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "retryable"</span><span style="color:#24292E">: </span><span style="color:#005CC5">false</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "ok"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "error"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"ambiguous_time_zone"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "field"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"starts_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "message"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"The start time does not include a UTC offset."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "hint"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"Ask the user for a time zone, then retry with an explicit offset."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "recoverable"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "requires_user_input"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "retryable"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>The envelope needs clear boundaries:</p>
 <ul>
 <li><code>error</code> should be a stable, low-cardinality machine code so traces and evals can aggregate it.</li>
@@ -325,4 +341,52 @@
 <li><a href="https://json-schema.org/understanding-json-schema/reference/object">JSON Schema: Objects</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

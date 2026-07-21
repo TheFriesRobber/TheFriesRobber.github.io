@@ -1,22 +1,38 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="One Tool write with an unknown outcome shows why a simple Agent Loop can lose track of the task's actual state."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why a while Loop Is Not Yet an Agent Runtime | Xiaoyuan"><meta property="og:description" content="One Tool write with an unknown outcome shows why a simple Agent Loop can lose track of the task's actual state."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why a while Loop Is Not Yet an Agent Runtime | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-loop-runtime-protocol/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why a while Loop Is Not Yet an Agent Runtime</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Systems%20Design/">Systems Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="One Tool write with an unknown outcome shows why a simple Agent Loop can lose track of the task's actual state."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Why a while Loop Is Not Yet an Agent Runtime | Xiaoyuan"><meta property="og:description" content="One Tool write with an unknown outcome shows why a simple Agent Loop can lose track of the task's actual state."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-loop-runtime-protocol/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Why a while Loop Is Not Yet an Agent Runtime | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-loop-runtime-protocol/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Why a while Loop Is Not Yet an Agent Runtime</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Systems%20Design/">Systems Design</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>A minimal Agent Loop often looks like this:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">while</span><span style="color:#005CC5"> True</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">    response </span><span style="color:#D73A49">=</span><span style="color:#24292E"> model.generate(messages, tools)</span></span>
-<span class="line"><span style="color:#D73A49">    if</span><span style="color:#24292E"> response.tool_calls:</span></span>
-<span class="line"><span style="color:#24292E">        messages.extend(execute(response.tool_calls))</span></span>
-<span class="line"><span style="color:#D73A49">    else</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#D73A49">        return</span><span style="color:#24292E"> response.text</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">while</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> True</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    response </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> model.generate(messages, tools)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> response.tool_calls:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        messages.extend(execute(response.tool_calls))</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    else</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> response.text</span></span></code></pre>
 <p>The model proposes a Tool Call, the Runtime executes it, and the result goes back to the model. The loop ends when the model stops calling Tools.</p>
 <p>For a demo, this is enough. Suppose a user says, “Check tomorrow’s weather in Beijing and save it to my notes.” The model calls <code>get_weather</code>, then <code>write_note</code>, and finally reports completion. When every step succeeds, the execution really does behave like a <code>while</code> loop.</p>
 <p>The problem is not that the loop cannot run. It is that the loop describes only the <strong>happy path</strong>. As soon as one Tool call no longer has a definite outcome, the loop no longer knows how far the task actually progressed.</p>
 <h2 id="one-timeout-breaks-the-model">One timeout breaks the model</h2>
 <p>Continue with the note-writing example.</p>
 <p><code>write_note</code> saves the content successfully, but the network fails while the response is returning. The Runtime sees only a timeout:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">try</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#24292E">    result </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> write_note(content)</span></span>
-<span class="line"><span style="color:#D73A49">except</span><span style="color:#005CC5"> TimeoutError</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#6A737D">    # What should happen next?</span></span>
-<span class="line"><span style="color:#005CC5">    ...</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">try</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    result </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> write_note(content)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">except</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> TimeoutError</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    # What should happen next?</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    ...</span></span></code></pre>
 <p>From the Runtime’s perspective, at least three things may have happened:</p>
 <ol>
 <li>The request never reached the note service.</li>
@@ -33,32 +49,32 @@
 <p>A failed return path does not imply a failed external operation. For a read, the distinction may cost only another request. For writing a file, sending an email, or creating an order, it changes the user-visible outcome.</p>
 <h2 id="why-one-tool-error-is-not-enough">Why one Tool error is not enough</h2>
 <p>To see why the loop cannot handle this timeout, separate three layers of fact:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>model: proposes write_note</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>model: proposes write_note</span></span>
 <span class="line"><span>Runtime: sends the call but receives no definite response</span></span>
 <span class="line"><span>note service: may already have created note_42</span></span></code></pre>
 <p>The model can propose the next step. The Runtime can say whether it received a response. Only the note service owns the actual write result. During normal execution, these facts can collapse into one Tool Result; after a timeout, they diverge.</p>
 <p>If the Runtime appends only this message:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool error: request timed out</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Tool error: request timed out</span></span></code></pre>
 <p>the model sees a failed call and will naturally try <code>write_note</code> again. But the message omits the most important fact: the first write did not definitely fail; its result is <strong>unknown</strong>.</p>
 <p>An unknown result is an execution state that requires resolution, not merely a natural-language error. The Runtime must at least remember which write this was, whether it ever received a <code>note_id</code>, and whether the next action should confirm the original outcome or execute again. If a restart restores only <code>messages</code>, that information disappears.</p>
 <p>This is where a timeout becomes a retry problem: when the first outcome is unknown, what does “call it again” actually mean?</p>
 <h2 id="before-retrying-distinguish-try-again-from-do-again">Before retrying, distinguish “try again” from “do again”</h2>
 <p>The user asked for one note. Retrying after a timeout sounds natural, but the Runtime first has to decide whether the retry continues the original write or starts a second write.</p>
 <p>Suppose the first request created <code>note_42</code>, but its response was lost. If the Runtime treats the retry as a new create request, the result is:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user intent: create one note</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user intent: create one note</span></span>
 <span class="line"><span></span></span>
 <span class="line"><span>first call  → creates note_42, but the Runtime sees only a timeout</span></span>
 <span class="line"><span>second call → creates note_43 and returns successfully</span></span></code></pre>
 <p>The second request succeeds, yet the user receives two notes. The problem is not a failed retry. The same user intent was executed twice.</p>
 <p>The note service needs a way to recognize that both requests are attempts to complete the same write. A common mechanism is a stable <code>idempotency key</code>: an identifier that remains the same across attempts for one logical operation.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>first attempt  (operation_7) → creates note_42, response is lost</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>first attempt  (operation_7) → creates note_42, response is lost</span></span>
 <span class="line"><span>second attempt (operation_7) → recognizes the same operation and returns note_42</span></span></code></pre>
 <p>This requires downstream idempotency support, and it requires the Runtime to retain <code>operation_7</code> after the timeout. If a restarted process restores only the conversation and generates a new identifier, the retry becomes a new write again.</p>
 <p>Retry therefore does not mean “call again after failure.” The system must identify which attempts belong to one logical operation and preserve that identity across unknown outcomes and process restarts. Otherwise retry amplifies one uncertain execution into several possible duplicates.</p>
 <h2 id="the-minimum-a-runtime-must-add">The minimum a Runtime must add</h2>
 <p>There is no need to design a large schema yet. This example requires only that the Runtime stop treating a logical operation, one call attempt, and the confirmed result as the same thing.</p>
 <p>For the goal “create one note,” it needs to preserve three levels:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>logical operation: create one note (operation_7)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>logical operation: create one note (operation_7)</span></span>
 <span class="line"><span>execution attempts: attempt 1 times out; attempt 2 returns successfully</span></span>
 <span class="line"><span>confirmed result: note_42 exists</span></span></code></pre>
 <p>One logical operation may have several attempts, but they must converge on exactly one confirmed result. A retry after timeout then continues <code>operation_7</code> instead of silently creating a new operation.</p>
@@ -79,4 +95,52 @@
 <li>How should Middleware, Tracing, and Eval consume the same execution facts?</li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

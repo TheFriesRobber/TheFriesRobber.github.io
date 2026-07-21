@@ -1,42 +1,58 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用 canonical contract 和 provider adapter 隔离 prompt、Tool Schema、消息与 streaming event 的格式差异。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Provider 差异应封装在 Adapter 内部 | Xiaoyuan"><meta property="og:description" content="用 canonical contract 和 provider adapter 隔离 prompt、Tool Schema、消息与 streaming event 的格式差异。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/provider-shaping-model-routing/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Provider 差异应封装在 Adapter 内部 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/provider-shaping-model-routing/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Provider 差异应封装在 Adapter 内部</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用 canonical contract 和 provider adapter 隔离 prompt、Tool Schema、消息与 streaming event 的格式差异。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Provider 差异应封装在 Adapter 内部 | Xiaoyuan"><meta property="og:description" content="用 canonical contract 和 provider adapter 隔离 prompt、Tool Schema、消息与 streaming event 的格式差异。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/provider-shaping-model-routing/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/provider-shaping-model-routing/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/provider-shaping-model-routing/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Provider 差异应封装在 Adapter 内部 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/provider-shaping-model-routing/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Provider 差异应封装在 Adapter 内部</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设 Runtime 已经选好模型，并准备执行一次文档搜索。内部记录的是同一个逻辑交互：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user request</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user request</span></span>
 <span class="line"><span>→ assistant tool call: search_documents(call_17)</span></span>
 <span class="line"><span>→ tool result: call_17</span></span>
 <span class="line"><span>→ assistant final answer</span></span></code></pre>
 <p>不同 provider 对这段交互的表达可能不同：有的把 Tool Call 和 Tool Result 表示成独立 item，有的把它们放进 assistant 与 user message 的 content block；Tool name、Schema 子集、streaming event 和结束原因也可能采用不同约束。</p>
 <p>如果业务代码只统一成一个 <code>generate()</code> 方法，却在调用前后散落这些分支：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49">if</span><span style="color:#24292E"> provider </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "a"</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#6A737D">    # 改 role、拼 tool result</span></span>
-<span class="line"><span style="color:#D73A49">elif</span><span style="color:#24292E"> provider </span><span style="color:#D73A49">==</span><span style="color:#032F62"> "b"</span><span style="color:#24292E">:</span></span>
-<span class="line"><span style="color:#6A737D">    # 改 content block、转换 schema</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> provider </span><span style="color:#D73A49;--shiki-dark:#F97583">==</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "a"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    # 改 role、拼 tool result</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">elif</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> provider </span><span style="color:#D73A49;--shiki-dark:#F97583">==</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "b"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    # 改 content block、转换 schema</span></span></code></pre>
 <p>那么 provider 差异并没有被抽象，只是从 HTTP client 泄漏到了 Context Assembly、Agent Loop 和 Tool Runtime。</p>
 <p>真正需要统一的不是函数名，而是 Runtime 依赖的语义：<strong>一次请求包含哪些 instruction、message 和 Tool；返回了哪些完整 item；Tool Call 与 Tool Result 怎样关联。</strong></p>
 <h2 id="canonical-contract-不是所有-provider-的最小交集">Canonical contract 不是所有 Provider 的最小交集</h2>
 <p>Runtime 可以先定义自己的 canonical contract，例如：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "operation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_op_17"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "continuation_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"conversation_9@item_24"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "instructions"</span><span style="color:#24292E">: [{</span><span style="color:#005CC5">"kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"runtime_policy"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"content_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"policy_8"</span><span style="color:#24292E">}],</span></span>
-<span class="line"><span style="color:#005CC5">  "input_items"</span><span style="color:#24292E">: [</span></span>
-<span class="line"><span style="color:#24292E">    {</span><span style="color:#005CC5">"type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"user_message"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"content"</span><span style="color:#24292E">: </span><span style="color:#032F62">"查找设计文档中的重试策略"</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#24292E">    {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant_tool_call"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "call_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"call_16"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "name"</span><span style="color:#24292E">: </span><span style="color:#032F62">"search_documents"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "arguments_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"args_16"</span></span>
-<span class="line"><span style="color:#24292E">    },</span></span>
-<span class="line"><span style="color:#24292E">    {</span></span>
-<span class="line"><span style="color:#005CC5">      "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_result"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "call_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"call_16"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "content_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"artifact_42"</span></span>
-<span class="line"><span style="color:#24292E">    }</span></span>
-<span class="line"><span style="color:#24292E">  ],</span></span>
-<span class="line"><span style="color:#005CC5">  "tools"</span><span style="color:#24292E">: [{</span><span style="color:#005CC5">"definition_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"search_documents@revision_5"</span><span style="color:#24292E">}],</span></span>
-<span class="line"><span style="color:#005CC5">  "required_features"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"tool_call_identity"</span><span style="color:#24292E">, </span><span style="color:#032F62">"streaming"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "required_provider_guarantees"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"preserve_required_fields"</span><span style="color:#24292E">]</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "operation_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_op_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "continuation_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"conversation_9@item_24"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "instructions"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [{</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"kind"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"runtime_policy"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"content_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"policy_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "input_items"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"user_message"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"content"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"查找设计文档中的重试策略"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"assistant_tool_call"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "call_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"call_16"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"search_documents"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "arguments_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"args_16"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_result"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "call_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"call_16"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"succeeded"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "content_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"artifact_42"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tools"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [{</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"definition_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"search_documents@revision_5"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "required_features"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_call_identity"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"streaming"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "required_provider_guarantees"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"preserve_required_fields"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Canonical 不应照抄某家 API，也不必退化成所有 provider 都能表达的最小字段集。它应表达 Runtime 真正需要的能力；某个 route 无法表达时，Adapter 返回明确的不兼容，而不是静默丢字段。</p>
 <p>这样，上游只处理 canonical <code>user_message</code>、<code>assistant_tool_call</code>、<code>tool_result</code> 和稳定的 <code>call_id</code>。Provider 把它们放在哪种 role 或 content block 中，属于 Adapter 的责任。</p>
 <figure>
@@ -45,7 +61,7 @@
 </figure>
 <h2 id="adapter-先声明能力再做转换">Adapter 先声明能力，再做转换</h2>
 <p>Adapter 不应该拿到请求后边转换边猜。它可以先根据 route 的 capability profile 做 preflight：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical request</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical request</span></span>
 <span class="line"><span>→ capability check</span></span>
 <span class="line"><span>→ schema and message transform</span></span>
 <span class="line"><span>→ provider request</span></span>
@@ -81,11 +97,11 @@
 <p>Adapter 不负责根据字段名称猜测业务风险。Canonical request 或上游 policy 应明确哪些 provider-side generation guarantees 是必需的，例如 <code>preserve_required_fields</code>；Adapter 只报告对应约束能否表达。必需保证无法表达时返回 <code>unsupported</code>，非必需约束丢失时返回 <code>lossy</code>。Adapter 不能为了让 HTTP 请求成功而自行降低契约，也不能自行决定某个 Schema keyword 对业务是否重要。</p>
 <h2 id="tool-call-identity-不能在转换中丢失">Tool Call identity 不能在转换中丢失</h2>
 <p>继续使用 <code>search_documents</code>。Runtime 需要稳定知道 Tool Result 属于哪个 Tool Call：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical call_id: call_17</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical call_id: call_17</span></span>
 <span class="line"><span>provider call identity: provider_call_xyz</span></span></code></pre>
 <p>Adapter 可以保存映射，但返回 Runtime 时必须恢复 canonical <code>call_id</code>。如果只按 Tool name 匹配，在并行调用两次 <code>search_documents</code> 时就无法判断哪个结果对应哪组参数。</p>
 <p>这份映射不能只是进程内的二元 Map。一次 provider continuation 可能跨进程恢复，同一个 logical model operation 也可能在 fallback 后产生新的 attempt。映射至少要带上：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical call_id</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical call_id</span></span>
 <span class="line"><span>route and provider</span></span>
 <span class="line"><span>model attempt_id</span></span>
 <span class="line"><span>provider response / conversation identity</span></span>
@@ -93,11 +109,11 @@
 <p>它应随 canonical event 或 provider continuation state 持久化。继续同一个 provider conversation 时，Tool round trip 通常保持 route-sticky，并回传原生 call identity。Fallback 到另一个 provider 时，只有目标 Adapter 能完整表达所有必需且可迁移的 continuation state，才能根据 canonical Tool Call 与 Tool Result 重新渲染配对；不能把上一家的 native ID 直接带过去。</p>
 <p>Canonical <code>call_id</code> 只解决业务关联，不保证整个 continuation 都可移植。Provider-native reasoning item、opaque compaction item 或强制消息顺序可能仍属于原 route；目标协议无法表达时，Adapter 应返回 <code>incompatible_continuation</code>，让 Runtime 从已经确认的稳定事实边界建立新的 model operation，而不是伪装成同一段 conversation 的无损续接。</p>
 <p>请求侧的转换可能是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical tool_result(call_17)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>canonical tool_result(call_17)</span></span>
 <span class="line"><span>→ provider-specific message role / content block</span></span>
 <span class="line"><span>→ provider_call_xyz</span></span></code></pre>
 <p>响应侧则反向归一化：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>provider tool-use item(provider_call_xyz)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>provider tool-use item(provider_call_xyz)</span></span>
 <span class="line"><span>→ canonical tool_call(call_17, name, arguments)</span></span></code></pre>
 <p>这个映射是执行协议的一部分，不是日志里的辅助字段。丢失它会直接破坏 Tool Call、重试和结果消费。</p>
 <h2 id="prompt-shaping-不能改变权限与事实边界">Prompt shaping 不能改变权限与事实边界</h2>
@@ -138,7 +154,7 @@
 <h2 id="streaming-只能统一事件语义不能统一-chunk-形状">Streaming 只能统一事件语义，不能统一 chunk 形状</h2>
 <p>不同 provider 可能按 token、content block、Tool argument delta 或完整 item 推送事件。强行把每个原始 chunk 一一映射成相同结构，会让 Runtime 依赖某家的切分方式。</p>
 <p>更稳妥的做法是统一 Runtime 真正关心的事件：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>response.started</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>response.started</span></span>
 <span class="line"><span>text.delta</span></span>
 <span class="line"><span>tool_call.delta</span></span>
 <span class="line"><span>item.assembled</span></span>
@@ -149,7 +165,7 @@
 <p>统一事件也不意味着两个 provider 会产生相同 token 边界、时间顺序或 finish reason。Adapter 应保留原始 reason 供诊断，同时映射出 Runtime 使用的有限分类；无法准确映射时标记 <code>unknown</code>，不要编造一个看似统一的值。</p>
 <h2 id="把一次转换走完">把一次转换走完</h2>
 <p>文档搜索请求经过 Adapter 的过程可以是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Router 选择 route_b，固定 Adapter profile revision 9。</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Router 选择 route_b，固定 Adapter profile revision 9。</span></span>
 <span class="line"><span>2. Adapter 检查 Tool Call identity、streaming 和 Schema 能力。</span></span>
 <span class="line"><span>3. 将 canonical messages 与 Tool definition 渲染为 provider request。</span></span>
 <span class="line"><span>4. Stream 中首次出现 Tool Call identity 时，分配或恢复 canonical `call_id`，并按 route、attempt 和 provider response 保存映射。</span></span>
@@ -187,4 +203,52 @@
 <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/fine-grained-tool-streaming">Anthropic：Fine-grained tool streaming</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

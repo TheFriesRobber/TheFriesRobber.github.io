@@ -1,6 +1,22 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="解释 Runtime 如何校验 Spawn Request、创建 Child Run，并约束它的上下文、能力、预算、取消和结果回收。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="SubAgent 如何从 Spawn Request 变成受控的 Child Run | Xiaoyuan"><meta property="og:description" content="解释 Runtime 如何校验 Spawn Request、创建 Child Run，并约束它的上下文、能力、预算、取消和结果回收。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>SubAgent 如何从 Spawn Request 变成受控的 Child Run | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/subagent-delegation-isolation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">SubAgent 如何从 Spawn Request 变成受控的 Child Run</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Multi-Agent/">Multi-Agent</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="解释 Runtime 如何校验 Spawn Request、创建 Child Run，并约束它的上下文、能力、预算、取消和结果回收。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="SubAgent 如何从 Spawn Request 变成受控的 Child Run | Xiaoyuan"><meta property="og:description" content="解释 Runtime 如何校验 Spawn Request、创建 Child Run，并约束它的上下文、能力、预算、取消和结果回收。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>SubAgent 如何从 Spawn Request 变成受控的 Child Run | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/subagent-delegation-isolation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">SubAgent 如何从 Spawn Request 变成受控的 Child Run</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Multi-Agent/">Multi-Agent</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>主 Agent 在执行中发现两个临时子问题：一个比较数据库方案，另一个分析部署方式。它向 Runtime 提出两次 Spawn Request：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spawn_agent(type="research", goal="比较数据库方案", mode="sync")</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spawn_agent(type="research", goal="比较数据库方案", mode="sync")</span></span>
 <span class="line"><span>spawn_agent(type="research", goal="分析部署方式", mode="sync")</span></span></code></pre>
 <p>示例里没有让模型填写 request ID。可信 Runtime 在父 Tool Execution 的这次 Tool Call 首次进入 admission 时分配并持久化 <code>spawn_request_id</code>；同一逻辑 Tool Call 的所有 retry Attempt 都复用它，只有新的委派意图才获得新 ID。</p>
 <p>这两次 Tool Call 只是创建请求，不是已经生成的 SubAgent。真正的问题从这里才开始：Runtime 应该允许创建吗？使用哪份 Agent definition？Child 与父 Run 是什么关系？它能看到什么，又怎样把结果交回来？</p>
@@ -10,7 +26,7 @@
 <p>上一篇<a href="/zh/writing/agent-delegation-primitives/">《Agent 拆出子任务后，应该交给谁执行？》</a>已经说明为什么这个子问题适合交给 SubAgent。本文接着回答：选定 SubAgent 后，Runtime 怎样把一次创建请求变成受父 Run 管理的 Child Run。</p>
 <h2 id="spawn-request-只是创建提议">Spawn Request 只是创建提议</h2>
 <p>模型可以提出目标、SubAgent 类型和期望的返回方式，但不能自行生成可信 Agent definition、授权或 credential。父 Tool Execution retry 时还可能重复提交同一个请求，因此创建流程必须先定义幂等边界。Runtime 至少要经过下面几步：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>父 Agent 产生 Spawn Request</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>父 Agent 产生 Spawn Request</span></span>
 <span class="line"><span>→ dedup：以 parent_run_id + spawn_request_id 查找既有结果</span></span>
 <span class="line"><span>→ admission：检查 Tool Surface、nesting depth、并发和剩余预算</span></span>
 <span class="line"><span>→ resolution：从可信 Registry 解析 Agent definition 与 revision</span></span>
@@ -25,7 +41,7 @@
 <p>Admission 失败也应成为明确的 Tool Result，例如 <code>spawn_not_allowed</code>、<code>depth_exceeded</code> 或 <code>budget_exhausted</code>。不能先启动 child，再让模型从 timeout 猜测创建是否成功。</p>
 <h2 id="委派不是复制父-agent">委派不是复制父 Agent</h2>
 <p>SubAgent 的目标是完成一个受限子问题，而不是克隆父 Agent 的全部身份和能力。一份 delegation contract 至少要回答：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>目标是什么？</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>目标是什么？</span></span>
 <span class="line"><span>允许读取哪些 Context？</span></span>
 <span class="line"><span>允许调用哪些 Tool，以谁的身份？</span></span>
 <span class="line"><span>可以读写哪个 workspace？</span></span>
@@ -33,29 +49,29 @@
 <span class="line"><span>父级取消时怎样处理？</span></span>
 <span class="line"><span>结果按什么 schema 返回，由谁验证？</span></span></code></pre>
 <p>这些信息可以组成 delegation envelope：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "delegation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"delegation_7"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "spawn_request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"spawn_19"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "parent_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "parent_tool_execution_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_exec_12"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "child_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_21"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "definition"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"sync"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "goal"</span><span style="color:#24292E">: </span><span style="color:#032F62">"比较两个数据库方案在当前约束下的取舍"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "context_refs"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"requirements_v3"</span><span style="color:#24292E">, </span><span style="color:#032F62">"traffic_assumptions_v2"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "tool_surface"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"web_search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"read_workspace"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "authority"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "actor_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"principal_21"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "subject_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"subject_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "grant_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"grant_41"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "audience"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search-service"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace-service"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">    "scopes"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"web:search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace:read"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">    "expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:03:00Z"</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "workspace"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"read"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/inputs"</span><span style="color:#24292E">], </span><span style="color:#005CC5">"write"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/outputs/db"</span><span style="color:#24292E">]},</span></span>
-<span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">180</span><span style="color:#24292E">, </span><span style="color:#005CC5">"max_model_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "result_schema"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research_result.v2"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "delegation_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"delegation_7"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "spawn_request_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"spawn_19"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "parent_run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "parent_tool_execution_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_exec_12"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "child_run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_21"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "definition"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"research"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sync"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "goal"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"比较两个数据库方案在当前约束下的取舍"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "context_refs"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"requirements_v3"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"traffic_assumptions_v2"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_surface"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"web_search"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"read_workspace"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "authority"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "actor_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"principal_21"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "subject_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"subject_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "grant_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"grant_41"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "audience"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"search-service"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"workspace-service"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "scopes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"web:search"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"workspace:read"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "expires_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-17T09:03:00Z"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "workspace"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"read"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/inputs"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">], </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"write"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/outputs/db"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "limits"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"deadline_seconds"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">180</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"max_model_turns"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">8</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "result_schema"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"research_result.v2"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>Envelope 是执行授权引用和结果预期，不是给模型看的长 prompt。<code>principal_21</code> 是可信 Runtime 为这个 Child Run 绑定并认证的 per-Run execution principal；裸 <code>run_21</code> 只是执行记录 ID，从不直接参与授权判断。可信执行层根据不可伪造的 <code>grant_ref</code> 重新解析 actor、subject、audience、scope 与 expiry，并检查路径和资源限制。Envelope 中这些字段用于约束和审计，不能让 child 仅靠修改 JSON 扩大权限。</p>
 <figure>
   <img src="/posts/zh/subagent-delegation-isolation/subagent-contract.svg" alt="父 Agent 提出 Spawn Request，Runtime 为它分配并去重 request identity，完成 admission、definition resolution、Child Run identity reserve 和 delegation compilation，再激活一条持久 ready record；scheduler claim 这条 ready record 后执行对应 Child Run，并把结构化结果与证据交回父 Agent。" loading="lazy">
@@ -63,7 +79,7 @@
 </figure>
 <h2 id="同步返回与异步-handle-仍由父-run-拥有">同步返回与异步 Handle 仍由父 Run 拥有</h2>
 <p>同步模式下，父 Tool Execution 等待 Child Run 到达终态，再把结构化结果作为本次 <code>spawn_agent</code> Tool Result 交给下一个 Model Turn：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Tool Execution waiting_for_child</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Tool Execution waiting_for_child</span></span>
 <span class="line"><span>→ child Run completed</span></span>
 <span class="line"><span>→ validate child result</span></span>
 <span class="line"><span>→ parent Tool Execution succeeded</span></span>
@@ -91,23 +107,23 @@
 <h2 id="workspace-隔离要从路径变成所有权">Workspace 隔离要从路径变成所有权</h2>
 <p>开场中的覆盖来自两个 child 都写 <code>report.md</code>。仅提醒模型“不要覆盖”不是隔离。</p>
 <p>可以为每次 delegation 分配独立目录：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>/inputs                         read-only shared inputs</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>/inputs                         read-only shared inputs</span></span>
 <span class="line"><span>/outputs/delegation_7/          database child writes here</span></span>
 <span class="line"><span>/outputs/delegation_8/          deployment child writes here</span></span></code></pre>
 <p>父 Agent 只在 child 完成后读取声明过的 artifact。若多个 child 必须修改同一对象，需要单独的 merge protocol、版本前置条件或父级串行提交，不能依赖 last-write-wins。</p>
 <p>把开场例子改成隔离目录后，两个 child 分别返回：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"completed"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "summary"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "artifacts"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/outputs/delegation_7/comparison.md"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "evidence"</span><span style="color:#24292E">: [{</span><span style="color:#005CC5">"claim"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span><span style="color:#24292E">, </span><span style="color:#005CC5">"source"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://..."</span><span style="color:#24292E">}],</span></span>
-<span class="line"><span style="color:#005CC5">  "limitations"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"未验证真实工作负载"</span><span style="color:#24292E">]</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "summary"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "artifacts"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/outputs/delegation_7/comparison.md"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "evidence"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [{</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"claim"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"source"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"https://..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "limitations"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"未验证真实工作负载"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>父 Agent 不再从共享目录猜哪个文件是最终结果。</p>
 <h2 id="budget-与取消需要父子关系">Budget 与取消需要父子关系</h2>
 <p>Child 自己的 timeout 不能代替父级预算。父 Run 只剩 60 秒时，不应再启动一个 deadline 为 5 分钟的 child，除非它已经被升级为独立 Child Job。</p>
 <p>有效 child deadline 通常是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>min(parent_deadline, delegation_deadline, system_limit)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>min(parent_deadline, delegation_deadline, system_limit)</span></span></code></pre>
 <p>Token、Tool Call 和成本属于可累计消耗，需要向父级 roll up。并发不是累计预算，而是某一时刻的 capacity/admission 上限；nesting depth 和 rate limit 也分别检查。否则主 Agent 仍可能通过不断 spawn child 绕过自己的限制。</p>
 <p>父级取消时，Runtime 应向 child 传播 cancellation request，并等待到约定边界。取消首先是协作式请求：只有 child 运行在可单独终止的 process、worker 或 sandbox 中，Runtime 才能在 grace period 后强制停止计算；同一进程中的 coroutine 可能延迟甚至压制取消。</p>
 <p>无论计算是否停止，都不能从 <code>cancelled</code> 推断外部副作用没有发生。被终止的 child 也可能根本来不及返回结果，因此应由可信 Runtime 或外部 effect owner 根据执行记录与 reconciliation 形成单独的 effect outcome：<code>confirmed</code>、<code>not_applied</code> 或 <code>unknown</code>。</p>
@@ -150,4 +166,52 @@
 <li><a href="https://www.rfc-editor.org/rfc/rfc8693.html">RFC 8693：OAuth 2.0 Token Exchange</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

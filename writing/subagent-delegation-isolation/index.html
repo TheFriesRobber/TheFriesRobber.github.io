@@ -1,6 +1,22 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="How the Runtime validates a Spawn Request, creates a Child Run, and constrains its context, capabilities, budget, cancellation, and result collection."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="How a Spawn Request Becomes a Controlled Child Run | Xiaoyuan"><meta property="og:description" content="How the Runtime validates a Spawn Request, creates a Child Run, and constrains its context, capabilities, budget, cancellation, and result collection."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>How a Spawn Request Becomes a Controlled Child Run | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/subagent-delegation-isolation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">How a Spawn Request Becomes a Controlled Child Run</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Multi-Agent/">Multi-Agent</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="How the Runtime validates a Spawn Request, creates a Child Run, and constrains its context, capabilities, budget, cancellation, and result collection."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="How a Spawn Request Becomes a Controlled Child Run | Xiaoyuan"><meta property="og:description" content="How the Runtime validates a Spawn Request, creates a Child Run, and constrains its context, capabilities, budget, cancellation, and result collection."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/subagent-delegation-isolation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>How a Spawn Request Becomes a Controlled Child Run | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/subagent-delegation-isolation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">How a Spawn Request Becomes a Controlled Child Run</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Multi-Agent/">Multi-Agent</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>While executing, the primary Agent discovers two temporary subproblems: comparing database options and analyzing deployment approaches. It submits two Spawn Requests to the Runtime:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spawn_agent(type="research", goal="compare database options", mode="sync")</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spawn_agent(type="research", goal="compare database options", mode="sync")</span></span>
 <span class="line"><span>spawn_agent(type="research", goal="analyze deployment approaches", mode="sync")</span></span></code></pre>
 <p>The example does not let the model choose a request ID. When this Tool Call first enters admission, the trusted Runtime allocates and persists a <code>spawn_request_id</code> for that Tool Call within the parent Tool Execution. Every retry Attempt for the same logical Tool Call reuses it; only a new delegation intent receives a new ID.</p>
 <p>These two Tool Calls are only creation requests; they are not SubAgents that have already been created. The real questions begin here: should the Runtime allow them? Which Agent definition should it use? What is the relationship between each child and the parent Run? What can a child see, and how does it return a result?</p>
@@ -10,7 +26,7 @@
 <p>The previous article, <a href="/writing/agent-delegation-primitives/">“When an Agent Creates a Subtask, Who Should Execute It?”</a>, explained why this subproblem is suitable for a SubAgent. This article takes the next step: once SubAgent has been selected, how does the Runtime turn one creation request into a Child Run managed by its parent Run?</p>
 <h2 id="a-spawn-request-is-only-a-creation-proposal">A Spawn Request is only a creation proposal</h2>
 <p>The model may propose a goal, a SubAgent type, and the desired return mode, but it cannot create a trusted Agent definition, authorization, or credential by itself. A retry of the parent Tool Execution may also submit the same request again, so the creation flow must first define an idempotency boundary. The Runtime needs at least the following steps:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Agent produces Spawn Request</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Agent produces Spawn Request</span></span>
 <span class="line"><span>→ dedup: look up an existing result by parent_run_id + spawn_request_id</span></span>
 <span class="line"><span>→ admission: check Tool Surface, nesting depth, concurrency, and remaining budget</span></span>
 <span class="line"><span>→ resolution: resolve the Agent definition and revision from a trusted Registry</span></span>
@@ -26,7 +42,7 @@
 <p>An admission failure should also become an explicit Tool Result, such as <code>spawn_not_allowed</code>, <code>depth_exceeded</code>, or <code>budget_exhausted</code>. The system must not start a child first and then leave the model to infer from a timeout whether creation succeeded.</p>
 <h2 id="delegation-is-not-copying-the-parent-agent">Delegation is not copying the parent Agent</h2>
 <p>A SubAgent exists to complete a constrained subproblem, not to clone every aspect of the parent Agent’s identity and capabilities. A delegation contract needs to answer at least these questions:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>What is the goal?</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>What is the goal?</span></span>
 <span class="line"><span>Which Context may it read?</span></span>
 <span class="line"><span>Which Tools may it call, and under whose identity?</span></span>
 <span class="line"><span>Which workspace may it read and write?</span></span>
@@ -34,29 +50,29 @@
 <span class="line"><span>What happens when the parent is cancelled?</span></span>
 <span class="line"><span>Which schema must the result follow, and who validates it?</span></span></code></pre>
 <p>These details can form a delegation envelope:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "delegation_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"delegation_7"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "spawn_request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"spawn_19"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "parent_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "parent_tool_execution_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tool_exec_12"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "child_run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_21"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "definition"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"revision"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "mode"</span><span style="color:#24292E">: </span><span style="color:#032F62">"sync"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "goal"</span><span style="color:#24292E">: </span><span style="color:#032F62">"compare the tradeoffs between two database options under the current constraints"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "context_refs"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"requirements_v3"</span><span style="color:#24292E">, </span><span style="color:#032F62">"traffic_assumptions_v2"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "tool_surface"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"web_search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"read_workspace"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "authority"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "actor_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"principal_21"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "subject_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"subject_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "grant_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"grant_41"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "audience"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"search-service"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace-service"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">    "scopes"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"web:search"</span><span style="color:#24292E">, </span><span style="color:#032F62">"workspace:read"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">    "expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:03:00Z"</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "workspace"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"read"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/inputs"</span><span style="color:#24292E">], </span><span style="color:#005CC5">"write"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/outputs/db"</span><span style="color:#24292E">]},</span></span>
-<span class="line"><span style="color:#005CC5">  "limits"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"deadline_seconds"</span><span style="color:#24292E">: </span><span style="color:#005CC5">180</span><span style="color:#24292E">, </span><span style="color:#005CC5">"max_model_turns"</span><span style="color:#24292E">: </span><span style="color:#005CC5">8</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "result_schema"</span><span style="color:#24292E">: </span><span style="color:#032F62">"research_result.v2"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "delegation_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"delegation_7"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "spawn_request_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"spawn_19"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "parent_run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "parent_tool_execution_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_exec_12"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "child_run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_21"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "definition"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"research"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sync"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "goal"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"compare the tradeoffs between two database options under the current constraints"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "context_refs"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"requirements_v3"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"traffic_assumptions_v2"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_surface"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"web_search"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"read_workspace"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "authority"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "actor_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"principal_21"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "subject_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"subject_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "grant_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"grant_41"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "audience"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"search-service"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"workspace-service"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "scopes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"web:search"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"workspace:read"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "expires_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-17T09:03:00Z"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "workspace"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"read"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/inputs"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">], </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"write"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/outputs/db"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "limits"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"deadline_seconds"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">180</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"max_model_turns"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">8</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "result_schema"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"research_result.v2"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>The envelope contains execution-authorization references and result expectations; it is not a long prompt for the model. <code>principal_21</code> is a per-Run execution principal bound and authenticated by the trusted Runtime for this Child Run. The bare execution-record ID <code>run_21</code> never authorizes anything by itself. The trusted execution layer resolves actor, subject, audience, scope, and expiry again from the unforgeable <code>grant_ref</code>, then checks path and resource limits. These fields constrain and audit execution. A child must not be able to expand its authority merely by modifying the JSON.</p>
 <figure>
   <img src="/posts/en/subagent-delegation-isolation/subagent-contract.svg" alt="A parent Agent proposes a Spawn Request. The Runtime assigns and deduplicates its request identity, performs admission and definition resolution, reserves a Child Run identity, compiles the delegation, and activates a durable ready record. A scheduler claims that ready record, executes the corresponding Child Run, and returns a structured result with evidence." loading="lazy">
@@ -64,7 +80,7 @@
 </figure>
 <h2 id="synchronous-results-and-asynchronous-handles-are-still-owned-by-the-parent-run">Synchronous results and asynchronous handles are still owned by the parent Run</h2>
 <p>In synchronous mode, the parent Tool Execution waits for the Child Run to reach a terminal state, then passes the structured result to the next model round as the Tool Result of this <code>spawn_agent</code> call:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Tool Execution waiting_for_child</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Tool Execution waiting_for_child</span></span>
 <span class="line"><span>→ child Run completed</span></span>
 <span class="line"><span>→ validate child result</span></span>
 <span class="line"><span>→ parent Tool Execution succeeded</span></span>
@@ -92,23 +108,23 @@
 <h2 id="workspace-isolation-must-turn-paths-into-ownership">Workspace isolation must turn paths into ownership</h2>
 <p>The overwrite in the opening example happens because both children write to <code>report.md</code>. Telling the models “do not overwrite each other” is not isolation.</p>
 <p>The Runtime can allocate a separate directory to each delegation:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>/inputs                         read-only shared inputs</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>/inputs                         read-only shared inputs</span></span>
 <span class="line"><span>/outputs/delegation_7/          database child writes here</span></span>
 <span class="line"><span>/outputs/delegation_8/          deployment child writes here</span></span></code></pre>
 <p>The parent Agent reads only declared artifacts after a child completes. If several children must modify the same object, they need a separate merge protocol, version preconditions, or serialized commits by the parent. The design must not rely on last-write-wins.</p>
 <p>After the opening example uses isolated directories, the two children each return a result like this:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"completed"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "summary"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "artifacts"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"/outputs/delegation_7/comparison.md"</span><span style="color:#24292E">],</span></span>
-<span class="line"><span style="color:#005CC5">  "evidence"</span><span style="color:#24292E">: [{</span><span style="color:#005CC5">"claim"</span><span style="color:#24292E">: </span><span style="color:#032F62">"..."</span><span style="color:#24292E">, </span><span style="color:#005CC5">"source"</span><span style="color:#24292E">: </span><span style="color:#032F62">"https://..."</span><span style="color:#24292E">}],</span></span>
-<span class="line"><span style="color:#005CC5">  "limitations"</span><span style="color:#24292E">: [</span><span style="color:#032F62">"not validated against a real workload"</span><span style="color:#24292E">]</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "summary"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "artifacts"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/outputs/delegation_7/comparison.md"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "evidence"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [{</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"claim"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"source"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"https://..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "limitations"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"not validated against a real workload"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>The parent Agent no longer has to guess which file in a shared directory is the final result.</p>
 <h2 id="budgets-and-cancellation-need-a-parentchild-relationship">Budgets and cancellation need a parent–child relationship</h2>
 <p>A child’s own timeout cannot replace the parent budget. If the parent Run has only 60 seconds remaining, it should not start a child with a five-minute deadline unless that child has already been promoted to an independent Child Job.</p>
 <p>The effective child deadline is usually:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>min(parent_deadline, delegation_deadline, system_limit)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>min(parent_deadline, delegation_deadline, system_limit)</span></span></code></pre>
 <p>Token usage, Tool Calls, and cost are cumulative consumption and need to roll up to the parent. Concurrency is not a cumulative budget; it is a capacity or admission limit at a particular moment. Nesting depth and rate limits are checked separately as well. Otherwise, the primary Agent can still evade its own limits by continually spawning children.</p>
 <p>When the parent is cancelled, the Runtime should propagate a cancellation request to the child and wait until the agreed boundary. Cancellation begins as a cooperative request. The Runtime can forcibly stop computation after a grace period only when the child runs in a separately terminable process, worker, or sandbox. A coroutine in the same process may delay or even suppress cancellation.</p>
 <p>Whether computation stopped says nothing by itself about whether an external side effect occurred. A terminated child may also be unable to return a result. A trusted Runtime or external effect owner should therefore use execution records and reconciliation to produce a separate effect outcome: <code>confirmed</code>, <code>not_applied</code>, or <code>unknown</code>. The system must not infer from <code>cancelled</code> that no external side effect occurred.</p>
@@ -151,4 +167,52 @@
 <li><a href="https://www.rfc-editor.org/rfc/rfc8693.html">RFC 8693: OAuth 2.0 Token Exchange</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

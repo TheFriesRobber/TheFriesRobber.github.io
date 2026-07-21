@@ -1,6 +1,22 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Conflicting history, memory, and files show why Context Assembly cannot be just message concatenation."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Assembly Is a Policy Engine | Xiaoyuan"><meta property="og:description" content="Conflicting history, memory, and files show why Context Assembly cannot be just message concatenation."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/context-assembly-policy-engine/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Assembly Is a Policy Engine | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/context-assembly-policy-engine/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Assembly Is a Policy Engine</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Conflicting history, memory, and files show why Context Assembly cannot be just message concatenation."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Context Assembly Is a Policy Engine | Xiaoyuan"><meta property="og:description" content="Conflicting history, memory, and files show why Context Assembly cannot be just message concatenation."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/context-assembly-policy-engine/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/context-assembly-policy-engine/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Context Assembly Is a Policy Engine | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/context-assembly-policy-engine/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Context Assembly Is a Policy Engine</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/tags/Runtime/">Runtime</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>One agent model call may need recent conversation, long-term memory, user files, and retrieved results. The simplest implementation concatenates them into <code>messages</code>:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>conversation history</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>conversation history</span></span>
 <span class="line"><span>+ memory</span></span>
 <span class="line"><span>+ files</span></span>
 <span class="line"><span>+ retrieved results</span></span></code></pre>
@@ -41,7 +57,7 @@
 <h2 id="the-first-step-is-exclusion-not-ranking">The first step is exclusion, not ranking</h2>
 <p>Suppose retrieval also finds a highly relevant schedule in another workspace. It does not belong to the current user. Relevance cannot make that file eligible for the model input.</p>
 <p>Permission filtering must therefore happen before relevance ranking and token budgeting:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>collect candidates</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>collect candidates</span></span>
 <span class="line"><span>      │</span></span>
 <span class="line"><span>      ▼</span></span>
 <span class="line"><span>permission and tenant filter</span></span>
@@ -63,7 +79,7 @@
 <p>This ordering is not cosmetic architecture. It expresses security boundaries. Unauthorized content must be excluded before it can influence ranking or summarization, and its body should not be copied into prompt or debug logs. The denied-access decision may still be recorded with non-sensitive metadata. A content role must be known before the content is rendered as a model message.</p>
 <h2 id="conflicts-require-an-explicit-decision">Conflicts require an explicit decision</h2>
 <p>Return to the schedule example:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>memory:  “usually available in the morning,” recorded June 1</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>memory:  “usually available in the morning,” recorded June 1</span></span>
 <span class="line"><span>history: “afternoons work better for now,” sent July 10</span></span>
 <span class="line"><span>file:    “available in the morning,” in a template created in May</span></span></code></pre>
 <p>A policy for this case should not begin with one universal rule such as “last item wins” or “newest timestamp wins.” It should work backward from conflicts the product can actually encounter. A minimal policy has three layers:</p>
@@ -75,7 +91,7 @@
 <p>If the scope is still unclear, the policy should request confirmation instead of guessing. Rules derived this way can be tested against concrete cases rather than delegated to ad hoc model judgment.</p>
 <p>In this example, the old template does not participate in preference precedence. The recent conversation can override morning availability for the current task. Updating long-term memory is a separate decision because the user’s intended time range remains unclear.</p>
 <p>The current Assembly can produce a specific decision:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>current task: use “afternoons work better”</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>current task: use “afternoons work better”</span></span>
 <span class="line"><span>old Memory: exclude from the current Task because a newer user statement overrides it</span></span>
 <span class="line"><span>old template: retain as a formatting reference, not as a time preference</span></span>
 <span class="line"><span>long-term Memory: do not update yet</span></span>
@@ -104,4 +120,52 @@
 <li>How should information recall, contamination, conflict resolution, and budget efficiency be evaluated separately?</li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

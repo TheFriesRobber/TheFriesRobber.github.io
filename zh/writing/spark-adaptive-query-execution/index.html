@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Adaptive Query Execution 让 Spark SQL 可以根据运行时统计信息调整物理计划，常见能力包括合并 shuffle partition、处理倾斜 join、动态调整 join 策略。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Spark Adaptive Query Execution 简记 | Xiaoyuan"><meta property="og:description" content="Adaptive Query Execution 让 Spark SQL 可以根据运行时统计信息调整物理计划，常见能力包括合并 shuffle partition、处理倾斜 join、动态调整 join 策略。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Spark Adaptive Query Execution 简记 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-adaptive-query-execution/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Spark Adaptive Query Execution 简记</h1> <div class="meta"> <time datetime="2022-02-17T17:23:10.000Z">2022/02/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/SQL/">SQL</a><a class="pill" href="/zh/tags/Performance/">Performance</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Adaptive Query Execution 让 Spark SQL 可以根据运行时统计信息调整物理计划，常见能力包括合并 shuffle partition、处理倾斜 join、动态调整 join 策略。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Spark Adaptive Query Execution 简记 | Xiaoyuan"><meta property="og:description" content="Adaptive Query Execution 让 Spark SQL 可以根据运行时统计信息调整物理计划，常见能力包括合并 shuffle partition、处理倾斜 join、动态调整 join 策略。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-adaptive-query-execution/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-adaptive-query-execution/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Spark Adaptive Query Execution 简记 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-adaptive-query-execution/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Spark Adaptive Query Execution 简记</h1> <div class="meta"> <time datetime="2022-02-17T17:23:10.000Z">2022/02/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/SQL/">SQL</a><a class="pill" href="/zh/tags/Performance/">Performance</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>Spark SQL 在执行前会通过 Catalyst optimizer 生成逻辑计划和物理计划。但很多优化依赖数据规模和分布，而这些信息在提交 query 时未必准确。</p>
 <p>例如：</p>
 <ul>
@@ -15,7 +31,7 @@
 <p>很多作业会把 <code>spark.sql.shuffle.partitions</code> 设得比较大，避免大数据场景下 partition 过粗。但当实际数据量很小时，过多 partition 会造成大量小 task，调度开销反而明显。</p>
 <p>AQE 可以根据 shuffle 输出大小，把相邻的小 partition 合并，减少 task 数量。</p>
 <p>相关配置：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
 <span class="line"><span>spark.sql.adaptive.coalescePartitions.enabled</span></span>
 <span class="line"><span>spark.sql.adaptive.advisoryPartitionSizeInBytes</span></span></code></pre>
 <p>这类优化通常比较安全，因为它是在 shuffle 之后减少后续 task 数量。</p>
@@ -23,27 +39,27 @@
 <p>Spark 生成物理计划时，会根据统计信息选择 join 策略，比如 sort merge join、broadcast hash join、shuffle hash join。</p>
 <p>如果运行时发现某一侧 shuffle 后的数据量很小，AQE 可以把原来的 sort merge join 改成 broadcast join，从而减少后续 shuffle 和 sort 的开销。</p>
 <p>相关配置：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.enabled</span></span>
 <span class="line"><span>spark.sql.autoBroadcastJoinThreshold</span></span>
 <span class="line"><span>spark.sql.adaptive.localShuffleReader.enabled</span></span></code></pre>
 <p>注意，broadcast join 仍然需要考虑 executor 内存。如果被 broadcast 的数据并不小，只是统计信息不准，可能会引入新的内存压力。</p>
 <h3 id="3-处理-skew-join">3. 处理 skew join</h3>
 <p>数据倾斜时，某些 shuffle partition 会特别大。AQE 可以识别明显大于其他 partition 的 skewed partition，并把它拆成更小的分片处理。</p>
 <p>相关配置：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.skewJoin.enabled</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>spark.sql.adaptive.skewJoin.enabled</span></span>
 <span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionFactor</span></span>
 <span class="line"><span>spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes</span></span></code></pre>
 <p>这个能力适合处理运行时才能看清的数据倾斜。不过它仍然依赖 SQL/DataFrame 的执行计划，也不能替代对异常 key、脏数据和业务 join 粒度的治理。</p>
 <h2 id="如何打开">如何打开</h2>
 <p>在 Spark SQL 场景中，一般先打开 AQE：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">spark.conf.set(</span><span style="color:#032F62">"spark.sql.adaptive.enabled"</span><span style="color:#24292E">, </span><span style="color:#032F62">"true"</span><span style="color:#24292E">)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">spark.conf.set(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"spark.sql.adaptive.enabled"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"true"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span></code></pre>
 <p>然后根据具体问题再调整细项。很多版本中 AQE 已经默认打开，但生产环境仍建议显式确认配置，避免不同 Spark 版本或平台默认值不同。</p>
 <p>提交参数可以这样写：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">spark-submit</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.coalescePartitions.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#005CC5">  --conf</span><span style="color:#032F62"> spark.sql.adaptive.skewJoin.enabled=</span><span style="color:#005CC5">true</span><span style="color:#005CC5"> \</span></span>
-<span class="line"><span style="color:#032F62">  ...</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">spark-submit</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --conf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> spark.sql.adaptive.enabled=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --conf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> spark.sql.adaptive.coalescePartitions.enabled=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --conf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> spark.sql.adaptive.skewJoin.enabled=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ...</span></span></code></pre>
 <h2 id="怎么确认-aqe-是否生效">怎么确认 AQE 是否生效</h2>
 <p>最直接的方式是看 Spark UI 和执行计划。</p>
 <p>在 SQL tab 中，可以看到 adaptive plan。执行过程中，plan 可能从 initial plan 变成 final plan。你可以关注：</p>
@@ -55,7 +71,7 @@
 <li>stage 数量和 task 数是否符合预期。</li>
 </ul>
 <p>代码里也可以用：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E">df.explain(</span><span style="color:#032F62">"formatted"</span><span style="color:#24292E">)</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="scala"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">df.explain(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"formatted"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span></code></pre>
 <p>但要注意，AQE 的最终计划依赖运行时统计信息。只看执行前的 explain，可能看不到最终变化。</p>
 <h2 id="aqe-不是万能药">AQE 不是万能药</h2>
 <p>AQE 很适合解决“运行时数据规模和分布与预估不同”的问题，但它不应该变成忽略建模和数据质量的理由。</p>
@@ -83,4 +99,52 @@
 <p>参考：</p>
 <ul>
 <li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
-</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+</ul>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

@@ -1,21 +1,37 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="CMD and ENTRYPOINT serve similar purposes in a Dockerfile, but their behavior—especially when combined—requires careful attention."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="CMD or ENTRYPOINT in a Dockerfile? | Xiaoyuan"><meta property="og:description" content="CMD and ENTRYPOINT serve similar purposes in a Dockerfile, but their behavior—especially when combined—requires careful attention."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>CMD or ENTRYPOINT in a Dockerfile? | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/docker-entrypoint-cmd/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Docker</p> <h1 class="page-title">CMD or ENTRYPOINT in a Dockerfile?</h1> <div class="meta"> <time datetime="2020-01-17T12:23:41.000Z">01/17/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Docker/">Docker</a><a class="pill" href="/tags/TechNotes/">TechNotes</a> </div> </header>  <h2 id="the-question">The question</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="CMD and ENTRYPOINT serve similar purposes in a Dockerfile, but their behavior—especially when combined—requires careful attention."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="CMD or ENTRYPOINT in a Dockerfile? | Xiaoyuan"><meta property="og:description" content="CMD and ENTRYPOINT serve similar purposes in a Dockerfile, but their behavior—especially when combined—requires careful attention."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/docker-entrypoint-cmd/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>CMD or ENTRYPOINT in a Dockerfile? | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/docker-entrypoint-cmd/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Docker</p> <h1 class="page-title">CMD or ENTRYPOINT in a Dockerfile?</h1> <div class="meta"> <time datetime="2020-01-17T12:23:41.000Z">01/17/2020</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Docker/">Docker</a><a class="pill" href="/tags/TechNotes/">TechNotes</a> </div> </header>  <h2 id="the-question">The question</h2>
 <p>How should <code>CMD</code> and <code>ENTRYPOINT</code> be used in a Dockerfile, and how do they differ?</p>
 <h2 id="exec-form-and-shell-form">Exec form and shell form</h2>
 <p>These two forms determine which process becomes PID 1 inside the container.</p>
 <h3 id="exec-form">Exec form</h3>
 <p>With the exec form, the application itself becomes PID 1 in the container.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"top"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
 <p>The command is not executed through a shell, so shell expansion is unavailable. Environment variables such as <code>$HOME</code>, for example, will not be expanded. You can still invoke a shell explicitly when that behavior is required:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"sh"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-c"</span><span style="color:#24292E">, </span><span style="color:#032F62">"echo $HOME"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sh"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-c"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"echo $HOME"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
 <h3 id="shell-form">Shell form</h3>
 <p>The shell form runs the supplied command through a shell, which means the shell becomes PID 1.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> top</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> top</span></span></code></pre>
 <p>This is effectively equivalent to:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"sh"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-c"</span><span style="color:#24292E">, </span><span style="color:#032F62">"top"</span><span style="color:#24292E">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sh"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-c"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"top"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
 <h2 id="cmd-1">CMD <sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup></h2>
 <blockquote>
 <p>The CMD instruction has three forms:</p>
@@ -52,33 +68,33 @@
 <ul>
 <li><strong>With an exec-form <code>ENTRYPOINT</code>, arguments supplied on the command line are appended to the entrypoint’s argument list.</strong> The following container runs <code>top -b -c</code>:</li>
 </ul>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-b"</span><span style="color:#24292E">]</span></span></code></pre>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span><span style="color:#005CC5"> -c</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">ENTRYPOINT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"top"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-b"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">docker</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --rm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> test1</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span></span></code></pre>
 <ul>
 <li><strong><code>CMD</code> can supply optional default arguments.</strong> The following container also runs <code>top -b -c</code>:</li>
 </ul>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-b"</span><span style="color:#24292E">]</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"-c"</span><span style="color:#24292E">]</span></span></code></pre>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">ENTRYPOINT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"top"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-b"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-c"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">docker</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --rm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> test1</span></span></code></pre>
 <ul>
 <li>Arguments to <code>docker run</code> can replace the defaults from <code>CMD</code>. The final command here is <code>top -b -n 1</code>:</li>
 </ul>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> [</span><span style="color:#032F62">"top"</span><span style="color:#24292E">, </span><span style="color:#032F62">"-b"</span><span style="color:#24292E">]</span></span>
-<span class="line"><span style="color:#D73A49">CMD</span><span style="color:#24292E"> [</span><span style="color:#032F62">"-c"</span><span style="color:#24292E">]</span></span></code></pre>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span><span style="color:#005CC5"> -n</span><span style="color:#005CC5"> 1</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">ENTRYPOINT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"top"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-b"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CMD</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"-c"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">docker</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --rm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> test1</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span></span></code></pre>
 <ul>
 <li><strong>When <code>ENTRYPOINT</code> uses the shell form, command-line arguments are ignored.</strong> In the following example, <code>ls</code> is ignored (and the <code>CMD</code> is overridden):</li>
 </ul>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49">FROM</span><span style="color:#24292E"> alpine:3.9</span></span>
-<span class="line"><span style="color:#D73A49">ENTRYPOINT</span><span style="color:#24292E"> echo $HOME</span></span></code></pre>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#032F62"> test1</span><span style="color:#032F62"> ls</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="dockerfile"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> alpine:3.9</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">ENTRYPOINT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> echo $HOME</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">docker</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --rm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> test1</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ls</span></span></code></pre>
 <ul>
 <li>To replace the default <code>ENTRYPOINT</code>, use <code>--entrypoint</code>:</li>
 </ul>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1">docker</span><span style="color:#032F62"> run</span><span style="color:#005CC5"> --rm</span><span style="color:#005CC5"> --entrypoint</span><span style="color:#032F62"> ls</span><span style="color:#032F62"> test1</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">docker</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --rm</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --entrypoint</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ls</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> test1</span></span></code></pre>
 <h2 id="back-to-the-question">Back to the question</h2>
 <p>Both <code>CMD</code> and <code>ENTRYPOINT</code> can define a container’s default executable. If an image defines neither, starting the container results in an error. Most images today include at least one of them.</p>
 <p>In many cases, using one instruction on its own is sufficient. Their interaction becomes more involved when they are combined. Docker’s reference table<sup><a href="#user-content-fn-3" id="user-content-fnref-3" data-footnote-ref="" aria-describedby="footnote-label">3</a></sup> summarizes the resulting command for each combination:</p>
@@ -130,4 +146,52 @@
 <p><a href="https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact">https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact</a> <a href="#user-content-fnref-3" data-footnote-backref="" aria-label="Back to reference 3" class="data-footnote-backref">↩</a></p>
 </li>
 </ol>
-</section>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+</section>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

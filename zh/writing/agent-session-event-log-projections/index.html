@@ -1,4 +1,20 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用按序追加的 Session Event Log 统一执行事实，让消息、Run 状态和实时事件成为可重建的投影。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Session Event Log 是事实源，消息和状态只是投影 | Xiaoyuan"><meta property="og:description" content="用按序追加的 Session Event Log 统一执行事实，让消息、Run 状态和实时事件成为可重建的投影。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Session Event Log 是事实源，消息和状态只是投影 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-session-event-log-projections/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Session Event Log 是事实源，消息和状态只是投影</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Event%20Log/">Event Log</a><a class="pill" href="/zh/tags/Data%20Modeling/">Data Modeling</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用按序追加的 Session Event Log 统一执行事实，让消息、Run 状态和实时事件成为可重建的投影。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Session Event Log 是事实源，消息和状态只是投影 | Xiaoyuan"><meta property="og:description" content="用按序追加的 Session Event Log 统一执行事实，让消息、Run 状态和实时事件成为可重建的投影。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-session-event-log-projections/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-session-event-log-projections/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Session Event Log 是事实源，消息和状态只是投影 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-session-event-log-projections/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Session Event Log 是事实源，消息和状态只是投影</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Event%20Log/">Event Log</a><a class="pill" href="/zh/tags/Data%20Modeling/">Data Modeling</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设 Agent 已经生成最终回复：“报告已经完成。”结束这次执行时，系统需要让同一个结果反映到三个地方：</p>
 <ol>
 <li>在 Run 表中把这次 Agent Loop 标记为 <code>succeeded</code>。</li>
@@ -6,21 +22,21 @@
 <li>向当前打开的浏览器发送 <code>run.completed</code> 实时通知。</li>
 </ol>
 <p>这三条写路径彼此独立，不保证按列表顺序完成。现在发生了下面这条时间线：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  Run 状态更新为 succeeded</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  Run 状态更新为 succeeded</span></span>
 <span class="line"><span>T2  实时通道发送 run.completed</span></span>
 <span class="line"><span>T3  保存最终 assistant message 时数据库写入失败</span></span></code></pre>
 <p>系统留下的结果是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>后台 Run 状态    succeeded</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>后台 Run 状态    succeeded</span></span>
 <span class="line"><span>消息列表          没有“报告已经完成”这条回复</span></span>
 <span class="line"><span>当前浏览器        收到过 run.completed</span></span></code></pre>
 <p>用户在当前页面可能短暂看到“已完成”，但刷新以后，实时通知已经过去，消息列表里又没有最终回复。后台只看到 Run 已经成功，也不会自动重新执行。此时系统无法回答一个很简单的问题：最终回复究竟有没有被可靠保存？</p>
 <p>问题不只是给消息写入加一次 retry。真正的问题是：同一个执行结果被分别写进 Run 状态、消息列表和实时通知，任何一步失败后，都没有一份统一记录可以用来修复另外两份数据。</p>
 <h2 id="多写几张表不会自动保持一致">多写几张表不会自动保持一致</h2>
 <p>一种常见实现是在 Runtime 结束时分别执行下面几次写入；这里的顺序与开场时间线一致，但真正的问题是它们不在同一个原子边界里：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#24292E">update_run_state(</span><span style="color:#032F62">"succeeded"</span><span style="color:#24292E">)</span></span>
-<span class="line"><span style="color:#24292E">publish_realtime_event(</span><span style="color:#032F62">"run.completed"</span><span style="color:#24292E">)</span></span>
-<span class="line"><span style="color:#24292E">insert_assistant_message(final_text)</span></span>
-<span class="line"><span style="color:#24292E">increment_success_metric()</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">update_run_state(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"succeeded"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">publish_realtime_event(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run.completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">insert_assistant_message(final_text)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">increment_success_metric()</span></span></code></pre>
 <p>只要这些操作不在同一个原子边界里，进程就可能在任意两步之间退出。即使 Run 状态和消息列表位于同一数据库，可以放进一个 transaction，Redis、WebSocket 和 metric sink 也通常不在这个 transaction 中。</p>
 <p>更关键的是，它们服务的读取需求不同：</p>
 <ul>
@@ -38,31 +54,31 @@
   <figcaption>Event Log 保存发生过什么；projection 按读取需求解释同一组事实。</figcaption>
 </figure>
 <p>一条最小事件可以包含：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "session_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"session_17"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "seq"</span><span style="color:#24292E">: </span><span style="color:#005CC5">42</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "event_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"event_9a2"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "type"</span><span style="color:#24292E">: </span><span style="color:#032F62">"assistant.message.completed"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "model_turn_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"model_turn_6"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "payload"</span><span style="color:#24292E">: {</span></span>
-<span class="line"><span style="color:#005CC5">    "message_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"message_31"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">    "content_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"content_31"</span></span>
-<span class="line"><span style="color:#24292E">  },</span></span>
-<span class="line"><span style="color:#005CC5">  "occurred_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T08:30:00Z"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "schema_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">2</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "session_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"session_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "seq"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">42</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "event_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"event_9a2"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"assistant.message.completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "model_turn_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model_turn_6"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "payload"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "message_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"message_31"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "content_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"content_31"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "occurred_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-17T08:30:00Z"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "schema_version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p><code>seq</code> 表示这个 Session 内已经提交的顺序，<code>event_id</code> 表示事件身份。两者不要混用：全局 UUID 可以去重，却不能告诉 projector 下一条该读什么；sequence 可以建立读取位置，但仍需要明确自己的作用域。</p>
 <p>Run 的第一条生命周期事实还应把执行契约接进来，例如 <code>run.created(run_8, runspec_ref, fingerprint)</code>。Event Log 保存 Run 已按哪份契约开始，RunSpec 则保持为不可变、可独立读取的契约；Run snapshot 只是之后由这些事实派生的当前状态。</p>
 <p>示例里的 <code>content_ref</code> 也必须指向已经持久化的内容。若内容和 event 位于同一数据库，应在同一 transaction 中提交；若跨越存储边界，就需要先写入不可变内容，再追加引用它的 event，并为失败清理保留 reconciliation。Event Log 不能通过引用一个尚未提交的对象来获得事实地位。</p>
 <h2 id="开场故障怎样修复">开场故障怎样修复</h2>
 <p>重新看最终回复丢失的例子。Runtime 不再让 Run 状态、消息列表和实时通知各自记录结果，而是先追加两条事件：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>seq 41  assistant.message.completed(message_31)</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>seq 41  assistant.message.completed(message_31)</span></span>
 <span class="line"><span>seq 42  run.completed(run_8)</span></span></code></pre>
 <p>下面先讨论两条事件都已经提交、只有 projection 落后的情况。如果 Runtime 在两次 append 之间退出，应从 Event Log 中最后一条已提交的事件继续完成收尾，而不是重新调用模型；也可以让两条事件作为一个原子 batch 提交。</p>
 <p>这里还需要说明 <strong>Cursor</strong>：它是每个 Projector 的读取进度。例如 cursor 为 40，表示它已经处理完 <code>seq 40</code>，下一条应该读取 <code>seq 41</code>。</p>
 <p>假设故障后的状态是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Event Log               已经写到 seq 42</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Event Log               已经写到 seq 42</span></span>
 <span class="line"><span>Run-state projector     已经处理到 seq 42</span></span>
 <span class="line"><span>Message projector       只处理到 seq 40</span></span></code></pre>
 <p>这表示 Agent 执行本身已经完成，只是消息列表落后了两条事件。恢复时不需要再次调用模型，也不需要把 Run 改回 <code>running</code>。Message projector 从 cursor 40 继续读取即可：</p>
@@ -71,7 +87,7 @@
 <li>读到 <code>seq 42</code>，发现它只影响 Run 状态，于是不修改消息列表，只把 cursor 更新为 42。</li>
 </ol>
 <p>第一步最好在同一个数据库 transaction 中完成：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>开始 transaction</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>开始 transaction</span></span>
 <span class="line"><span>→ 以 message_id 为唯一键写入 message_31</span></span>
 <span class="line"><span>→ 把 Message projector 的 cursor 更新为 41</span></span>
 <span class="line"><span>→ 提交 transaction</span></span></code></pre>
@@ -89,13 +105,13 @@
 <h2 id="append-边界必须比-projector-更可信">Append 边界必须比 projector 更可信</h2>
 <p>“Event Log 是事实源”只有在 append 自身可靠时才成立。对同一 Session，并发 writer 必须获得明确顺序，不能先各自在内存里计算 <code>seq + 1</code> 再写入。</p>
 <p>一种概念性数据库操作是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49">UPDATE</span><span style="color:#D73A49"> sessions</span></span>
-<span class="line"><span style="color:#D73A49">SET</span><span style="color:#24292E"> next_seq </span><span style="color:#D73A49">=</span><span style="color:#24292E"> next_seq </span><span style="color:#D73A49">+</span><span style="color:#005CC5"> 1</span></span>
-<span class="line"><span style="color:#D73A49">WHERE</span><span style="color:#24292E"> session_id </span><span style="color:#D73A49">=</span><span style="color:#24292E"> :session_id</span></span>
-<span class="line"><span style="color:#24292E">RETURNING next_seq;</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">UPDATE</span><span style="color:#D73A49;--shiki-dark:#F97583"> sessions</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> next_seq </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> next_seq </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> session_id </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> :session_id</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">RETURNING next_seq;</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D73A49">INSERT INTO</span><span style="color:#24292E"> session_events(session_id, seq, event_id, </span><span style="color:#D73A49">type</span><span style="color:#24292E">, payload)</span></span>
-<span class="line"><span style="color:#D73A49">VALUES</span><span style="color:#24292E"> (:session_id, :seq, :event_id, :</span><span style="color:#D73A49">type</span><span style="color:#24292E">, :payload);</span></span></code></pre>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">INSERT INTO</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> session_events(session_id, seq, event_id, </span><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, payload)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">VALUES</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (:session_id, :seq, :event_id, :</span><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, :payload);</span></span></code></pre>
 <p>分配 sequence 与插入事件需要处于同一原子边界，并由 unique constraint 约束 <code>(session_id, seq)</code> 和 <code>event_id</code>。实际实现也可以使用支持有序 append 的日志系统；关键是顺序由事实存储决定，而不是由某个短命 worker 猜测。</p>
 <p>但“已经排好顺序”不等于“事件就是合法事实”。Run 的 lifecycle event 只能由权威的 transition owner 提交：它需要在同一个原子边界内校验 expected state/version、writer 的 fencing token、合法状态转移和“终态只能收敛一次”等 invariant，然后才分配 <code>seq</code> 并 append。否则取消和完成两个 writer 仍可能依次写入 <code>run.cancelled</code> 与 <code>run.completed</code>，把互相矛盾的结果都留在事实源中。</p>
 <p>请求与已经成立的事实也要分开。例如用户点击取消时可以先写 <code>run.cancel.requested</code>；只有当前 owner 完成竞态裁决后，才能追加 <code>run.cancelled</code> 或 <code>run.completed</code>。Projector 可以拒绝旧事件覆盖新视图，但不能负责事后决定事实是否合法。</p>
@@ -151,4 +167,52 @@
 <li>Event schema 升级、projection rebuild、snapshot 与日志保留周期怎样协同。</li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

@@ -1,6 +1,22 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Choose an execution primitive for a subproblem from a Plan or Agent Loop by examining state ownership, durability, cancellation, and result consumption."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="When an Agent Creates a Subtask, Who Should Execute It? | Xiaoyuan"><meta property="og:description" content="Choose an execution primitive for a subproblem from a Plan or Agent Loop by examining state ownership, durability, cancellation, and result consumption."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>When an Agent Creates a Subtask, Who Should Execute It? | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-delegation-primitives/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">When an Agent Creates a Subtask, Who Should Execute It?</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Workflow/">Workflow</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Choose an execution primitive for a subproblem from a Plan or Agent Loop by examining state ownership, durability, cancellation, and result consumption."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="When an Agent Creates a Subtask, Who Should Execute It? | Xiaoyuan"><meta property="og:description" content="Choose an execution primitive for a subproblem from a Plan or Agent Loop by examining state ownership, durability, cancellation, and result consumption."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-delegation-primitives/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>When an Agent Creates a Subtask, Who Should Execute It? | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-delegation-primitives/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">When an Agent Creates a Subtask, Who Should Execute It?</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Workflow/">Workflow</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>A user asks an Agent to compare three technical approaches. The primary Agent may split its Plan into three research directions, or discover them dynamically while reasoning:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subproblem A  research approach A</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subproblem A  research approach A</span></span>
 <span class="line"><span>subproblem B  research approach B</span></span>
 <span class="line"><span>subproblem C  research approach C</span></span></code></pre>
 <p>Three terms need stable meanings up front. A <strong>SubAgent</strong> is a Child Run started dynamically and still owned by the parent Agent’s current Run. A <strong>Child Job</strong> is a unit of work owned by a durable job system and claimable by another worker. <strong>Workflow Fanout</strong> means that a workflow controller starts several nodes according to known dependencies and owns their join. Frameworks may use different names; this article compares their state owners.</p>
@@ -15,7 +31,7 @@
 <li>A deterministic business process declares a set of branches in advance.</li>
 </ul>
 <p>The source explains why the work exists, but not who is responsible for completing it. Before comparing execution primitives, compress the request into a few ownership-related conditions:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>goal                  what must be delivered</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>goal                  what must be delivered</span></span>
 <span class="line"><span>needed_within_parent  whether the parent Run must consume the result before becoming terminal</span></span>
 <span class="line"><span>survive_restart       whether recovery across workers or processes is required</span></span>
 <span class="line"><span>independent_lifecycle whether the parent Run may finish first, or the work may be cancelled, retried, or delivered independently</span></span>
@@ -73,7 +89,7 @@
 </figure>
 <h2 id="when-to-choose-a-subagent">When to choose a SubAgent</h2>
 <p>Suppose the primary Agent discovers during reasoning that it needs a temporary specialist. If the parent Run will consume the result before becoming terminal and remains responsible for converging child state, a SubAgent is usually the most natural choice:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Agent: I need to compare database options first</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent Agent: I need to compare database options first</span></span>
 <span class="line"><span>→ start a database-research SubAgent</span></span>
 <span class="line"><span>→ wait for structured conclusions and evidence</span></span>
 <span class="line"><span>→ parent Agent validates them and continues the response</span></span></code></pre>
@@ -92,7 +108,7 @@
 <p>A Child Job is not complete merely because it was placed on a queue. A queue may deliver more than once, external side effects still need idempotency, and parent and child need explicit cancellation and result-retention policies.</p>
 <h2 id="when-to-use-durable-workflow-fanout">When to use durable Workflow Fanout</h2>
 <p>If the business process defines all three branches before execution and a fixed aggregation step can begin only after they finish, workflow fanout is the better fit:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>prepare input</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>prepare input</span></span>
 <span class="line"><span>├─ analyze A</span></span>
 <span class="line"><span>├─ analyze B</span></span>
 <span class="line"><span>└─ analyze C</span></span>
@@ -157,7 +173,7 @@
 <h2 id="composition-is-usually-better-than-unification">Composition is usually better than unification</h2>
 <p>A complex system does not have to choose exactly one primitive. A durable workflow node may start an Agent Run, and that Agent may use a SubAgent inside one Model Turn. If the SubAgent discovers long-running work, it may create a Child Job through a controlled Tool.</p>
 <p>Composition must preserve identity:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>workflow_execution_id</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>workflow_execution_id</span></span>
 <span class="line"><span>→ job_id</span></span>
 <span class="line"><span>→ run_id</span></span>
 <span class="line"><span>→ child_run_id</span></span></code></pre>
@@ -176,4 +192,52 @@
 <li><a href="https://github.com/temporalio/api/blob/master/temporal/api/enums/v1/workflow.proto#L49-L58">Temporal API: ParentClosePolicy definition</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

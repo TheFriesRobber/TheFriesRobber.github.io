@@ -1,8 +1,24 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A report still being converted aligns common OpenAI, Anthropic, and pi terminology, then separates the state of a user goal, agent loop, model turn, tool execution, and background job."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Task, Run, Model Turn, and Tool Execution in an Agent Runtime | Xiaoyuan"><meta property="og:description" content="A report still being converted aligns common OpenAI, Anthropic, and pi terminology, then separates the state of a user goal, agent loop, model turn, tool execution, and background job."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Task, Run, Model Turn, and Tool Execution in an Agent Runtime | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-run-turn-step-task-state-model/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Task, Run, Model Turn, and Tool Execution in an Agent Runtime</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/State%20Machine/">State Machine</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A report still being converted aligns common OpenAI, Anthropic, and pi terminology, then separates the state of a user goal, agent loop, model turn, tool execution, and background job."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Task, Run, Model Turn, and Tool Execution in an Agent Runtime | Xiaoyuan"><meta property="og:description" content="A report still being converted aligns common OpenAI, Anthropic, and pi terminology, then separates the state of a user goal, agent loop, model turn, tool execution, and background job."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-run-turn-step-task-state-model/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Task, Run, Model Turn, and Tool Execution in an Agent Runtime | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-run-turn-step-task-state-model/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Task, Run, Model Turn, and Tool Execution in an Agent Runtime</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/State%20Machine/">State Machine</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>A user asks an Agent: “Read this file, generate a report, and export it as a PDF.”</p>
 <p>Reading the file, generating Markdown, and submitting a conversion request can finish in the current Agent Loop. PDF conversion may take several minutes, however, and run in a separate worker. After the current request returns “conversion in progress,” the user may ask for status and the process may restart. Those later activities still serve the same goal, but they do not necessarily belong to the same Agent Loop.</p>
 <p>One execution might look like this:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task: generate and deliver a PDF report</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task: generate and deliver a PDF report</span></span>
 <span class="line"><span>  Run 1: handle the user's initial request</span></span>
 <span class="line"><span>    Model Turn 1: the model proposes read_file</span></span>
 <span class="line"><span>    Tool Execution 1: read_file succeeds</span></span>
@@ -13,10 +29,10 @@
 <span class="line"><span>  Job: a worker converts report.md to report.pdf</span></span>
 <span class="line"><span>  Run 2: the user asks for status later</span></span></code></pre>
 <p>If the system stores only one record:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_18"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"running"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_18"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"running"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>this <code>running</code> status answers almost nothing. Is the model generating? Has the file been saved? Is background conversion in the queue? Has the current Agent Loop ended, or was it explicitly paused for later resumption? Is the user cancelling this interaction or the entire report goal?</p>
 <p>The problem is not merely a shortage of status values. The system has compressed a user goal, one Agent Loop, model turns, Tool side effects, and background scheduling into one object.</p>
 <h2 id="start-by-admitting-that-the-three-ecosystems-do-not-share-one-glossary">Start by admitting that the three ecosystems do not share one glossary</h2>
@@ -94,7 +110,7 @@
 <p><em>Causality and parent identities connect these objects, but they do not share a completion condition.</em></p>
 <h2 id="a-task-tracks-the-user-goal-a-session-preserves-cross-run-context">A Task tracks the user goal; a Session preserves cross-Run context</h2>
 <p>The Task in this example is “generate and deliver a PDF report.” The application creates <code>task_report_7</code> from the user’s initial request. After the system replies “conversion in progress,” the goal remains incomplete, so the Task stays <code>waiting</code>.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_report_7: waiting</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_report_7: waiting</span></span>
 <span class="line"><span>completed evidence: report.md@v3 has been saved</span></span>
 <span class="line"><span>waiting for: job_pdf_9 to produce and publish report.pdf</span></span></code></pre>
 <p>When the user later asks “is the conversion done?”, the new input arrives in the same Session and starts a new Run. That Run can read the state of <code>task_report_7</code> and <code>job_pdf_9</code>, then answer without pretending that the original Agent Loop has retained execution ownership the whole time.</p>
@@ -102,7 +118,7 @@
 <p><code>Task</code> is an application-level term here. It is neither Python’s <code>asyncio.Task</code> nor a queue Job. No framework can define automatically when an application’s user goal is complete; that judgment belongs to the product or orchestrator.</p>
 <h2 id="a-run-is-one-agent-loop-not-a-permanent-wrapper-around-the-user-goal">A Run is one Agent Loop, not a permanent wrapper around the user goal</h2>
 <p><code>run_18</code> starts with the user’s initial input. Its Runner calls the model and executes Tools repeatedly until the model returns “the report is being converted.” That application-level turn has now ended. The Run can become <code>succeeded</code> while <code>task_report_7</code> continues waiting for the background Job.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_18: succeeded</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_18: succeeded</span></span>
 <span class="line"><span>final output: the report is being converted</span></span>
 <span class="line"><span>task_report_7: waiting for job_pdf_9</span></span></code></pre>
 <p>This separation corrects a common misuse: the Run should not remain <code>running</code> indefinitely after the HTTP request returns merely because the user goal is incomplete. <code>running</code> should be supported by a real owner, lease, or heartbeat. Otherwise it is an unverifiable stale value.</p>
@@ -122,7 +138,7 @@
 <h2 id="a-tool-call-is-a-proposal-a-tool-execution-owns-execution-state">A Tool Call is a proposal; a Tool Execution owns execution state</h2>
 <p>When the model returns <code>save_report(path, content)</code>, it creates a Tool Call: a structured action proposal. The Runtime validates arguments, checks authorization and policy, and only then creates a Tool Execution that may produce external effects.</p>
 <p>Suppose <code>save_report</code> writes <code>report.md</code>, but its response is lost. After seeing a timeout, the Runtime cannot move the Tool Execution directly to <code>failed</code>; the external effect may have happened without a confirmed result.</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_save_4</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_save_4</span></span>
 <span class="line"><span>  logical identity: save report.md@v3</span></span>
 <span class="line"><span>  status: unknown</span></span>
 <span class="line"><span>  attempt 1: timeout</span></span></code></pre>
@@ -130,7 +146,7 @@
 <p>This is why the series no longer uses a generic <code>Step</code> object. A Tool Call answers “what did the model propose?” A Tool Execution answers “what did the Runtime authorize and execute?” An Attempt answers “how many physical tries occurred?” Calling all three a Step loses retry and external-effect identity again.</p>
 <h2 id="work-transferred-to-a-scheduler-is-a-job">Work transferred to a scheduler is a Job</h2>
 <p>Once PDF conversion enters a queue, the current Agent Loop can end and workers may restart. A scheduler independently queues, leases, retries, and converges the work, so this article calls it a Job:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>job_pdf_9: convert report.md@v3 to PDF</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>job_pdf_9: convert report.md@v3 to PDF</span></span>
 <span class="line"><span>  attempt 1: worker lost</span></span>
 <span class="line"><span>  attempt 2: running</span></span></code></pre>
 <p>The Job’s retry unit is the same background work—not a new Run and not a request for the model to regenerate the report. As long as the input remains <code>report.md@v3</code> and conversion can be replayed safely or deduplicated by <code>job_pdf_9</code>, another worker Attempt can remain in the same Job. If the report advances to version 4, explicitly cancel the old Job or create a new one rather than letting both versions compete for one output path.</p>
@@ -138,7 +154,7 @@
 <p>If conversion is merely a synchronous call in the current Tool function, such as <code>await convert_to_pdf(report)</code>, it does not need a Job; it remains part of the current Tool Execution. The Tool Execution–Job boundary is not the operation’s name or duration. It is whether lifecycle and ownership have transferred to an independent scheduler.</p>
 <h2 id="retry-must-remain-on-the-correct-identity">Retry must remain on the correct identity</h2>
 <p>Suppose the first PDF worker crashes and the second succeeds. The recovery path should be:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_report_7 remains waiting</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_report_7 remains waiting</span></span>
 <span class="line"><span>run_18 and model_turn_1..3 remain succeeded</span></span>
 <span class="line"><span>tool_execution_read, tool_execution_save, and tool_execution_enqueue remain succeeded</span></span>
 <span class="line"><span>job_pdf_9 adds attempt 2</span></span></code></pre>
@@ -158,7 +174,7 @@
 <p>If the user says only “stop the current answer,” the application cannot assume that the whole Task is cancelled. A cancellation request must identify its target: the current Run, a Tool Execution, a background Job, or the user goal itself. The parent propagates intent; each owner still converges from facts it can observe.</p>
 <h2 id="separate-states-produce-definite-answers">Separate states produce definite answers</h2>
 <p>At one instant, the system can store:</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Session session_3               → active</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Session session_3               → active</span></span>
 <span class="line"><span>Task task_report_7              → waiting for job_pdf_9</span></span>
 <span class="line"><span>Run run_18                      → succeeded</span></span>
 <span class="line"><span>Model Turn model_turn_1..3      → succeeded</span></span>
@@ -186,4 +202,52 @@
 <li><a href="https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md">pi: Extension events</a></li>
 </ul>
 <hr>
-<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> </body></html>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

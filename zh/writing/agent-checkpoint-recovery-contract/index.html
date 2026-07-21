@@ -1,7 +1,23 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="设计可版本化、可恢复、可解释，但不假装能够完全确定性重放的 Agent Checkpoint。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Checkpoint 是恢复契约，不是运行时对象快照 | Xiaoyuan"><meta property="og:description" content="设计可版本化、可恢复、可解释，但不假装能够完全确定性重放的 Agent Checkpoint。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Checkpoint 是恢复契约，不是运行时对象快照 | Xiaoyuan</title><link rel="stylesheet" href="/_astro/BaseLayout.kqgOTWKq.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-checkpoint-recovery-contract/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Checkpoint 是恢复契约，不是运行时对象快照</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Recovery/">Recovery</a> </div> </header>  <h2 id="问题">问题</h2>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="设计可版本化、可恢复、可解释，但不假装能够完全确定性重放的 Agent Checkpoint。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Checkpoint 是恢复契约，不是运行时对象快照 | Xiaoyuan"><meta property="og:description" content="设计可版本化、可恢复、可解释，但不假装能够完全确定性重放的 Agent Checkpoint。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-checkpoint-recovery-contract/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-checkpoint-recovery-contract/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Checkpoint 是恢复契约，不是运行时对象快照 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-checkpoint-recovery-contract/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Checkpoint 是恢复契约，不是运行时对象快照</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Recovery/">Recovery</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一个 Agent 正在生成报告。它已经调用 <code>create_document</code>，外部服务返回了 <code>doc_42</code>，接下来准备让模型撰写摘要。此时，负责执行这个 Run 的后台进程（下文简称 worker）崩溃。</p>
 <p>如果系统每隔一分钟序列化一次 Runtime 对象，最近快照可能仍停在 Tool 调用之前：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>内存快照：准备调用 create_document</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>内存快照：准备调用 create_document</span></span>
 <span class="line"><span>外部事实：doc_42 已经创建</span></span></code></pre>
 <p>恢复后直接从快照继续，会再次创建文档；恢复后把整个函数标成完成，又会漏掉摘要。问题不在于序列化格式，而在于内存对象从来没有完整拥有外部世界的状态。</p>
 <h2 id="四种容易混淆的持久化对象">四种容易混淆的持久化对象</h2>
@@ -42,29 +58,29 @@
 <p>对于外部副作用，Runtime 还需要在调用前持久化 effect intent：稳定 <code>effect_key</code>、参数摘要、目标系统和初始状态。只有 intent 提交成功后才能发起调用。这样，worker 若在调用后硬崩溃，恢复时至少知道“这个逻辑动作可能已经发生”，而不会生成一个新身份重新执行。</p>
 <h2 id="checkpoint-最少保存什么">Checkpoint 最少保存什么</h2>
 <p>对开场中的 Run，一份概念性 Checkpoint 可以是：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "checkpoint_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">4</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "run_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "run_spec_fingerprint"</span><span style="color:#24292E">: </span><span style="color:#032F62">"sha256:..."</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "resume_contract_revision"</span><span style="color:#24292E">: </span><span style="color:#032F62">"report-agent.v3"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "snapshot_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"snapshot_73"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "event_cursor"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"stream_ref"</span><span style="color:#24292E">: </span><span style="color:#032F62">"session:session_17"</span><span style="color:#24292E">, </span><span style="color:#005CC5">"seq"</span><span style="color:#24292E">: </span><span style="color:#005CC5">73</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "resume_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"reconcile_create_document"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "waiting"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "pending_effects"</span><span style="color:#24292E">: [</span></span>
-<span class="line"><span style="color:#24292E">    {</span></span>
-<span class="line"><span style="color:#005CC5">      "effect_key"</span><span style="color:#24292E">: </span><span style="color:#032F62">"run_8:create_document:v1"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "provider"</span><span style="color:#24292E">: </span><span style="color:#032F62">"document-service"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "idempotency_scope"</span><span style="color:#24292E">: </span><span style="color:#032F62">"tenant:tenant_9"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "idempotency_expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-18T09:00:00Z"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "status"</span><span style="color:#24292E">: </span><span style="color:#032F62">"in_progress"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">      "external_ref"</span><span style="color:#24292E">: </span><span style="color:#005CC5">null</span></span>
-<span class="line"><span style="color:#24292E">    }</span></span>
-<span class="line"><span style="color:#24292E">  ],</span></span>
-<span class="line"><span style="color:#005CC5">  "artifact_refs"</span><span style="color:#24292E">: [],</span></span>
-<span class="line"><span style="color:#005CC5">  "budget"</span><span style="color:#24292E">: {</span><span style="color:#005CC5">"model_turns_used"</span><span style="color:#24292E">: </span><span style="color:#005CC5">6</span><span style="color:#24292E">},</span></span>
-<span class="line"><span style="color:#005CC5">  "created_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-17T09:00:00Z"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "checkpoint_version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_spec_fingerprint"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sha256:..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resume_contract_revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"report-agent.v3"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "snapshot_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"snapshot_73"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "event_cursor"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"stream_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"session:session_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"seq"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">73</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resume_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"reconcile_create_document"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "waiting"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "pending_effects"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "effect_key"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_8:create_document:v1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "provider"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"document-service"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "idempotency_scope"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tenant:tenant_9"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "idempotency_expires_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-18T09:00:00Z"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"in_progress"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      "external_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "artifact_refs"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "budget"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"model_turns_used"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">6</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "created_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-17T09:00:00Z"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>这里的 <code>snapshot_ref</code> 指向截至 Session stream <code>session:session_17</code> 中 <code>seq=73</code> 的完整可恢复派生状态；恢复器可以验证 Snapshot、stream 与 sequence 的绑定关系，再从 73 之后补事件。裸数字 73 在另一条 Session stream 中没有意义。恢复当前 Run 时仍按顺序读取这个 Session stream，再只把与当前 Run 有因果关系的事件应用到恢复状态。如果不保存 Snapshot，也可以从 Event Log 起点完整重放，但不能既没有基础状态，又从中间 cursor 开始。</p>
 <p>RunSpec 说明这次执行采用什么契约，<code>resume_contract_revision</code> 说明当前 <code>resume_at</code> 依赖哪一版恢复语义。Effect contract 还要说明下游 provider、幂等作用域和 key 的有效期；只有 <code>effect_key</code> 本身不足以证明几天后重试仍会去重。</p>
 <p><code>resume_at</code> 也不应该是任意代码行号。它应指向代码能够长期理解的逻辑边界，例如某个 Tool Execution 已提交、正在等待 approval，或者需要 reconciliation 的 effect。</p>
@@ -74,7 +90,7 @@
   <figcaption>Checkpoint 给出恢复起点；event replay 与外部 reconciliation 决定现在能否继续。</figcaption>
 </figure>
 <p>恢复 <code>run_8</code> 时，可以按以下顺序处理：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 读取 Checkpoint version 4、对应 RunSpec 和 `snapshot_73`，验证 Snapshot 恰好覆盖到指定 Session stream 的 cursor 73。</span></span>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 读取 Checkpoint version 4、对应 RunSpec 和 `snapshot_73`，验证 Snapshot 恰好覆盖到指定 Session stream 的 cursor 73。</span></span>
 <span class="line"><span>2. 从同一 stream 读取 event seq > 73，吸收 Checkpoint 之后已经提交、且与当前 Run 有关的事实。</span></span>
 <span class="line"><span>3. 对所有已有 intent、但没有 terminal result 的 effect，先按稳定业务引用查询；只有 idempotency key 仍在 provider 的去重窗口内时才可按原 key 重试。这包括 `in_progress`、`dispatched` 和显式 `unknown`。</span></span>
 <span class="line"><span>4. 重新验证授权、artifact 与 waiting condition 是否仍然有效。</span></span>
@@ -85,12 +101,12 @@
 <p>因此 Checkpoint 不能替代幂等和 reconciliation。它只让恢复过程知道要核对什么。</p>
 <h2 id="pause-与-crash-使用同一份恢复契约">Pause 与 crash 使用同一份恢复契约</h2>
 <p>人工审批、等待用户输入和定时暂停，都可以被建模为显式 waiting condition：</p>
-<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E">{</span></span>
-<span class="line"><span style="color:#005CC5">  "kind"</span><span style="color:#24292E">: </span><span style="color:#032F62">"approval"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "request_id"</span><span style="color:#24292E">: </span><span style="color:#032F62">"approval_9"</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "resource_version"</span><span style="color:#24292E">: </span><span style="color:#005CC5">17</span><span style="color:#24292E">,</span></span>
-<span class="line"><span style="color:#005CC5">  "expires_at"</span><span style="color:#24292E">: </span><span style="color:#032F62">"2026-07-18T09:00:00Z"</span></span>
-<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "kind"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"approval"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "request_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"approval_9"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resource_version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">17</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "expires_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"2026-07-18T09:00:00Z"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>进入 pause 前，Runtime 先提交 waiting event 和 Checkpoint，再释放 worker。Resume 时不能只检查“有人点了同意”，还要确认 approval 是否绑定同一个 action、参数和 resource version，是否已过期，以及当前授权是否仍成立。</p>
 <p>Crash 与主动 pause 的区别在于触发方式，不在于恢复协议。两者都应从最后一个已提交边界重建，而不是依赖原进程仍保留调用栈。</p>
 <h2 id="replay-为什么通常不是完全确定的">Replay 为什么通常不是完全确定的</h2>
@@ -133,4 +149,52 @@
 <li><a href="/zh/writing/state-machines-leases-idempotency/">长时间任务的状态机、Lease 与幂等性</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> </body></html>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>
