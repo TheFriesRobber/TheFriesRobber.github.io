@@ -1,0 +1,148 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一条被反复召回的过期偏好出发，区分历史文本检索与可治理的长期用户状态。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Memory 一：RAG 为什么替代不了 Memory | Xiaoyuan"><meta property="og:description" content="从一条被反复召回的过期偏好出发，区分历史文本检索与可治理的长期用户状态。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-is-not-rag/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-is-not-rag/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-is-not-rag/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-is-not-rag/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-is-not-rag/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 一：RAG 为什么替代不了 Memory | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-is-not-rag/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Memory 一：RAG 为什么替代不了 Memory</h1> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>6 月 1 日，用户告诉 Agent：“以后尽量把评审安排在上午。”系统把这句话做成 embedding。7 月 10 日，用户又明确更正：“以后都改到下午。”</p>
+<p>下一次安排评审时，vector search 同时找回两条高度相关的历史消息：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>0.93  以后尽量把评审安排在上午</span></span>
+<span class="line"><span>0.91  以后都改到下午</span></span></code></pre>
+<p>提高 <code>top_k</code> 只会更稳定地返回矛盾。提高相似度阈值还可能删掉较新的正确表达。Retrieval 能回答“哪些历史文本与查询相似”，却没有回答“哪条用户偏好当前有效”。</p>
+<p>这就是 RAG 与长期 Memory 的分界：RAG 负责找证据，Memory 还要维护会被更正、撤销和过期的状态。</p>
+<h2 id="历史证据不等于当前事实">历史证据不等于当前事实</h2>
+<p>两条消息都真实发生过，因此都应留在 conversation history。可当前 Task 不能同时采用“上午”和“下午”。如果系统把历史文本直接当作 Memory record，就会混淆三个问题：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>问题</th><th>需要的对象</th></tr></thead><tbody><tr><td>用户曾经说过什么</td><td>Source event / raw history</td></tr><tr><td>哪条信息值得跨 Session 保留</td><td>Memory write decision</td></tr><tr><td>当前应该采用哪个版本</td><td>Versioned record 的 current view</td></tr></tbody></table>
+<p>Current view 不是删除历史，而是一个派生结果：在当前授权、时间和版本规则下，哪些 record 仍然生效。需要解释或重新判断时，系统仍能沿 source reference 回到原始表达。</p>
+<h2 id="最小-memory-pipeline">最小 Memory pipeline</h2>
+<p>一个可治理的流程至少需要下面几步：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>source event</span></span>
+<span class="line"><span>  → memory candidate</span></span>
+<span class="line"><span>  → write gate</span></span>
+<span class="line"><span>  → versioned memory record</span></span>
+<span class="line"><span>  → current view</span></span>
+<span class="line"><span>  → retrieval candidate</span></span>
+<span class="line"><span>  → Context Assembly</span></span></code></pre>
+<p>模型或规则可以从对话中提出 candidate，但 candidate 还不是长期事实。Write gate 判断它是否足够持久、与当前用户有关、未来有用、来源明确且允许保存。通过后才生成带 owner、source 和 version 的 Memory record。</p>
+<p>Retrieval 也不是最后的决策者。它从 current view 中找回候选，Context Assembly 再结合当前 Task 的指令、权限和其他来源决定是否采用。这样，Memory 不会因为“被搜到”就自动升级成当前 instruction。</p>
+<h2 id="把上午改成下午">把上午改成下午</h2>
+<p>第一次写入可以形成：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">meeting_time_preference</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">morning</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_61</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">superseded</span></span></code></pre>
+<p>7 月 10 日的明确更正形成新版本：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">meeting_time_preference</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">afternoon</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_82</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">supersedes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span></code></pre>
+<p>下一次查询时，raw history 仍包含两条消息，但 current view 只暴露 v2。若用户问“我以前是不是偏好上午”，系统可以读取 history；若当前任务是安排下周评审，retrieval 应从 v2 开始。</p>
+<p>如果用户说的是“这两周先改到下午”，它可能是一条有有效期的例外，而不是永久 supersede。适用范围不清楚时，系统应先确认，不能让 Memory writer 把临时 Context 决定改成长久事实。</p>
+<h2 id="memory-类型不能共享一个-owner">Memory 类型不能共享一个 owner</h2>
+<p>“Memory”常被用来统称不同对象：用户长期偏好、当前 Task 状态、一次 Run 的 working state、Agent 的固定 persona。它们可以使用相似存储技术，却不应共享更新规则。</p>
+<p>用户偏好由用户表达和受控 writer 更新；Task state 由应用 owner 收敛；Run working state 属于 Runtime；persona 则来自版本化配置。把它们都写进一个 vector index，会让一次相似度查询同时决定用户事实、执行状态和系统行为。</p>
+<p>本文只建立长期用户 Memory 的最小边界。具体什么值得写、不同 writer 能改什么、版本怎样并发更新，以及怎样 ranking，分别需要后续决策。</p>
+<h2 id="存储形态不是语义契约">存储形态不是语义契约</h2>
+<p>Memory 可以落在文件、关系数据库、文档库或搜索索引中。Anthropic 的 Memory Tool 也明确由应用执行 client-side 文件操作，实际数据仍存储在应用控制的基础设施里。这个接口说明“模型可以请求读写”，并不替应用定义版本、授权和 current view。</p>
+<p>同样，向量数据库可以成为 candidate index，却不应成为唯一事实源。Embedding model 或索引变更后，candidate 可以重建；source、version 和撤销关系不能只存在于向量 metadata 中。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>开场中的旧偏好不是检索失败：系统确实找到了相关历史。错误在于把相关历史直接当成当前事实。</p>
+<p>Agent Memory 需要在 source event 之上增加 write gate、versioned record 和 current view，再把当前有效内容交给 retrieval 与 Context Assembly。这样，“上午”仍是可追溯历史，“下午”才是当前偏好；系统既没有抹掉来源，也不会让更相似的旧句子重新生效。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>什么信息值得跨 Session 写入长期 Memory。</li>
+<li>不同 Memory writer 应拥有怎样的 mutation 权限。</li>
+<li>用户更正、撤销与并发编辑怎样形成新版本。</li>
+<li>Current view 之后怎样做 keyword、vector、hybrid retrieval 与 reranking。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool">Anthropic：Memory Tool</a></li>
+<li><a href="https://arxiv.org/abs/2309.02427">Cognitive Architectures for Language Agents</a></li>
+<li><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

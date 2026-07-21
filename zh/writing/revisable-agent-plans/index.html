@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一个前提已经失效但仍继续执行的研究计划出发，解释 Plan revision、执行事实、evidence 与 delegation proposal 应怎样分工。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Runtime 九：让 Plan 可以安全修订 | Xiaoyuan"><meta property="og:description" content="从一个前提已经失效但仍继续执行的研究计划出发，解释 Plan revision、执行事实、evidence 与 delegation proposal 应怎样分工。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/revisable-agent-plans/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/revisable-agent-plans/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/revisable-agent-plans/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/revisable-agent-plans/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/revisable-agent-plans/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Runtime 九：让 Plan 可以安全修订 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/revisable-agent-plans/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Runtime 九：让 Plan 可以安全修订</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Planning/">Planning</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>用户让 Agent 比较 2024 与 2025 年的公开数据。Agent 先生成一份计划：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>plan v1</span></span>
+<span class="line"><span>P1 找到并验证 2025 数据集可比性</span></span>
+<span class="line"><span>P2 计算 2024 / 2025 差异，depends_on P1</span></span>
+<span class="line"><span>P3 写比较结论，depends_on P2</span></span></code></pre>
+<p>搜索结果随后表明：发布方在 2025 年改了统计口径，没有可直接比较的数据集。可 Plan 只是一段早先生成的 checklist，Runtime 找到数据集后就把 P1 标成“完成”，没有验证可比性，继续计算 P2，最后得到一份看似完整、前提却不成立的报告。</p>
+<p>重新让模型列一份计划并不能自动解决问题。系统还需要知道新旧计划是什么关系、哪些 item 已经执行、哪些 evidence 仍然有效，以及旧 revision 下已经启动的工作怎样停止收敛。</p>
+<h2 id="plan-描述待办不拥有执行事实">Plan 描述待办，不拥有执行事实</h2>
+<p>Plan item 回答“为了当前目标，接下来还需要什么”；Run、Tool Execution 或 Child Job 回答“实际执行了什么”。两者可以关联，但不能共享状态 owner。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Plan item P1：验证 2025 数据是否可比</span></span>
+<span class="line"><span>Tool Execution search_7：查询发布方资料，succeeded</span></span>
+<span class="line"><span>Evidence source_12：2025 口径已变化</span></span>
+<span class="line"><span>Plan decision：P1 的原假设 invalid</span></span></code></pre>
+<p><code>search_7</code> 的成功只证明查询执行成功，不证明 P1 的原假设成立。反过来，把 P1 标成 <code>invalid</code> 也不能改写已经发生过的 Tool Execution。若 Plan item 需要交给 SubAgent 或 Job，执行状态仍由对应 owner 收敛，Plan 只保存稳定 reference 和消费结果的条件。</p>
+<p>这个边界也意味着 Plan 不是 chain-of-thought 的持久化版本。它保存用户可观察的目标、依赖、状态和证据，不需要记录模型未公开的内部推理过程。</p>
+<h2 id="最小-plan-artifact-需要-revision-和依赖">最小 Plan Artifact 需要 revision 和依赖</h2>
+<p>一份可修订 Plan 可以采用不同 schema，但至少要表达：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">plan_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">plan_report_4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">goal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">compare 2024 and 2025 public data</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">items</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">in_progress</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    objective</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">validate whether the 2025 dataset is comparable</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    depends_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: []</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    evidence_refs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: []</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">blocked</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    objective</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">compute the comparison</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    depends_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">P1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">blocked</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    objective</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">write the conclusion</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    depends_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">P2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<p>依赖不是为了把 Plan 画成复杂 DAG，而是让修订具有作用范围。P1 的前提失效时，Runtime 可以沿依赖把 P2、P3 标成 <code>superseded</code> 或重新生成，而不影响与该前提无关、已经确认的工作。</p>
+<p>Plan 更新还应带 <code>expected_revision</code>。Plan owner 必须在同一个原子边界内校验 current revision 并写入新 revision：只有 <code>expected_revision=1</code> 与 current revision 匹配时，才能把 v1 推进到 v2。两个 writer 同时基于 v1 修改时，一个成功后，另一个会因 conditional / CAS update 失败，必须读取 v2 后重新判断。否则，字段本身挡不住人工修改被后台 replan 静默覆盖。</p>
+<h2 id="从-v1-修订到-v2">从 v1 修订到 v2</h2>
+<p>把开场例子走一遍：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  search_7 返回 source_12：2025 年统计口径已变化</span></span>
+<span class="line"><span>T2  Runtime 追加 evidence，并把 P1 的 premise 标记为 invalid</span></span>
+<span class="line"><span>T3  生成 plan v2，replaces plan v1</span></span>
+<span class="line"><span>T4  P2、P3 在 v1 中变为 superseded</span></span>
+<span class="line"><span>T5  v2 新增 P4：先建立可比口径，或向用户说明无法直接比较</span></span>
+<span class="line"><span>T6  只有 P4 得到可验证结果后，才生成新的计算与写作 item</span></span></code></pre>
+<p>v2 不会删除 v1。保留 revision 关系后，系统可以解释为什么 work panel 改变，也能判断一条迟到结果属于哪个计划版本。</p>
+<p>假设 v1 的 P2 已经启动 <code>job_compare_9</code>。切换 v2 时，Plan owner 可以发出 cancellation request，但不能直接把 Job 历史改成 cancelled。Job owner 必须在 claim、retry 以及发起不可逆 effect 前，校验 <code>plan_revision=1</code>、<code>item_id=P2</code> 是否仍被 current Plan 接受，并检查 cancellation fence 是否已经推进。P2 被 supersede 后，尚未提交的 effect 必须停止；如果 effect intent 已经提交但结果仍是 <code>unknown</code>，则进入 reconciliation，而不是再次执行。Plan revision 的 CAS 只保护 Plan 更新，不能代替 Job system 收敛执行状态。若结果稍后返回，consumer 仍要检查它绑定的 revision 和 item；结果可以留作审计或 artifact，却不能自动推进 v2。</p>
+<h2 id="replan-需要说明什么改变了">Replan 需要说明什么改变了</h2>
+<p>每次模型产生不同列表都创建新 revision，会让 Plan 变成噪音。只有影响执行选择的变化才需要修订，例如：</p>
+<ul>
+<li>新 evidence 让前提失效。</li>
+<li>用户改变目标、约束或优先级。</li>
+<li>某个执行对象进入不可恢复终态，需要替代路径。</li>
+<li>人工明确插入、跳过或重排工作。</li>
+</ul>
+<p>Revision decision 应记录 change reason、受影响 item、保留的 evidence 和替代关系。纯文案改写或相同 item 的重复排序不必制造新版本。</p>
+<p>计划循环也要有上限。如果连续 revision 没有新增 evidence，只是在两个等价方案之间来回切换，Runtime 应消耗 replan budget 并最终请求确认，而不是把 revision 数量当作进展。</p>
+<h2 id="plan-item-怎样进入-delegation">Plan item 怎样进入 Delegation</h2>
+<p>当 P4 需要独立研究时，Plan 可以产生一个与执行原语无关的 delegation proposal：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">proposal_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delegation_17</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  plan_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">plan_report_4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  item_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">goal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">establish a comparable data definition</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">required_evidence</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">official methodology</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">year mapping</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">result_consumer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">parent_run_8</span></span></code></pre>
+<p>这份 proposal 仍不是 SubAgent。Runtime 接下来才根据状态 owner、持久性、取消和交付要求，选择由父 Run 管理的 Child Run、独立 Child Job 或 durable Workflow node。Plan 表达要完成什么，不应顺便决定谁拥有执行生命周期。</p>
+<h2 id="work-panel-展示的是承诺不是内部推理">Work panel 展示的是承诺，不是内部推理</h2>
+<p>结构化 Plan 可以生成用户可见的 work panel：当前目标、正在进行的 item、等待条件、已确认 evidence 和 revision reason。它比“Agent 正在思考”更可验证，也不需要暴露 chain-of-thought。</p>
+<p>但 Plan 进度仍不能替代 Task 结果。所有 item 完成后，Task owner 还要检查用户交付物是否存在、约束是否满足；反过来，Task 已因用户取消而终止时，Plan 也不能继续驱动新执行。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>开场中的错误不是模型不会列计划，而是 Plan 只有文本，没有 revision、依赖和 evidence 边界。前提变化后，Runtime 无法知道哪些待办已经失效，也无法拒绝旧计划下的迟到结果。</p>
+<p>把 Plan 建模为可修订 Runtime Artifact 后，新 evidence 可以生成新 revision，依赖决定失效范围，执行对象继续拥有自己的事实，迟到结果则按绑定的 revision 判断是否仍可消费。Plan 因而成为可观察、可纠正的工作承诺，而不是一段被下一次生成静默覆盖的 reasoning。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>Delegation proposal 应怎样选择 SubAgent、Child Job 或 durable Workflow Fanout。</li>
+<li>多个 Plan writer 怎样通过 ownership、lease 或 revision CAS 协作。</li>
+<li>Plan progress、Task success 与 artifact evidence 应怎样分别评测。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="/zh/writing/agent-run-turn-step-task-state-model/">Agent Runtime 二：一次执行该怎样分层</a></li>
+<li><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></li>
+<li><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

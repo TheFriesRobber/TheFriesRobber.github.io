@@ -1,0 +1,206 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A report-generation failure shows how a Runtime should choose retry, fallback, repair, replan, or reconciliation from the failure owner, result certainty, and side-effect boundary."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Runtime 6: Choose Recovery at the Failure Boundary | Xiaoyuan"><meta property="og:description" content="A report-generation failure shows how a Runtime should choose retry, fallback, repair, replan, or reconciliation from the failure owner, result certainty, and side-effect boundary."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/layered-agent-failure-recovery/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/layered-agent-failure-recovery/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/layered-agent-failure-recovery/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/layered-agent-failure-recovery/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/layered-agent-failure-recovery/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Runtime 6: Choose Recovery at the Failure Boundary | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/layered-agent-failure-recovery/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Runtime 6: Choose Recovery at the Failure Boundary</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent is generating a market report. It asks a model to organize data, calls <code>create_document</code>, and then asks the model to add a summary.</p>
+<p>After the primary model request times out, the HTTP client makes at most three requests including the first. The Provider Adapter selects from at most three route attempts including the primary route, and the outer Run executes the whole flow at most three times. Three Attempts at each nested layer can expand one logical Model Turn into 27 physical requests.</p>
+<p><code>create_document</code> is more dangerous. If the external service created the document but its response was lost, repeating the outer Run creates multiple documents. A uniform “retry on failure” rule is not a recovery system. It is an Attempt multiplier.</p>
+<p>The problem is not the number three. It is that three layers all treat the error they observe as authority to recover independently.</p>
+<h2 id="identify-the-failure-owner-first">Identify the failure owner first</h2>
+<p>A recovery action should stay within the object that owns the state. A transport timeout, Model Turn, Tool Execution, Plan, and Task are not the same retry unit:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Failure location</th><th>Stable identity</th><th>First question</th></tr></thead><tbody><tr><td>Transport / provider</td><td>Model Turn</td><td>Was the request accepted, and is any response item complete?</td></tr><tr><td>Tool validation</td><td>Tool Call / Tool Execution</td><td>Can the model repair the input, and has any side effect occurred?</td></tr><tr><td>External Tool effect</td><td>Tool Execution</td><td>Is the result failed, or still unknown?</td></tr><tr><td>Plan premise</td><td>Plan revision / item</td><td>Which later items depend on the invalid premise?</td></tr><tr><td>Task outcome</td><td>Task</td><td>Can the user goal still complete, or must it stop or escalate?</td></tr></tbody></table>
+<p>One exception string is not enough to classify the failure. <code>timeout</code> says only that the caller received no confirmation before its deadline. It does not prove that a provider generated nothing or that a Tool produced no external effect. The Runtime also needs the current owner, logical identity, committed facts, and side-effect contract.</p>
+<p>Transport retries and route fallbacks within one inference boundary are different Attempts of the same Model Turn here. The Runtime starts a new Model Turn only when the model input or intended inference boundary changes; changing providers alone must not silently change the measurement grain.</p>
+<p>Errors should therefore be normalized into stable failure classes such as <code>transport_timeout</code>, <code>provider_rate_limited</code>, <code>tool_invalid_argument</code>, <code>effect_result_unknown</code>, and <code>plan_premise_invalid</code>. The raw exception can remain in controlled logs, but recovery policy should not depend on strings that change with an SDK or provider.</p>
+<h2 id="recovery-is-not-another-word-for-retry">Recovery is not another word for retry</h2>
+<p>Only after classification can the Runtime choose an action:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Action</th><th>Applicable condition</th><th>What it must not do</th></tr></thead><tbody><tr><td>Retry</td><td>The same logical operation is safe to attempt again and budget remains</td><td>Generate a new identity that hides duplicate execution</td></tr><tr><td>Fallback</td><td>The original route failed and another route still satisfies the contract</td><td>Join partial output from two Attempts</td></tr><tr><td>Repair</td><td>The model can correct Tool input from a structured error</td><td>Repeat the same invalid arguments</td></tr><tr><td>Replan</td><td>A premise or dependency is invalid, so the old plan cannot reach the goal</td><td>Merely mark the failed item pending again</td></tr><tr><td>Reconcile</td><td>An external effect may have occurred but its result is unknown</td><td>Repeat an irreversible action before checking</td></tr><tr><td>Escalate / stop</td><td>Policy, authorization, or safety forbids automatic recovery</td><td>Use more retries to bypass a hard boundary</td></tr></tbody></table>
+<p>Backoff and jitter control when retries happen; they do not prove that a retry is safe. A side-effecting call still needs a stable idempotency key, a queryable business reference, or explicit reconciliation. If none exists, the result should remain <code>unknown</code> and automatic replay should stop.</p>
+<h2 id="walk-the-report-through-the-policy">Walk the report through the policy</h2>
+<p>Now let one Runtime policy coordinate recovery:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. The primary model request times out</span></span>
+<span class="line"><span>   → the Routing Decision already guarantees provider_side_effects=none for this route</span></span>
+<span class="line"><span>   → no complete response item was accepted, so discard incomplete output</span></span>
+<span class="line"><span>   → create another Attempt in the same Model Turn and spend one fallback unit</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>2. The secondary model returns a complete create_document Tool Call</span></span>
+<span class="line"><span>   → the Runtime validates it and creates a stable Tool Execution</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>3. The create_document response times out</span></span>
+<span class="line"><span>   → an effect intent exists, but no terminal result does</span></span>
+<span class="line"><span>   → mark effect_result_unknown and query by idempotency key / document reference</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>4. Reconciliation finds doc_42</span></span>
+<span class="line"><span>   → converge the Tool Execution to succeeded without creating another document</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>5. Later evidence invalidates the report's data premise</span></span>
+<span class="line"><span>   → send plan_premise_invalid to the Plan owner and create a new revision</span></span>
+<span class="line"><span>   → cancel or replace only affected items; do not replay the confirmed doc_42 fact</span></span></code></pre>
+<p>If step 3 produced an explicit validation error, the action would be repair. If authorization had been revoked, the action would be stop. The recovery action follows the failure class and effect state, not the hope that another attempt might work.</p>
+<h2 id="retry-budget-must-be-shared-across-layers">Retry budget must be shared across layers</h2>
+<p>Each local retry can look reasonable while their composition exhausts the deadline, token budget, and downstream capacity. A RunSpec or Runtime policy should allocate a shared budget to the logical goal and record what each action spends:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>recovery_budget</span></span>
+<span class="line"><span>  transport_attempts: 2</span></span>
+<span class="line"><span>  model_fallbacks: 1</span></span>
+<span class="line"><span>  tool_repairs: 2</span></span>
+<span class="line"><span>  replans: 1</span></span>
+<span class="line"><span>  deadline: 45s</span></span></code></pre>
+<p>These are not universal defaults. They show that budgets need action-specific dimensions. A cheap transport retry and a replan have different costs and risks. Each may have a local limit, while all remain bounded by the total deadline, cost, and side-effect policy.</p>
+<p>The Runtime should also detect loops that make no progress. If two Plan revisions still cite the same invalid premise, or Tool repair repeats the same argument digest and error code, more budget adds no information. The system should stop, request confirmation, or enter manual recovery instead of presenting the loop as ongoing work.</p>
+<h2 id="how-to-evaluate-the-policy">How to evaluate the policy</h2>
+<p>Final success rate alone rewards unlimited retries. A recovery trace should retain the logical operation, every Attempt, failure class, chosen action, budget use, final side effects, and artifact references.</p>
+<p>That evidence reveals whether the system replayed a whole Run at the wrong layer, violated a capability constraint during fallback, duplicated a Tool effect, or replanned without changing an invalid dependency. Production failures can then become fixed fixtures that verify whether the same classification still produces an action within the same boundary.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Uniform retry collapses failures owned by different objects. It amplifies requests and can repeat external actions whose outcomes remain unknown.</p>
+<p>Layered recovery first locates the failure identity, then combines result certainty with the side-effect contract to choose retry, fallback, repair, replan, reconcile, or stop. A shared budget limits the complete recovery chain, while Attempt lineage proves what actually ran. Recovery then moves state toward convergence at the correct boundary instead of restarting from the outside.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should a Tool Error expose repairable fields to the next Model Turn safely?</li>
+<li>How should a Queue consumer define delivery, idempotency, retry, and dead-letter contracts?</li>
+<li>How should production Traces become failure fixtures for continuous Evaluation?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/">AWS Builders’ Library: Timeouts, retries, and backoff with jitter</a></li>
+<li><a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">AWS Builders’ Library: Making retries safe with idempotent APIs</a></li>
+<li><a href="/writing/model-routing-policy/">Context Engineering 4: How Model Routing Falls Back Safely</a></li>
+<li><a href="/writing/agent-checkpoint-recovery-contract/">Agent Runtime 5: A Checkpoint Is Not an Object Snapshot</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

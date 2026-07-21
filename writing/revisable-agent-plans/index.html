@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A research plan that keeps running after its premise fails shows how Plan revisions, execution facts, evidence, and delegation proposals should remain separate."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Runtime 9: Make Plans Safely Revisable | Xiaoyuan"><meta property="og:description" content="A research plan that keeps running after its premise fails shows how Plan revisions, execution facts, evidence, and delegation proposals should remain separate."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/revisable-agent-plans/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/revisable-agent-plans/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/revisable-agent-plans/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/revisable-agent-plans/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/revisable-agent-plans/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Runtime 9: Make Plans Safely Revisable | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/revisable-agent-plans/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Runtime 9: Make Plans Safely Revisable</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Planning/">Planning</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user asks an Agent to compare public data from 2024 and 2025. The Agent first produces a plan:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>plan v1</span></span>
+<span class="line"><span>P1 find the 2025 dataset and validate comparability</span></span>
+<span class="line"><span>P2 compute the 2024 / 2025 difference, depends_on P1</span></span>
+<span class="line"><span>P3 write the comparison, depends_on P2</span></span></code></pre>
+<p>Search results then reveal that the publisher changed its methodology in 2025, so no directly comparable dataset exists. The Plan is only an earlier checklist, however. The Runtime marks P1 complete as soon as it finds the dataset, without validating comparability, continues with P2, and eventually produces a polished report whose premise is invalid.</p>
+<p>Asking the model for another list does not solve the problem by itself. The system still needs to relate the old and new Plans, determine which items actually ran, preserve valid evidence, and converge work already started under the old revision.</p>
+<h2 id="a-plan-describes-work-it-does-not-own-execution-facts">A Plan describes work; it does not own execution facts</h2>
+<p>A Plan item answers what remains necessary for the current goal. A Run, Tool Execution, or Child Job answers what actually ran. They may reference each other, but they do not share a state owner.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Plan item P1: validate whether the 2025 data is comparable</span></span>
+<span class="line"><span>Tool Execution search_7: queried publisher material, succeeded</span></span>
+<span class="line"><span>Evidence source_12: the 2025 methodology changed</span></span>
+<span class="line"><span>Plan decision: P1's original premise is invalid</span></span></code></pre>
+<p>The success of <code>search_7</code> proves that the query ran, not that P1’s premise was true. Marking P1 <code>invalid</code> also cannot rewrite the Tool Execution that already occurred. If a Plan item is delegated to a SubAgent or Job, that execution owner still converges its state; the Plan keeps only a stable reference and a condition for consuming the result.</p>
+<p>This boundary also means that a Plan is not persisted chain-of-thought. It stores user-observable goals, dependencies, state, and evidence without recording private internal reasoning.</p>
+<h2 id="the-minimum-artifact-needs-revisions-and-dependencies">The minimum artifact needs revisions and dependencies</h2>
+<p>Implementations can use different schemas, but a revisable Plan needs to express at least:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">plan_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">plan_report_4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">goal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">compare 2024 and 2025 public data</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">items</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">in_progress</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    objective</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">validate whether the 2025 dataset is comparable</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    depends_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: []</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    evidence_refs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: []</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">blocked</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    objective</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">compute the comparison</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    depends_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">P1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">blocked</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    objective</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">write the conclusion</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    depends_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">P2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<p>Dependencies are not there to turn every Plan into an elaborate DAG. They give a revision a bounded impact. When P1’s premise fails, the Runtime can supersede or replace P2 and P3 without disturbing confirmed work that does not depend on that premise.</p>
+<p>Plan mutations should also carry <code>expected_revision</code>. The Plan owner must validate the current revision and write the new revision within one atomic boundary: v1 may advance to v2 only when <code>expected_revision=1</code> still matches the current revision. If two writers edit v1 concurrently, one succeeds and the other’s conditional / CAS update fails. The loser must read v2 and decide again. The field alone cannot stop a background replan from silently overwriting a human edit.</p>
+<h2 id="revise-v1-into-v2">Revise v1 into v2</h2>
+<p>Walk the opening example through the model:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  search_7 returns source_12: the 2025 methodology changed</span></span>
+<span class="line"><span>T2  the Runtime appends the evidence and marks P1's premise invalid</span></span>
+<span class="line"><span>T3  it creates plan v2, which replaces plan v1</span></span>
+<span class="line"><span>T4  P2 and P3 become superseded in v1</span></span>
+<span class="line"><span>T5  v2 adds P4: establish a comparable definition or explain why the datasets cannot be compared directly</span></span>
+<span class="line"><span>T6  only after P4 has verifiable evidence may new compute and writing items be created</span></span></code></pre>
+<p>v2 does not delete v1. The revision relationship explains why the work panel changed and lets the system classify a late result by the Plan version that requested it.</p>
+<p>Suppose v1 already started <code>job_compare_9</code> for P2. Activating v2 can issue a cancellation request, but the Plan owner cannot rewrite Job history to <code>cancelled</code>. Before a claim, retry, or irreversible effect, the Job owner must verify that <code>plan_revision=1</code> and <code>item_id=P2</code> are still accepted by the current Plan and that the cancellation fence has not advanced. Once P2 is superseded, an unsubmitted effect must stop. If an effect intent was already committed but its result remains <code>unknown</code>, the owner reconciles it instead of executing it again. CAS on the Plan revision protects only Plan mutation; it cannot converge Job execution state. If a result arrives later, the consumer still checks its revision and item. The result may remain as audit evidence or an artifact, but it cannot advance v2 automatically.</p>
+<h2 id="a-replan-should-say-what-changed">A replan should say what changed</h2>
+<p>Creating a revision whenever a model phrases a list differently turns the Plan into noise. A revision is useful when it changes execution choice, for example:</p>
+<ul>
+<li>new evidence invalidates a premise;</li>
+<li>the user changes the goal, constraint, or priority;</li>
+<li>an execution owner reaches an unrecoverable terminal state and needs an alternative;</li>
+<li>a human explicitly inserts, skips, or reorders work.</li>
+</ul>
+<p>The revision decision should record the reason, affected items, retained evidence, and replacement relationship. Editorial rewrites or equivalent item orderings do not need another version.</p>
+<p>Planning loops also need a limit. If repeated revisions add no evidence and alternate between equivalent approaches, the Runtime should spend a replan budget and eventually request confirmation instead of treating revision count as progress.</p>
+<h2 id="from-a-plan-item-to-delegation">From a Plan item to delegation</h2>
+<p>When P4 needs independent research, the Plan can create an execution-neutral delegation proposal:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">proposal_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delegation_17</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  plan_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">plan_report_4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  item_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">P4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">goal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">establish a comparable data definition</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">required_evidence</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">official methodology</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">year mapping</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">result_consumer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">parent_run_8</span></span></code></pre>
+<p>This proposal is not yet a SubAgent. The Runtime next chooses a Child Run owned by the parent Run, an independent Child Job, or a durable Workflow node according to ownership, durability, cancellation, and delivery requirements. The Plan says what should be completed; it should not also decide who owns the execution lifecycle.</p>
+<h2 id="a-work-panel-exposes-commitments-not-private-reasoning">A work panel exposes commitments, not private reasoning</h2>
+<p>A structured Plan can produce a user-visible work panel: current goal, active item, waiting condition, confirmed evidence, and revision reason. This is more verifiable than “the Agent is thinking” and does not require exposing chain-of-thought.</p>
+<p>Plan progress still does not replace Task outcome. After every item completes, the Task owner must verify that the user artifact exists and satisfies its constraints. Conversely, if the user cancels the Task, the Plan cannot continue authorizing new execution.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The failure in the opening example is not that the model cannot make a list. The Plan is text without revision, dependency, or evidence boundaries. When the premise changes, the Runtime cannot identify invalid work or reject late results from the old Plan.</p>
+<p>As a revisable Runtime Artifact, a Plan lets new evidence create a new revision, uses dependencies to bound invalidation, leaves execution facts with their owners, and classifies late results by their bound revision. The Plan becomes an observable and correctable work commitment rather than reasoning that the next generation silently overwrites.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should a delegation proposal choose a SubAgent, Child Job, or durable Workflow Fanout?</li>
+<li>How should multiple Plan writers coordinate through ownership, leases, or revision CAS?</li>
+<li>How should Plan progress, Task success, and artifact evidence be evaluated separately?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="/writing/agent-run-turn-step-task-state-model/">Agent Runtime 2: The State Layers of an Agent Execution</a></li>
+<li><a href="/writing/agent-session-event-log-projections/">Agent Runtime 4: Make the Event Log the Source of Truth</a></li>
+<li><a href="/writing/agent-delegation-primitives/">Agent Runtime 10: Who Should Execute a Subtask?</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

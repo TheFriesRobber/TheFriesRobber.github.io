@@ -1,0 +1,206 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次被多层重试放大的报告生成任务出发，解释 Runtime 怎样按失败 owner、结果确定性和副作用边界选择 retry、fallback、repair、replan 或 reconcile。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Runtime 六：按失败边界选择恢复动作 | Xiaoyuan"><meta property="og:description" content="从一次被多层重试放大的报告生成任务出发，解释 Runtime 怎样按失败 owner、结果确定性和副作用边界选择 retry、fallback、repair、replan 或 reconcile。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/layered-agent-failure-recovery/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/layered-agent-failure-recovery/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/layered-agent-failure-recovery/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/layered-agent-failure-recovery/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/layered-agent-failure-recovery/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Runtime 六：按失败边界选择恢复动作 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/layered-agent-failure-recovery/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Runtime 六：按失败边界选择恢复动作</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>一个 Agent 正在生成市场报告。它先调用模型整理数据，再调用 <code>create_document</code> 创建文档，最后让模型补写摘要。</p>
+<p>主模型请求 timeout 后，HTTP client 最多执行三次请求（含首次）；Provider Adapter 则在包含主 route 的最多三个 route attempt 中选择；最外层 Run 仍未得到结果，于是把整段流程最多执行三次。每层都是三次 Attempt，嵌套后，一次逻辑 Model Turn 最坏会放大成 27 个物理请求。</p>
+<p>更危险的是 <code>create_document</code>：如果外部服务已经创建文档、只是响应丢失，最外层 Run 重跑会创建多份文档。统一的“失败就重试”没有恢复系统，只有不断扩大的 Attempt 数量。</p>
+<p>问题不在于三次这个数字，而在于三个层级都把自己看到的错误当成了自己的恢复权。</p>
+<h2 id="先确定失败属于哪个-owner">先确定失败属于哪个 owner</h2>
+<p>恢复动作应留在拥有该状态的对象内。Transport timeout、Model Turn、Tool Execution、Plan 和 Task 不是同一个 retry unit：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>失败位置</th><th>稳定 identity</th><th>首先要回答的问题</th></tr></thead><tbody><tr><td>Transport / provider</td><td>Model Turn</td><td>请求是否被接受，是否已有完整 response item</td></tr><tr><td>Tool validation</td><td>Tool Call / Tool Execution</td><td>输入能否由模型修复，是否已经产生副作用</td></tr><tr><td>外部 Tool effect</td><td>Tool Execution</td><td>结果是 failed，还是仍然 unknown</td></tr><tr><td>Plan premise</td><td>Plan revision / item</td><td>哪些后续 item 依赖了失效前提</td></tr><tr><td>Task outcome</td><td>Task</td><td>用户目标是否仍可完成，还是需要终止或人工处理</td></tr></tbody></table>
+<p>同一条异常文本不足以完成分类。<code>timeout</code> 只说明 caller 在期限内没有得到确认；它不能证明 provider 没生成结果，也不能证明 Tool 没产生外部效果。Runtime 还需要知道当前 owner、逻辑 identity、已经提交的事实，以及调用是否可能产生副作用。</p>
+<p>这里把同一模型推理边界下的 transport retry 和 route fallback 都记为同一个 Model Turn 的不同 Attempt。只有模型输入或预期推理边界发生变化，Runtime 才开始新的 Model Turn；切换 provider 本身不会偷偷改变度量 grain。</p>
+<p>因此，错误应先归一化成稳定 failure class，例如 <code>transport_timeout</code>、<code>provider_rate_limited</code>、<code>tool_invalid_argument</code>、<code>effect_result_unknown</code>、<code>plan_premise_invalid</code>。原始异常仍可进入受控日志，但恢复 policy 不应依赖随 SDK 或 provider 改变的错误字符串。</p>
+<h2 id="恢复动作不是-retry-的同义词">恢复动作不是 retry 的同义词</h2>
+<p>分类完成后，Runtime 才能选择动作：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>动作</th><th>适用条件</th><th>不应做什么</th></tr></thead><tbody><tr><td>Retry</td><td>同一逻辑操作可安全再尝试，且仍有 budget</td><td>生成新 identity 掩盖重复执行</td></tr><tr><td>Fallback</td><td>原 route 失败，备用 route 仍满足原契约</td><td>拼接两个 Attempt 的 partial output</td></tr><tr><td>Repair</td><td>模型可根据结构化错误修改 Tool 参数</td><td>原样重复无效参数</td></tr><tr><td>Replan</td><td>前提或依赖失效，旧计划已不能完成目标</td><td>只把失败 item 重新标成 pending</td></tr><tr><td>Reconcile</td><td>外部效果可能已发生但结果未知</td><td>在确认前再次执行不可逆动作</td></tr><tr><td>Escalate / stop</td><td>policy、授权或安全边界不允许自动恢复</td><td>用更多 retry 绕过硬限制</td></tr></tbody></table>
+<p>Backoff 和 jitter 只能控制 retry 的时间分布，不能证明 retry 安全。对于有副作用的调用，Runtime 仍需稳定 idempotency key、可查询的业务 reference 或显式 reconciliation；这些条件都不存在时，应保持 <code>unknown</code> 并停止自动重放。</p>
+<h2 id="把报告例子走一遍">把报告例子走一遍</h2>
+<p>现在让所有恢复动作由一个 Runtime policy 协调：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 主模型请求 timeout</span></span>
+<span class="line"><span>   → Routing Decision 已确认当前 route 的 provider_side_effects=none</span></span>
+<span class="line"><span>   → 没有完整 response item 被接受，丢弃未完成输出</span></span>
+<span class="line"><span>   → 在同一 Model Turn 下创建新的 Attempt，并消耗一次 fallback budget</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>2. 备用模型返回完整 create_document Tool Call</span></span>
+<span class="line"><span>   → Runtime 校验并创建稳定 Tool Execution</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>3. create_document 响应 timeout</span></span>
+<span class="line"><span>   → effect intent 已提交，但没有 terminal result</span></span>
+<span class="line"><span>   → 标记 effect_result_unknown，先按 idempotency key / document reference 查询</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>4. 查询得到 doc_42</span></span>
+<span class="line"><span>   → Tool Execution 收敛为 succeeded，不再次创建文档</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>5. 后续发现报告依赖的数据口径已经失效</span></span>
+<span class="line"><span>   → 将 plan_premise_invalid 交给 Plan owner，生成新 revision</span></span>
+<span class="line"><span>   → 只取消或替换受影响的后续 item，不重跑已确认的 doc_42 创建事实</span></span></code></pre>
+<p>如果第 3 步得到的是明确 validation error，动作会变成 repair；如果授权已经撤销，则直接 stop。恢复动作来自 failure class 和 effect 状态，而不是来自“再试一次也许会好”。</p>
+<h2 id="retry-budget-必须跨层共享">Retry budget 必须跨层共享</h2>
+<p>即使每层 retry 都单独合理，叠加后仍可能耗尽 deadline、token 和下游容量。因此 RunSpec 或 Runtime policy 应为一次逻辑目标分配共享 budget，并让每个动作记录消耗：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>recovery_budget</span></span>
+<span class="line"><span>  transport_attempts: 2</span></span>
+<span class="line"><span>  model_fallbacks: 1</span></span>
+<span class="line"><span>  tool_repairs: 2</span></span>
+<span class="line"><span>  replans: 1</span></span>
+<span class="line"><span>  deadline: 45s</span></span></code></pre>
+<p>这些不是通用默认值，只是说明 budget 需要按动作区分。一次便宜的 transport retry 与一次重新规划的成本和风险不同；它们可以有各自上限，但还要受总 deadline、成本和副作用 policy 约束。</p>
+<p>Runtime 还应识别没有进展的循环。若连续两个 Plan revision 仍引用同一个失效前提，或者 Tool repair 反复产生相同参数 digest 和 error code，继续消耗 budget 不会带来新信息。此时应终止、要求用户确认或进入人工恢复，而不是把循环包装成“仍在运行”。</p>
+<h2 id="怎样验证恢复策略">怎样验证恢复策略</h2>
+<p>只看最终成功率会奖励无限重试。一次恢复至少应保留：逻辑 operation、所有 Attempt、failure class、选择的恢复动作、budget 消耗、最终副作用和 artifact reference。</p>
+<p>这样才能检查：是否在错误层重跑了整个 Run，fallback 是否违反原能力约束，Tool 是否产生重复副作用，以及 replan 是否真正改变了失效依赖。线上 failure 可以再转成固定 fixture，验证相同分类是否仍产生相同边界内的动作。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>统一 retry 把不同 owner 的失败压成同一件事，因此既会放大请求，也会让结果未知的外部动作被重复执行。</p>
+<p>分层恢复先确定失败属于哪个 identity，再结合结果确定性和副作用 contract 选择 retry、fallback、repair、replan、reconcile 或 stop。共享 budget 限制整个恢复链，Attempt lineage 则证明系统到底试过什么。这样，恢复是在正确边界内推动状态收敛，而不是从最外层重新开始。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>Tool Error 怎样把可修复字段安全地返回下一次 Model Turn。</li>
+<li>Queue consumer 怎样定义 delivery、idempotency、retry 与 dead-letter contract。</li>
+<li>怎样从真实 Trace 提取失败 fixture 并进入持续 Evaluation。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/">AWS Builders’ Library：Timeouts, retries, and backoff with jitter</a></li>
+<li><a href="https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/">AWS Builders’ Library：Making retries safe with idempotent APIs</a></li>
+<li><a href="/zh/writing/model-routing-policy/">Context Engineering 四：Model Routing 怎样安全 Fallback</a></li>
+<li><a href="/zh/writing/agent-checkpoint-recovery-contract/">Agent Runtime 五：Checkpoint 不是对象快照</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

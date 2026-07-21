@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A temporary location mistaken for a permanent residence motivates explicit write gates for information that should survive across Sessions."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Memory 2: What Deserves Long-Term Retention? | Xiaoyuan"><meta property="og:description" content="A temporary location mistaken for a permanent residence motivates explicit write gates for information that should survive across Sessions."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 2: What Deserves Long-Term Retention? | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-memory-write-gates/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Memory 2: What Deserves Long-Term Retention?</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>While traveling, a user says, “I am staying in Berlin this week. Find a nearby meeting room.” After the Agent completes the Task, a background consolidation process writes “the user lives in Berlin” into long-term Memory.</p>
+<p>Two months later, the user plans an event in Shanghai and the Agent still prioritizes Berlin locations. The original sentence was accurate and its embedding did not expire. The error happened during the write: a Task fact with an explicit time scope became a user attribute with no expiry.</p>
+<p>If the rule is “save anything that might help later,” Memory accumulates addresses, temporary goals, third-party details, and model guesses. Recall may increase while current Context becomes less trustworthy.</p>
+<h2 id="a-candidate-is-not-yet-a-writable-fact">A candidate is not yet a writable fact</h2>
+<p>Content extracted from conversation should first become a <code>memory_candidate</code>. It retains the original statement, source, subject, scope, and extraction method without entering the long-term current view automatically.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user lives in Berlin</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_41</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">observed_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">this week</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">extraction</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model_inference</span></span></code></pre>
+<p>The defect is already visible. The source supports “in Berlin this week,” not “permanently lives in Berlin.” A write gate does not polish the sentence. It decides whether the available evidence supports a durable, governable record.</p>
+<h2 id="five-write-gates">Five write gates</h2>
+<p>A candidate generally needs to pass five decisions:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Gate</th><th>Question</th><th>If it fails</th></tr></thead><tbody><tr><td>Durable</td><td>Will it remain true after the current Turn or Task?</td><td>Keep it in current Context or give it an explicit expiry</td></tr><tr><td>User-specific</td><td>Does it describe the current subject rather than a third party or general fact?</td><td>Do not write it to user Memory</td></tr><tr><td>Future-useful</td><td>Is there a clear future Task that would use it?</td><td>Do not retain it merely because it might help</td></tr><tr><td>Source-grounded</td><td>Does the source support the claim and its scope?</td><td>Narrow the claim, request confirmation, or reject it</td></tr><tr><td>Permission-safe</td><td>May this writer retain this data category and sensitivity?</td><td>Reject it or enter a controlled confirmation flow</td></tr></tbody></table>
+<p>The gates are not a weighted score. High utility cannot compensate for a third-party subject or missing retention authority. A product can use different thresholds for different Memory types, but relevance cannot override a hard authorization boundary.</p>
+<h2 id="walk-the-berlin-candidate-through-the-gates">Walk the Berlin candidate through the gates</h2>
+<p>The candidate can produce an explainable decision:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">do_not_write_long_term</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">reasons</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  durable</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  user_specific</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  future_useful</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">limited</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  source_grounded</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">false_for_permanent_residence</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  permission_safe</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">alternative</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  keep_in_task_context_until</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-21</span></span></code></pre>
+<p>If the user says, “I moved to Berlin; prioritize it from now on,” durability, future usefulness, and grounding can all pass. The location-data policy may still require confirmation before writing. The same place with a different scope produces a different write decision.</p>
+<h2 id="explicit-statements-and-inference-are-different-evidence">Explicit statements and inference are different evidence</h2>
+<p>“Use afternoons from now on” directly supports an explicit preference. One afternoon meeting supports only an observation, not a durable preference. Repeated behavior may still come from time zones, calendar conflicts, or a temporary project.</p>
+<p>Records should therefore distinguish evidence classes:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>explicit_user_statement</span></span>
+<span class="line"><span>confirmed_user_edit</span></span>
+<span class="line"><span>repeated_corroborated_observation</span></span>
+<span class="line"><span>single_observation</span></span>
+<span class="line"><span>model_inference_without_direct_evidence</span></span></code></pre>
+<p>These are source classes, not a fixed priority from top to bottom. A new value confirmed in the Memory UI is itself explicit user evidence. Conflicts should first compare claim scope, time, and mutation authority, then ask whether provenance supports the current value. A user edit still cannot write someone else’s data into the user’s Memory, and repeated observation does not automatically deserve retention.</p>
+<p>For inferred candidates, safer actions include waiting for corroboration, storing a short-lived low-confidence observation, or asking the user. A model’s natural-language confidence is not authorization.</p>
+<h2 id="content-that-should-be-rejected">Content that should be rejected</h2>
+<p>Some information should not enter long-term user Memory by default even when it is relevant to the current Task:</p>
+<ul>
+<li>one-time codes, access tokens, secrets, and complete credentials;</li>
+<li>third-party information without appropriate authority;</li>
+<li>instructions or unconfirmed claims from external documents;</li>
+<li>rapidly changing facts that must be queried again before use;</li>
+<li>sensitive categories outside the writer’s capability.</li>
+</ul>
+<p>Rejecting a long-term write does not mean forgetting the current Task. Required content can remain in controlled Run or Task Context and expire under retention policy. Long-term Memory is a stronger cross-Session authority, not the default destination for all Context.</p>
+<h2 id="write-decisions-need-tests">Write decisions need tests</h2>
+<p>The gate should emit stable reason codes such as <code>temporary_scope</code>, <code>third_party_subject</code>, <code>insufficient_evidence</code>, <code>realtime_fact</code>, and <code>sensitive_not_allowed</code>. Evaluation can then test both correct writes and correct restraint.</p>
+<p>Measuring only future recall rewards saving everything. Tests also need write precision, scope preservation, rejection reasons, and whether explicit confirmation changes the decision correctly.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The Berlin error did not begin at retrieval. The write path had already turned a temporary fact into a permanent attribute, so later retrieval could only amplify the pollution.</p>
+<p>Passing candidates through durable, user-specific, future-useful, source-grounded, and permission-safe gates lets the system choose a long-term write, an expiring record, confirmation, or rejection. Memory quality begins not with how much the system remembers, but with whether it retains only what it has evidence and authority to use later.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>What different authority should in-loop writes, background consolidation, imports, and user edits receive?</li>
+<li>How should stored facts be superseded, revoked, deleted, or restored?</li>
+<li>How should Memory restraint, freshness, and leakage be evaluated?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool">Anthropic: Memory Tool</a></li>
+<li><a href="/writing/agent-memory-is-not-rag/">Agent Memory 1: Why RAG Cannot Replace Memory</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

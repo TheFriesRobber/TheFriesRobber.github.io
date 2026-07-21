@@ -1,0 +1,151 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Version chains, a current view, and conditional writes make long-term Memory explainable, correctable, and safe under concurrent mutation."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Memory 4: Use Version Chains for Correction and Revocation | Xiaoyuan"><meta property="og:description" content="Version chains, a current view, and conditional writes make long-term Memory explainable, correctable, and safe under concurrent mutation."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/versioned-agent-memory/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/versioned-agent-memory/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/versioned-agent-memory/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/versioned-agent-memory/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/versioned-agent-memory/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 4: Use Version Chains for Correction and Revocation | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/versioned-agent-memory/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Memory 4: Use Version Chains for Correction and Revocation</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user originally asked for meetings in the morning whenever possible, then explicitly changed the preference to “afternoons only from now on.” The system updates the same row’s <code>value</code> from “morning” to “afternoon.”</p>
+<p>The current value looks correct, but two problems remain. The system can no longer explain why it scheduled morning meetings last week. Another writer that already read “morning” may submit later and overwrite the new preference. An in-place update retains only the final string. It preserves neither the meaning of the change nor evidence that a writer is stale.</p>
+<p>Memory must permit facts to change, but mutability does not require overwriting the only version in place.</p>
+<h2 id="version-history-current-view-and-audit-solve-different-problems">Version history, current view, and audit solve different problems</h2>
+<p>A governable Memory record can have three layers:</p>
+<ul>
+<li>version history retains versions of a claim, their sources, and their relationships;</li>
+<li>the current view exposes only versions that are valid and readable now;</li>
+<li>audit events record who requested each mutation and how policy decided it.</li>
+</ul>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">schedule_preference_17</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">meetings_only_in_afternoon</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">supersedes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">version_2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_88</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">expected_version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span></code></pre>
+<p>Retrieval normally queries the current view, so the model does not need the complete history in Context. When explanation or recovery is required, the system can follow version relationships and audit events back to the source of a change.</p>
+<h2 id="supersede-revoke-delete-and-undo-are-different-operations">Supersede, revoke, delete, and undo are different operations</h2>
+<p>All four can remove an old value from the current view, but they express different facts:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Operation</th><th>Meaning</th><th>Result</th></tr></thead><tbody><tr><td>Supersede</td><td>A new current value replaces the old one</td><td>Create a version that points to the replaced version</td></tr><tr><td>Revoke</td><td>The old record is no longer accepted, with no replacement value</td><td>Remove it from the current view and record why</td></tr><tr><td>Delete</td><td>Content must become unavailable under a user request or retention policy</td><td>Erase protected content; keep only a minimal tombstone when policy permits</td></tr><tr><td>Undo</td><td>Restore a previous business value</td><td>Create a restoring version instead of moving history backward</td></tr></tbody></table>
+<p>“Withdraw an incorrect inference” and “the user changed their preference” should not both be generic updates. The first does not assert that an opposite fact is true; the second has a source for a new value. Nor may an append-only design permanently retain sensitive content after deletion. Physical retention remains subject to privacy and retention requirements.</p>
+<h2 id="walk-the-morning-to-afternoon-change-through-the-model">Walk the morning-to-afternoon change through the model</h2>
+<p>The old current record is <code>version_2 = mornings_preferred</code>. After the correction, the writer submits <code>version_3</code> with the original message source and <code>expected_version: 2</code>. The Memory service switches the current view conditionally:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>version_2: superseded by version_3</span></span>
+<span class="line"><span>version_3: current, afternoons_only</span></span>
+<span class="line"><span>current view: version_3</span></span></code></pre>
+<p>The system can still explain last week’s decisions based on version 2, while the next Retrieval sees only version 3. If the user says, “Undo that change; mornings are better,” the service does not delete version 3 and revive version 2. It creates <code>version_4</code> with the morning value and records that the operation was an undo. The current view advances to version 4 while history remains ordered.</p>
+<h2 id="conditional-writes-stop-stale-writers-from-replacing-new-facts">Conditional writes stop stale writers from replacing new facts</h2>
+<p>Suppose the in-loop Agent and a consolidation job both read version 2. The Agent first writes version 3 from the user’s explicit statement. The consolidation job later submits its candidate with <code>expected_version: 2</code>.</p>
+<p>The service should reject the second switch because the current version is no longer 2. This follows the same idea as HTTP <code>If-Match</code> preventing a lost update: a writer must prove that it is modifying the version it read. After rejection, it can only reread version 3 and decide whether its observation still conflicts, can be merged, or should be abandoned.</p>
+<p>Do not hide the conflict with last-writer-wins. Two authorized writers may have made compatible changes to different fields. Whether to merge depends on record type and claim scope, not submission time.</p>
+<h2 id="the-current-view-must-change-when-a-source-becomes-invalid">The current view must change when a source becomes invalid</h2>
+<p>Business corrections are not the only reason for status changes. If a source loses authorization, passes its retention limit, or fails an integrity check, any current record that depends on it needs revalidation. The default is to mark the record <code>unavailable</code>, request confirmation, or trigger rebuilding—not to reactivate a superseded claim automatically. The system may select a replacement current record only when the record type defines an explicit recovery rule and independent, currently valid evidence supports that value. It must never keep returning an unreadable version from a search index.</p>
+<p>This is why the current view is separate. Version history explains what happened; the current view answers what may be used now. If both are reduced to a table sorted by update time, authorization changes and supersession become ordinary ranking problems when they are not.</p>
+<h2 id="what-to-test">What to test</h2>
+<p>Tests should cover more than a normal <code>v2 → v3</code> path: two writers modifying v2 concurrently, revocation without a replacement, content becoming unrecoverable after deletion, undo creating a new version, and source revocation removing a value from the current view.</p>
+<p>Key invariants include an acyclic version chain, at most one current version per claim scope, valid <code>supersedes</code> targets, rejection of stale revisions, and current-view validation that a lagging search index cannot bypass.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Changing “morning” to “afternoon” in place produces only a latest string. It neither explains the change nor prevents a concurrent writer from overwriting it with an old value.</p>
+<p>Give supersede, revoke, delete, and undo distinct meanings. Preserve the history that policy allows through append-style version relationships, expose usable facts through a current view, and protect each switch with <code>expected_version</code>. Memory can then accept user corrections without sacrificing explanation or concurrency safety.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should Retrieval filter a search result that still contains a superseded version?</li>
+<li>How can several candidate-generation methods improve recall without sacrificing current validity?</li>
+<li>How should version history remain outside the long-term Context Budget?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9110.html">RFC 9110: If-Match and lost updates</a></li>
+<li><a href="https://www.postgresql.org/docs/current/mvcc-intro.html">PostgreSQL: Concurrency Control and MVCC</a></li>
+<li><a href="/writing/agent-memory-writer-trust-domains/">Agent Memory 3: Isolate Write Authority by Writer</a></li>
+<li><a href="/writing/agent-session-event-log-projections/">Agent Runtime 4: Make the Event Log the Source of Truth</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

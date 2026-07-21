@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从当前有效事实出发，组合 keyword、vector、hybrid search 与 reranking，而不是只优化相似度。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Memory 五：Retrieval 不能只看相似度 | Xiaoyuan"><meta property="og:description" content="从当前有效事实出发，组合 keyword、vector、hybrid search 与 reranking，而不是只优化相似度。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-retrieval-ranking/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-retrieval-ranking/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-ranking/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-retrieval-ranking/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-ranking/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 五：Retrieval 不能只看相似度 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-retrieval-ranking/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Memory 五：Retrieval 不能只看相似度</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Retrieval/">Retrieval</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>用户问：“帮我安排下周的项目评审。”Memory 中有两条记录：旧版本写着“上午有空，适合评审”，新版本则是“工作日只剩下午有空”。Query 里出现“评审”，所以包含同一个词、描述也更完整的旧版本获得更高相似度。</p>
+<p>Vector search 没有出错。它完成的是“找语义相近文本”，而系统需要回答的是“当前任务可以使用哪些仍有效的事实”。如果检索只按相似度排序，过期、被 supersede 或无权读取的内容仍可能赢得第一名。</p>
+<h2 id="candidate-generation-不等于最终-memory">Candidate generation 不等于最终 Memory</h2>
+<p>Memory Retrieval 可以拆成一条有边界的 pipeline：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task query</span></span>
+<span class="line"><span>  → permission / subject filter</span></span>
+<span class="line"><span>  → keyword + vector candidate generation</span></span>
+<span class="line"><span>  → current-version resolution</span></span>
+<span class="line"><span>  → task-aware reranking</span></span>
+<span class="line"><span>  → Context Assembly</span></span></code></pre>
+<p>Keyword、vector 和 hybrid search 都只负责扩大 candidate recall。Candidate 进入 Context 前，还必须解析到 source of truth 中的 current version，并经过 permission、有效期与 task relevance 检查。相似度是信号，不是授权，也不是事实状态。</p>
+<h2 id="keywordvector-和-hybrid-各自解决什么">Keyword、vector 和 hybrid 各自解决什么</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>方法</th><th>擅长找回</th><th>容易漏掉或误排</th></tr></thead><tbody><tr><td>Keyword</td><td>人名、产品名、错误码、原句和稀有 token</td><td>同义改写、自然语言表达变化</td></tr><tr><td>Vector</td><td>语义相近但措辞不同的记录</td><td>精确标识符；也可能把相似的旧版本排得很高</td></tr><tr><td>Hybrid</td><td>合并 lexical 与 semantic candidate</td><td>仍不理解版本、权限和业务有效性</td></tr></tbody></table>
+<p>Hybrid search 可以用加权分数或 reciprocal rank fusion 合并两路结果。它通常比押注单一路径更稳健，但融合只改变候选顺序，不会自动过滤 revoked record。Subject、tenant 与 read permission 必须在读取 candidate payload 和参与 ranking 之前执行；version 与 expiry 可以在 source-of-truth resolution 时验证，但仍须在 Context Assembly 前完成，并在注入模型前再次校验 authorization。</p>
+<h2 id="把评审安排的例子走一遍">把评审安排的例子走一遍</h2>
+<p>候选层可能返回：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. v1  上午有空，适合安排项目评审   keyword/vector: high</span></span>
+<span class="line"><span>2. v2  工作日只剩下午有空          vector: medium</span></span>
+<span class="line"><span>3. v5  偏好用 30 分钟完成评审       keyword: medium</span></span></code></pre>
+<p>Version resolver 根据稳定的 <code>memory_id</code> 查询 current view，发现 v1 已被 v2 supersede，于是 v1 不能进入 reranking。接下来，reranker 结合当前 Task“安排评审”判断：v2 决定可用时段，v5 决定会议长度，两条都相关。最终交给 Context Assembly 的不是 top-1 文本，而是一组仍有效、允许读取且作用不同的事实：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>availability: weekday afternoons only (current v2)</span></span>
+<span class="line"><span>meeting preference: 30-minute reviews (current v5)</span></span></code></pre>
+<p>如果搜索索引同步较慢、仍把 v1 排在第一，source-of-truth resolution 也会将它淘汰。不能把“稍后重建索引”当作正确性保证；索引可以提供 candidate，不能决定 current truth。</p>
+<h2 id="reranking-需要哪些信号">Reranking 需要哪些信号</h2>
+<p>通过硬过滤后，reranking 才适合综合软信号：</p>
+<ul>
+<li>与当前 Task 和阶段的相关性；</li>
+<li>memory type，例如可用时段、偏好或已完成事实；</li>
+<li>freshness 与显式 expiry；</li>
+<li>source authority 和 evidence strength；</li>
+<li>是否需要与其他 current record 一起使用。</li>
+</ul>
+<p>可以把它们实现成可学习模型、规则或两阶段组合，但不要用一个不透明总分覆盖 permission、revocation 或 current-version 状态。硬约束先过滤，软信号再排序，失败时才能解释某条 Memory 为什么没有进入 Context。</p>
+<p>Query 也不必只复制用户最后一句话。Runtime 可以根据 Task 类型构造结构化 retrieval request，例如 subject、目标 memory type、时间窗口和所处阶段。这样“安排评审”能主动寻找 availability 与 meeting preference，而不是等待两条记录偶然拥有相似措辞。</p>
+<h2 id="评估不能只看相似度">评估不能只看相似度</h2>
+<p>离线数据集至少要标注：应该召回的 current record、应该拒绝的 stale 或 unauthorized record，以及 Task 最终需要的 record set。由此可以同时测：</p>
+<ul>
+<li>recall：需要的当前事实是否进入候选和最终结果；</li>
+<li>precision：返回内容是否确实帮助当前 Task；</li>
+<li>stale-hit rate：superseded、expired 或 revoked 内容是否被使用；</li>
+<li>unsupported-use rate：缺少来源或权限的内容是否进入 Context。</li>
+</ul>
+<p>还要故意让搜索索引落后于 version store，验证 current-view resolution 仍能阻止旧版本。只在干净索引上测 top-k 相似度，会错过 Retrieval 最危险的失败路径。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>旧记录因为包含“项目评审”而更相似，却已经不是当前可用事实。把它排在第一是 candidate generation 的合理结果，把它交给模型才是 Retrieval pipeline 的错误。</p>
+<p>先用 keyword 与 vector 提高 recall，再以 source of truth 解析 current version，执行 permission 和有效性硬过滤，最后按 Task relevance、type、freshness 与 authority rerank。Memory Retrieval 的产物才会从“相似文本”变成“当前任务可以信任的一组事实”。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>检索出的多类 Memory 应各占多少 Context Budget。</li>
+<li>Memory 中的外部文本怎样避免通过 Retrieval 注入指令。</li>
+<li>怎样联动评估 write restraint、retrieval recall 和下游 Task outcome。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/index/">OpenSearch：Hybrid search</a></li>
+<li><a href="https://www.elastic.co/docs/solutions/search/hybrid-search">Elastic：Hybrid search</a></li>
+<li><a href="https://arxiv.org/abs/2004.04906">Dense Passage Retrieval</a></li>
+<li><a href="/zh/writing/versioned-agent-memory/">Agent Memory 四：用版本链管理更正与撤销</a></li>
+<li><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

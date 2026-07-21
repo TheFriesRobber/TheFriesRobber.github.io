@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Start from currently valid facts and combine keyword, vector, hybrid search, and reranking instead of optimizing similarity alone."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Memory 5: Retrieval Cannot Rank by Similarity Alone | Xiaoyuan"><meta property="og:description" content="Start from currently valid facts and combine keyword, vector, hybrid search, and reranking instead of optimizing similarity alone."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-ranking/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-ranking/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-retrieval-ranking/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-ranking/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-ranking/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 5: Retrieval Cannot Rank by Similarity Alone | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-memory-retrieval-ranking/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Memory 5: Retrieval Cannot Rank by Similarity Alone</h1> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">07/17/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Retrieval/">Retrieval</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user asks, “Schedule next week’s project review.” Memory contains two records. An old version says “available in the morning, suitable for project reviews,” while the new version says “only weekday afternoons remain available.” Because the query mentions a review, the more detailed old version with the exact term receives a higher similarity score.</p>
+<p>Vector search did not malfunction. It answered “which text is semantically close?” The system needs “which still-valid facts may this Task use?” Similarity-only Retrieval allows expired, superseded, or unreadable content to win the first position.</p>
+<h2 id="candidate-generation-is-not-final-memory">Candidate generation is not final Memory</h2>
+<p>Memory Retrieval can be separated into a bounded pipeline:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task query</span></span>
+<span class="line"><span>  → permission / subject filter</span></span>
+<span class="line"><span>  → keyword + vector candidate generation</span></span>
+<span class="line"><span>  → current-version resolution</span></span>
+<span class="line"><span>  → task-aware reranking</span></span>
+<span class="line"><span>  → Context Assembly</span></span></code></pre>
+<p>Keyword, vector, and hybrid search only increase candidate recall. Before a candidate enters Context, it must resolve to the current version in the source of truth and pass permission, expiry, and Task-relevance checks. Similarity is a signal, not authorization or fact status.</p>
+<h2 id="what-keyword-vector-and-hybrid-search-each-solve">What keyword, vector, and hybrid search each solve</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Method</th><th>Good at retrieving</th><th>Common gaps or mistakes</th></tr></thead><tbody><tr><td>Keyword</td><td>Names, product identifiers, error codes, exact wording, and rare tokens</td><td>Paraphrases and natural-language variation</td></tr><tr><td>Vector</td><td>Semantically similar records with different wording</td><td>Exact identifiers; it may also rank a similar old version highly</td></tr><tr><td>Hybrid</td><td>A union of lexical and semantic candidates</td><td>It still does not understand version, permission, or business validity</td></tr></tbody></table>
+<p>Hybrid search can combine the two result sets with weighted scores or reciprocal rank fusion. It is often more robust than relying on a single path, but fusion only changes candidate order. It does not remove a revoked record. Subject, tenant, and read permission must be enforced before candidate payloads are read or ranked. Version and expiry may be validated during source-of-truth resolution, but they must be resolved before Context Assembly, with authorization checked again before model injection.</p>
+<h2 id="walk-the-review-scheduling-example-through-the-pipeline">Walk the review-scheduling example through the pipeline</h2>
+<p>Candidate generation might return:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. v1  available mornings; suitable for project reviews   keyword/vector: high</span></span>
+<span class="line"><span>2. v2  only weekday afternoons remain available          vector: medium</span></span>
+<span class="line"><span>3. v5  prefers 30-minute project reviews                  keyword: medium</span></span></code></pre>
+<p>The version resolver looks up the stable <code>memory_id</code> in the current view, discovers that v1 was superseded by v2, and prevents v1 from reaching reranking. The reranker then considers the Task of scheduling a review: v2 determines availability, while v5 determines duration. Both are relevant. Context Assembly receives a set of valid facts with different roles, not the top-1 text:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>availability: weekday afternoons only (current v2)</span></span>
+<span class="line"><span>meeting preference: 30-minute reviews (current v5)</span></span></code></pre>
+<p>If index synchronization lags and v1 still ranks first, source-of-truth resolution removes it anyway. “The index will be rebuilt later” is not a correctness guarantee. An index may supply candidates; it cannot define current truth.</p>
+<h2 id="signals-for-reranking">Signals for reranking</h2>
+<p>After hard filtering, reranking can combine softer signals:</p>
+<ul>
+<li>relevance to the current Task and its stage;</li>
+<li>Memory type, such as availability, preference, or completed fact;</li>
+<li>freshness and explicit expiry;</li>
+<li>source authority and evidence strength;</li>
+<li>whether the record is useful together with another current record.</li>
+</ul>
+<p>The implementation may be a learned model, rules, or a two-stage combination. An opaque total score must not override permission, revocation, or current-version status. Hard constraints filter first and soft signals rank second, preserving an explanation for why a record did not enter Context.</p>
+<p>The query need not merely copy the user’s last sentence. Runtime can construct a structured retrieval request with the subject, desired Memory types, time window, and Task stage. A scheduling Task can then request availability and meeting preferences explicitly instead of hoping that both records happen to use similar wording.</p>
+<h2 id="similarity-alone-is-not-an-evaluation">Similarity alone is not an evaluation</h2>
+<p>An offline dataset should label the current records that should be recalled, stale or unauthorized records that must be rejected, and the record set the Task ultimately requires. That supports several measures:</p>
+<ul>
+<li>recall: whether required current facts reach the candidates and final result;</li>
+<li>precision: whether returned records actually help the Task;</li>
+<li>stale-hit rate: whether superseded, expired, or revoked content is used;</li>
+<li>unsupported-use rate: whether content without valid source or permission enters Context.</li>
+</ul>
+<p>Tests should deliberately lag the search index behind the version store and verify that current-view resolution still blocks old versions. Top-k similarity on a clean index misses the most dangerous Retrieval failure path.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The old record is more similar because it contains “project review,” but it is no longer a usable fact. Ranking it first is a reasonable candidate-generation result. Passing it to the model is the Retrieval pipeline’s mistake.</p>
+<p>Use keyword and vector search to increase recall, resolve current versions against the source of truth, enforce permission and validity as hard filters, and only then rerank by Task relevance, type, freshness, and authority. The Retrieval output becomes a trustworthy set of facts for the current Task rather than merely similar text.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How much Context Budget should different Memory types receive?</li>
+<li>How can Retrieval prevent instructions inside external text from becoming prompt injection?</li>
+<li>How should Evals connect write restraint, retrieval recall, and downstream Task outcomes?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/index/">OpenSearch: Hybrid search</a></li>
+<li><a href="https://www.elastic.co/docs/solutions/search/hybrid-search">Elastic: Hybrid search</a></li>
+<li><a href="https://arxiv.org/abs/2004.04906">Dense Passage Retrieval</a></li>
+<li><a href="/writing/versioned-agent-memory/">Agent Memory 4: Use Version Chains for Correction and Revocation</a></li>
+<li><a href="/writing/context-assembly-policy-engine/">Context Engineering 1: Context Assembly Is Not Message Concatenation</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

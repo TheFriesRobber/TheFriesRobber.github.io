@@ -1,0 +1,156 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A background consolidation job that overrules an explicit preference shows why Memory mutation authority must follow writer identity, evidence, and action."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Memory 3: Isolate Write Authority by Writer | Xiaoyuan"><meta property="og:description" content="A background consolidation job that overrules an explicit preference shows why Memory mutation authority must follow writer identity, evidence, and action."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-memory-writer-trust-domains/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-memory-writer-trust-domains/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-writer-trust-domains/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-writer-trust-domains/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-writer-trust-domains/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 3: Isolate Write Authority by Writer | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-memory-writer-trust-domains/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Memory 3: Isolate Write Authority by Writer</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user explicitly said, “Schedule meetings in the afternoon whenever possible.” Weeks later, a background consolidation job notices that the last three meetings occurred in the morning and changes the long-term preference to “morning meetings.”</p>
+<p>The job did not invent the events. It treated observed behavior as authority to replace a user-approved preference. If the in-loop Agent, background consolidation, bulk import, and user editing all call the same <code>write_memory</code> operation with access to every record, write quality depends on a prompt that says “be careful.” One mistaken writer can then pollute every later Session.</p>
+<p>The question is not merely who authenticated. It is whom this mutation represents, what evidence supports it, and which kind of Memory it may change.</p>
+<h2 id="a-model-cannot-declare-its-own-writer-identity">A model cannot declare its own writer identity</h2>
+<p>The Memory service should obtain actor identity from the trusted execution environment rather than a model argument such as <code>writer: user</code>. A mutation should bind at least:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">actor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">background_consolidation</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">subject</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_42</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">namespace</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">preferences.schedule</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">action</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">propose_observation</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">evidence_class</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">behavioral_observation</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_refs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">calendar_event_7</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">calendar_event_9</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">calendar_event_12</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<p>Together these fields form a constrained capability: an actor may perform specific actions for a specific subject and namespace with an allowed evidence class. A model may generate candidate content, but it cannot expand that capability.</p>
+<h2 id="four-writers-should-not-share-a-write-all-surface">Four writers should not share a write-all surface</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Writer</th><th>Evidence it may use</th><th>Reasonable actions</th><th>Authority it should not have</th></tr></thead><tbody><tr><td>In-loop Agent</td><td>User statements and Tool Results in the currently authorized Context</td><td>Submit candidates; write explicit facts when policy allows</td><td>Modify unrelated subjects or arbitrary history</td></tr><tr><td>Background consolidation</td><td>Repeated observations in authorized history</td><td>Append a lower-authority observation; propose a merge or supersession</td><td>Override an explicit user statement</td></tr><tr><td>Import job</td><td>A mapped dataset and mapped fields</td><td>Write to a designated namespace with dataset provenance</td><td>Write outside that mapping</td></tr><tr><td>User edit</td><td>Input confirmed in the user’s Memory UI</td><td>Correct, revoke, or delete records the user may manage</td><td>Bypass privacy, retention, or third-party data rules</td></tr></tbody></table>
+<p>This is not a global writer priority. Authority must be scoped to subject, namespace, action, and evidence. Otherwise even “user edit has highest priority” could be misused to alter someone else’s records.</p>
+<h2 id="walk-the-morning-meeting-example-through-the-boundary">Walk the morning-meeting example through the boundary</h2>
+<p>The consolidation job may submit “the last three meetings occurred in the morning,” because its sources support that observation. When it attempts to supersede “the user prefers afternoons,” however, the Memory service compares the mutation with its capability:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">requested_action</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">supersede_explicit_preference</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">actor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">background_consolidation</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">allowed_actions</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">append_observation</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">propose_change</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">reject</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">reason</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">writer_cannot_override_explicit_user_statement</span></span></code></pre>
+<p>The system may retain the morning observation for schedule-conflict analysis or create a change proposal that requires confirmation. The current preference remains “afternoon.” If the user later changes it to “use mornings for now” in the Memory UI, the trusted user-edit actor can submit a new explicit version. The old preference is superseded rather than silently overwritten by a background job.</p>
+<p>Conflict handling therefore considers claim scope and provenance together. Three morning meetings and a long-term afternoon preference may both be true: one describes events; the other describes intent. The system should not first reduce them to the same string and then choose by writer rank.</p>
+<h2 id="least-privilege-must-reach-each-mutation">Least privilege must reach each mutation</h2>
+<p>Giving each writer a different API key is not enough. A “background key” that can write the entire store is still write-all authority under a new name. The service needs to validate for every mutation:</p>
+<ul>
+<li>whether the actor may represent this subject;</li>
+<li>whether the namespace belongs to its responsibility;</li>
+<li>whether the action is append, propose, supersede, revoke, or delete;</li>
+<li>whether the evidence class can support the target record type;</li>
+<li>whether source references remain authorized and retained.</li>
+</ul>
+<p>The Memory service, not the prompt, should enforce these checks and return stable rejection reason codes. Auditing can then answer who tried to change what from which sources, while Evals can verify that unauthorized mutations always fail.</p>
+<p>Delegation must not bypass the boundary. When a parent Agent delegates consolidation to a child Agent, it passes a narrower capability. The child should not inherit every Memory permission of its parent or claim through natural language that it represents the user.</p>
+<h2 id="verify-that-isolation-really-works">Verify that isolation really works</h2>
+<p>Tests need negative cases as well as successful writes: consolidation overriding an explicit preference, an import targeting the wrong namespace, an in-loop Agent modifying another subject, a user edit containing unauthorized third-party data, and a model forging an actor field.</p>
+<p>Useful measures include unauthorized mutation acceptance rate, provenance completeness, and correct conflict escalation—not simply writer success rate. A safe writer may propose many candidates, but writes outside its capability must fail reliably.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Observing morning meetings does not mean the user withdrew an afternoon preference. The failure occurred because consolidation and user editing shared mutation authority, so the system could not distinguish “observed” from “authorized by the user.”</p>
+<p>Keep actor identity inside the trusted boundary and grant capabilities by subject, namespace, action, and evidence class. A background job can still detect change, but it can only append an observation or propose an update. Changing current Memory is reserved for a writer with the required evidence and authority.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How should a version chain represent correction, revocation, and deletion?</li>
+<li>How should two authorized writers avoid a lost update when both start from an old version?</li>
+<li>How does Retrieval ensure that it uses only current, readable versions?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://csrc.nist.gov/glossary/term/least_privilege">NIST: Least Privilege</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8693.html">RFC 8693: The distinction between subject and actor</a></li>
+<li><a href="/writing/agent-identity-propagation/">Agent Security 1: Carry Identity through the Call Chain</a></li>
+<li><a href="/writing/agent-memory-write-gates/">Agent Memory 2: What Deserves Long-Term Retention?</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>

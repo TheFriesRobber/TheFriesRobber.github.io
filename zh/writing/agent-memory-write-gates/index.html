@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次性位置被误写成长期住址的例子出发，用明确 write gate 判断什么值得跨 Session 保留。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Memory 二：什么信息值得长期保存 | Xiaoyuan"><meta property="og:description" content="从一次性位置被误写成长期住址的例子出发，用明确 write gate 判断什么值得跨 Session 保留。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-write-gates/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 二：什么信息值得长期保存 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.CSu-F-Ck.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-write-gates/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Memory 二：什么信息值得长期保存</h1> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>用户在出差途中说：“我这周住在柏林，帮我找附近的会议室。”Agent 完成任务后，后台归纳把“用户住在柏林”写进长期 Memory。</p>
+<p>两个月后，用户在上海安排活动，Agent 仍优先推荐柏林地点。原句没有写错，embedding 也没有失效；错误发生在写入时：一个有明确时间范围的任务事实，被升级成了没有期限的用户属性。</p>
+<p>如果规则只是“以后可能有用就保存”，Memory 会不断吸收地址、临时目标、第三方信息和模型猜测。Recall 可能变高，current Context 却越来越不可信。</p>
+<h2 id="candidate-还不是可写入事实">Candidate 还不是可写入事实</h2>
+<p>从 conversation 提取出的内容应先成为 <code>memory_candidate</code>。Candidate 保留原始表达、source、subject、适用范围和提取方式，但不会自动进入长期 current view。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user lives in Berlin</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_41</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">observed_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">this week</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">extraction</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model_inference</span></span></code></pre>
+<p>这条 candidate 的问题已经可见：source 只支持“本周在柏林”，而不是“长期居住在柏林”。Write gate 的任务不是润色句子，而是判断现有证据能否支持一种可持续、可治理的长期记录。</p>
+<h2 id="五个-write-gate">五个 write gate</h2>
+<p>一条候选信息通常需要同时通过五个判断：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Gate</th><th>要回答的问题</th><th>失败时怎样处理</th></tr></thead><tbody><tr><td>Durable</td><td>它是否会在当前 Turn / Task 之后继续成立？</td><td>留在当前 Context，或加明确 expiry</td></tr><tr><td>User-specific</td><td>它是否描述当前 subject，而不是第三方或一般事实？</td><td>不进入用户 Memory</td></tr><tr><td>Future-useful</td><td>将来是否有清晰任务会使用它？</td><td>不因“也许有用”默认保存</td></tr><tr><td>Source-grounded</td><td>Source 是否支持要写入的 claim 和 scope？</td><td>缩小 claim、要求确认或拒写</td></tr><tr><td>Permission-safe</td><td>当前 writer 是否允许保存这类内容和敏感度？</td><td>拒写或转入需要确认的受控流程</td></tr></tbody></table>
+<p>五个 gate 不是加权评分。某条信息很有用，也不能弥补它属于第三方或没有保存权限。产品可以为不同 Memory 类型设置不同 threshold，但硬授权边界不能由 relevance 覆盖。</p>
+<h2 id="把柏林例子走一遍">把柏林例子走一遍</h2>
+<p>这条候选可以生成一份可解释的决定：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">do_not_write_long_term</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">reasons</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  durable</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  user_specific</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  future_useful</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">limited</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  source_grounded</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">false_for_permanent_residence</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  permission_safe</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">alternative</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  keep_in_task_context_until</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-21</span></span></code></pre>
+<p>如果用户说“我已经搬到柏林，以后优先推荐这里”，durable、future-useful 与 source-grounded 才同时成立；系统仍要根据位置数据 policy 决定直接写入还是先确认。相同地点，不同表达范围，会得到不同 write decision。</p>
+<h2 id="用户明说与模型推断不是同等证据">用户明说与模型推断不是同等证据</h2>
+<p>“我以后都安排下午”可以直接支持一条显式偏好；一次下午开会只能支持一条观察，不能自动推出长期偏好。重复行为也可能来自时区、日程冲突或临时项目。</p>
+<p>因此 record 需要区分 evidence class：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>explicit_user_statement</span></span>
+<span class="line"><span>confirmed_user_edit</span></span>
+<span class="line"><span>repeated_corroborated_observation</span></span>
+<span class="line"><span>single_observation</span></span>
+<span class="line"><span>model_inference_without_direct_evidence</span></span></code></pre>
+<p>这些是来源类别，不是从上到下的固定优先级。用户在 UI 中确认一个新值，本身也是显式用户证据；发生冲突时，要先比较 claim scope、发生时间与 mutation authority，再判断 provenance 能否支持当前值。用户编辑也不能把别人的数据写入自己的 Memory，重复观察也不一定需要持久化。</p>
+<p>对推断性 candidate，更安全的动作通常是等待更多 evidence、以较短 TTL 保存为低置信观察，或向用户确认。不要把模型生成的自然语言置信度当作授权。</p>
+<h2 id="必须拒写的内容">必须拒写的内容</h2>
+<p>有几类信息即使与任务相关，也不应默认进入长期用户 Memory：</p>
+<ul>
+<li>一次性验证码、access token、secret 和完整 credential。</li>
+<li>只描述第三方、且没有适当授权的数据。</li>
+<li>外部文档中的指令或未经确认的主张。</li>
+<li>高频变化、下一次使用前必须实时查询的事实。</li>
+<li>当前 writer 无权写入的敏感目录。</li>
+</ul>
+<p>拒写不等于忘记当前任务。必要内容可以在当前 Run 或 Task 的受控 Context 中使用，随后按 retention policy 失效。长期 Memory 是更强的跨 Session 权限，不应成为所有 Context 的默认归宿。</p>
+<h2 id="write-decision-也需要测试">Write decision 也需要测试</h2>
+<p>Write gate 应输出稳定 reason code，例如 <code>temporary_scope</code>、<code>third_party_subject</code>、<code>insufficient_evidence</code>、<code>realtime_fact</code>、<code>sensitive_not_allowed</code>。这样 Eval 才能用正反例测试“该写时写”和“不该写时克制”。</p>
+<p>只测未来能否 recall，会奖励保存所有内容。还要测 write precision、scope preservation、拒写原因，以及用户确认后 decision 是否正确改变。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>“本周住在柏林”被误用，不是检索阶段才发生的错误。Write path 已经把临时事实改写成永久属性，后续 retrieval 只能反复放大污染。</p>
+<p>让 candidate 依次通过 durable、user-specific、future-useful、source-grounded 和 permission-safe gate，系统才能决定长期写入、带期限保存、请求确认或拒写。Memory 的第一项质量指标不是记住多少，而是是否只保存自己有证据、有权限、未来确实应该继续使用的内容。</p>
+<h2 id="后续问题">后续问题</h2>
+<ul>
+<li>对话内写入、后台归纳、数据导入和用户编辑应拥有怎样不同的权限。</li>
+<li>已经写入的事实怎样被 supersede、revoke、delete 或恢复。</li>
+<li>怎样评测 Memory 的 restraint、freshness 和 leakage。</li>
+</ul>
+<p>参考：</p>
+<ul>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool">Anthropic：Memory Tool</a></li>
+<li><a href="/zh/writing/agent-memory-is-not-rag/">Agent Memory 一：RAG 为什么替代不了 Memory</a></li>
+</ul>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  </article>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> </footer> </main> </div> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> </body> </html>
