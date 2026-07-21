@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="数据倾斜不是简单的“任务慢”，而是数据在 partition 间分布失衡。本文从 Spark UI、key 分布和执行计划出发，梳理 join 与聚合倾斜的处理方法。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Spark 数据倾斜：如何识别、定位和治理 | Xiaoyuan"><meta property="og:description" content="数据倾斜不是简单的“任务慢”，而是数据在 partition 间分布失衡。本文从 Spark UI、key 分布和执行计划出发，梳理 join 与聚合倾斜的处理方法。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-data-skew/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-data-skew/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-data-skew/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-data-skew/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-data-skew/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Spark 数据倾斜：如何识别、定位和治理 | Xiaoyuan</title><script>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="数据倾斜不是简单的“任务慢”，而是数据在 partition 间分布失衡。本文从 Spark UI、key 分布和执行计划出发，梳理 join 与聚合倾斜的处理方法。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Spark 数据倾斜：如何识别、定位和治理 | Xiaoyuan"><meta property="og:description" content="数据倾斜不是简单的“任务慢”，而是数据在 partition 间分布失衡。本文从 Spark UI、key 分布和执行计划出发，梳理 join 与聚合倾斜的处理方法。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/spark-data-skew/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/spark-data-skew/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/spark-data-skew/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/spark-data-skew/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/spark-data-skew/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Spark 数据倾斜：如何识别、定位和治理 | Xiaoyuan</title><script>
       (() => {
         const storageKey = 'xiaoyuan-theme';
         let storedTheme = null;
@@ -14,7 +14,7 @@
         const themeColor = document.querySelector('meta[name="theme-color"]');
         themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.C8QMVObf.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-data-skew/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">Spark</p> <h1 class="page-title">Spark 数据倾斜：如何识别、定位和治理</h1> <div class="meta"> <time datetime="2020-04-16T12:54:21.000Z">2020/04/16</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/Performance/">Performance</a><a class="pill" href="/zh/tags/Shuffle/">Shuffle</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.DdLki2v2.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/spark-data-skew/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Spark </p> <h1 class="page-title">Spark 数据倾斜：如何识别、定位和治理</h1> <p class="article-deck">数据倾斜不是简单的“任务慢”，而是数据在 partition 间分布失衡。本文从 Spark UI、key 分布和执行计划出发，梳理 join 与聚合倾斜的处理方法。</p> <div class="meta"> <time datetime="2020-04-16T12:54:21.000Z">2020/04/16</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Spark/">Spark</a><a class="pill" href="/zh/tags/Bigdata/">Bigdata</a><a class="pill" href="/zh/tags/Performance/">Performance</a><a class="pill" href="/zh/tags/Shuffle/">Shuffle</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一个 Spark job 大部分 task 很快结束，最后几个 task 却运行很久；某个 executor 持续 spill、GC，甚至 OOM。增加 executor 数量、调大 memory 或提高 shuffle partition 数以后，问题仍然存在。</p>
 <p>这通常不是“集群资源不够”，而是数据倾斜：<strong>需要处理的数据没有均匀分布到各个 partition，少数 task 承担了远高于平均值的工作量。</strong></p>
 <p>数据倾斜常见于：</p>
@@ -163,7 +163,7 @@
 <li><a href="https://spark.apache.org/docs/latest/sql-performance-tuning.html">Spark SQL Performance Tuning</a></li>
 <li><a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html#shuffle-operations">Spark RDD Programming Guide: Shuffle Operations</a></li>
 <li><a href="https://spark.apache.org/docs/latest/tuning.html">Spark Tuning Guide</a></li>
-</ul>  </article> <section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+</ul>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先区分几个相似问题">先区分几个相似问题</a></li><li><a href="#如何定位">如何定位</a></li><li><a href="#治理顺序">治理顺序</a></li><li><a href="#为什么只增加-partition-往往没用">为什么只增加 partition 往往没用</a></li><li><a href="#如何验证治理有效">如何验证治理有效</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>Spark</p> <h3><a href="/zh/writing/spark-adaptive-query-execution/">Spark Adaptive Query Execution 简记</a></h3> </article><article> <p>Spark</p> <h3><a href="/zh/writing/spark-how-to-use-transforms-correctly/">如何正确使用 Spark Transformation</a></h3> </article><article> <p>Spark</p> <h3><a href="/zh/writing/spark-yarn-config-tips/">Apache Spark on YARN 资源配置笔记</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -264,4 +264,27 @@
           if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
         });
       })();
-    </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

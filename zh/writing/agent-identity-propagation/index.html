@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次跨 Queue 的文件修改出发，解释 Agent 怎样在异步执行后仍能证明谁代表谁采取了动作。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="Agent Security 一：让身份贯穿调用链 | Xiaoyuan"><meta property="og:description" content="从一次跨 Queue 的文件修改出发，解释 Agent 怎样在异步执行后仍能证明谁代表谁采取了动作。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Security 一：让身份贯穿调用链 | Xiaoyuan</title><script>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从一次跨 Queue 的文件修改出发，解释 Agent 怎样在异步执行后仍能证明谁代表谁采取了动作。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Agent Security 一：让身份贯穿调用链 | Xiaoyuan"><meta property="og:description" content="从一次跨 Queue 的文件修改出发，解释 Agent 怎样在异步执行后仍能证明谁代表谁采取了动作。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-propagation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-identity-propagation/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Security 一：让身份贯穿调用链 | Xiaoyuan</title><script>
       (() => {
         const storageKey = 'xiaoyuan-theme';
         let storedTheme = null;
@@ -14,7 +14,7 @@
         const themeColor = document.querySelector('meta[name="theme-color"]');
         themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.C8QMVObf.css"></head> <body> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-identity-propagation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <article class="article"> <header class="article-header"> <p class="eyebrow">AI Agents</p> <h1 class="page-title">Agent Security 一：让身份贯穿调用链</h1> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Security/">Security</a><a class="pill" href="/zh/tags/Identity/">Identity</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.DdLki2v2.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-identity-propagation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Security · 01 </p> <h1 class="page-title">Agent Security 一：让身份贯穿调用链</h1> <p class="article-deck">从一次跨 Queue 的文件修改出发，解释 Agent 怎样在异步执行后仍能证明谁代表谁采取了动作。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Security/">Security</a><a class="pill" href="/zh/tags/Identity/">Identity</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户要求 Agent 修改一份报告。API 收到请求时已经知道当前登录用户，也确认他可以编辑这份文件。Agent 随后为这项后台工作创建 Job 并写入 Queue，几分钟后由另一个 worker 执行。</p>
 <p>到了真正写文件的时候，worker 使用的是自己的 service credential。文件服务看到的调用者是 worker，而不是最初的用户。</p>
 <p>如果 Queue 里只保存 <code>user_id</code>，下游无法证明这个 ID 是谁写进去的，也不知道用户究竟授权了什么动作；如果直接把用户的 access token 放进 Queue，token 又可能在等待期间过期、被撤销或泄漏给不需要它的执行环境。</p>
@@ -128,7 +128,7 @@
 <li><a href="https://www.rfc-editor.org/rfc/rfc8693">RFC 8693: OAuth 2.0 Token Exchange</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  </article> <section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#用户是谁和谁在执行不是同一个问题">“用户是谁”和“谁在执行”不是同一个问题</a></li><li><a href="#身份连续不等于-credential-一路传到底">身份连续，不等于 Credential 一路传到底</a></li><li><a href="#delegation-必须随调用链逐步收窄">Delegation 必须随调用链逐步收窄</a></li><li><a href="#模型不能提供可信身份">模型不能提供可信身份</a></li><li><a href="#subagentconnector-与-sandbox-都遵循同一条规则">SubAgent、Connector 与 Sandbox 都遵循同一条规则</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-retrieval-ranking/">Agent Memory 五：Retrieval 不能只看相似度</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -229,4 +229,27 @@
           if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
         });
       })();
-    </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
