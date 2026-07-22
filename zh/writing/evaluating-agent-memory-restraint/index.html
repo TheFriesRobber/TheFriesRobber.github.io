@@ -23,12 +23,14 @@
         }
       })();
     </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/evaluating-agent-memory-restraint/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 08 </p> <h1 class="page-title">Agent Memory 八：Memory 评测不能只看 Recall</h1> <p class="article-deck">除了能否想起，还要评测该不该写、是否过期、能否撤销，以及有没有越界使用。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
-<p>在一个合成测试里，Memory 系统 A 能答对 100 个历史问答中的 92 个，B 答对 86 个。这个数字是端到端问答正确率，不是 Retrieval Recall；只看最终答题数，A 显得更好。</p>
-<p>但把测试过程展开后，A 还做了三件事：把“这次先用简短格式”保存成长期偏好；用户改成详细格式后仍引用旧版本；在无关的旅行规划中主动提到一段敏感健康记录。B 少答对的几个问题来自更克制的写入和授权过滤，却没有这些错误。</p>
-<p>Retrieval Recall 只问“标注为需要的 Memory 有没有进入 top-k 结果”，端到端正确率还混入了读取与推理能力。长期 Memory 评测必须另外回答：这条内容当初该不该写、现在是不是 current、当前 Task 是否有权使用，以及用户更正或删除后能不能停止影响。忽略这些阶段，会奖励“什么都存、什么都取”的系统。</p>
+<p>用户对 Agent 说：“这次周报先写短一点。”这句话只约束当前 Task，但 Memory Writer 把它保存成了长期偏好：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>用户偏好简短的周报</span></span></code></pre>
+<p>两周后，用户要求生成一份包含背景、证据和风险分析的详细周报。Retrieval 取回这条记录，Agent 因而再次压缩内容。第一次错误发生在写入时：临时要求不该成为长期偏好；第二次错误发生在未来 Task：这条记录不该进入本轮 Context。</p>
+<p>可是在只提供历史问答的评测里，系统仍可能得到高分。问题如果是“用户上次要求什么格式”，它能准确回答“简短”；如果评测把这句话标成 required Memory，它也能成功进入 top-k。Retrieval Recall 只问“标注为需要的记录有没有被取回”，不会判断标注本身是否把临时信息误当成了长期 Memory。</p>
+<p>这就是长期 Memory 评测的缺口：系统不仅要证明自己能记住，还要证明这条内容当初该不该写、现在是不是 current、当前 Task 是否应该使用，以及用户更正或删除后能不能停止影响。否则，评测会把“什么都存、什么都取”奖励成更强的 Memory。</p>
 <h2 id="先把一次得分拆回生命周期">先把一次得分拆回生命周期</h2>
 <p>一个回答正确，可能来自 Writer 正确保存、Store 正确维护版本、Retrieval 找到 current record、Assembly 在当前权限和预算下使用它。一个回答错误，也可能在任意一层发生。把所有结果压成端到端问答正确率，既看不出过度记忆，也不知道该修哪里。</p>
-<p>更有用的评测单位是 <code>scenario × system configuration × assertion checkpoint × trial</code>。<code>system configuration</code> 区分 A、B 及其模型、prompt 和 policy 版本；<code>assertion checkpoint</code> 绑定初始 Memory snapshot、已提交事件序列与明确观察边界。lifecycle phase 仍然有用，但它是 checkpoint 的分类字段，不足以单独标识一次观察。</p>
+<p>更有用的评测单位是 <code>scenario × system configuration × assertion checkpoint × trial</code>。<code>system configuration</code> 固定被测的模型、prompt 和 policy 版本；<code>assertion checkpoint</code> 绑定初始 Memory snapshot、已提交事件序列与明确观察边界。lifecycle phase 仍然有用，但它是 checkpoint 的分类字段，不足以单独标识一次观察。</p>
 <p>同一个 scenario 要同时观察写入和未来读取：</p>
 
 
@@ -78,16 +80,16 @@
 <li>相似事实属于另一个用户、workspace 或资源 scope。</li>
 </ul>
 <p>这些样本分别测临时指令是否被过度持久化、来源是否被错误提升、数据最小化、freshness、editability 和隔离。LongMemEval 已把知识更新与 abstention 纳入长期对话 Memory 能力；面向完整 Memory lifecycle 的评测还应继续加入写入克制、权限与删除传播。</p>
-<h2 id="分层指标可能改变单一得分的结论">分层指标可能改变单一得分的结论</h2>
-<p>开头的测试可以拆成一个有前置状态的 scenario，以及两个相互独立的暴露 case：</p>
+<h2 id="分层检查才能区分记住与克制">分层检查才能区分记住与克制</h2>
+<p>把开头的周报场景扩展成一个有前置状态的 scenario，再加入两个相互独立的暴露 case：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>S1.1 explicit durable preference: “以后周报都用简短格式”</span></span>
 <span class="line"><span>S1.2 current-only instruction:     “这次先用简短格式”</span></span>
 <span class="line"><span>S1.3 correction after S1.1:        “以后改成详细格式”</span></span>
 <span class="line"><span>C4 authorized-but-irrelevant:      旅行规划不应读取同一用户的健康记录</span></span>
 <span class="line"><span>C5 cross-scope unauthorized:       当前用户不得读取另一 workspace 的相似记录</span></span></code></pre>
-<p>A 在 S1.1 和 S1.2 都写入，因此只奖励历史问答正确率的数据集更容易从它那里找到“简短格式”。但在生命周期评分里，S1.2 是 false write。S1.3 提交后，要分别检查旧记录是否仍在 canonical current view、是否进入 prompt，以及是否影响输出。C4 中 permission 可以通过，relevance 应拒绝；C5 则应先在 scope/permission 边界拒绝。即使这些记录没有改变最终答案，只要进入 prompt，也分别计入 irrelevant exposure 或 unauthorized exposure；等待它真的泄漏到输出才算失败，代价太高。</p>
-<p>B 可能只在 S1.1 写入，S1.2 保持在当前 Run；S1.3 生成新版本并使旧版本退出 current view；C4 在 relevance filter 被拒绝，C5 在 permission filter 被拒绝。它的原始问答正确率低一些，但在“该写时写、该用时用、不该用时克制”这个更完整的目标上更可靠。</p>
-<p>把开头给出的合成行为填回 scorecard，差异就不再藏在叙述里：</p>
+<p>A 采用积极写入策略，在 S1.1 和 S1.2 都保存记录；B 只保存明确的长期偏好 S1.1，把 S1.2 留在当前 Run。只奖励历史问答正确率的数据集更容易从 A 那里找到“简短格式”，但在生命周期评分里，S1.2 是 false write。S1.3 提交后，要分别检查旧记录是否仍在 canonical current view、是否进入 prompt，以及是否影响输出。C4 中 permission 可以通过，relevance 应拒绝；C5 则应先在 scope/permission 边界拒绝。即使这些记录没有改变最终答案，只要进入 prompt，也分别计入 irrelevant exposure 或 unauthorized exposure；等待它真的泄漏到输出才算失败，代价太高。</p>
+<p>B 在 S1.3 生成新版本并使旧版本退出 current view；C4 在 relevance filter 被拒绝，C5 在 permission filter 被拒绝。A 与 B 都可以正确保存 S1.1，只有加入 no-write、update 和 no-use case，评测才能区分“能记住”和“无差别地保存”。</p>
+<p>把这些合成 case 填回 scorecard，差异就不再藏在叙述里：</p>
 
 
 
@@ -128,7 +130,7 @@
 
 
 
-<table><thead><tr><th>指标</th><th>A</th><th>B</th></tr></thead><tbody><tr><td>端到端问答正确率</td><td>92 / 100</td><td>86 / 100</td></tr><tr><td>S1.2 false write</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>S1.3 stale exposure</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>S1.3 stale influence</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>C4 irrelevant exposure</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>C4 harmful-memory influence</td><td>1 / 1</td><td>0 / 1</td></tr></tbody></table>
+<table><thead><tr><th>指标</th><th>A</th><th>B</th></tr></thead><tbody><tr><td>S1.1 required write</td><td>1 / 1</td><td>1 / 1</td></tr><tr><td>S1.2 false write</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>S1.3 stale exposure</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>S1.3 stale influence</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>C4 irrelevant exposure</td><td>1 / 1</td><td>0 / 1</td></tr><tr><td>C4 harmful-memory influence</td><td>1 / 1</td><td>0 / 1</td></tr></tbody></table>
 <p>这不是新的综合分，而是把同一组合成观察按 denominator 展开。C5 之类的跨 scope case 仍要单独通过安全门槛，不能由更高的问答正确率抵消。</p>
 <p>最终报告不应强行把所有维度加权成一个神秘总分。核心指标先固定 observation boundary 与 eligible denominator：</p>
 
@@ -200,7 +202,7 @@
 </ul>
 <p>同一 scenario 还应在固定配置的各个 checkpoint 重复运行。Model 输出和 Tool 选择存在随机性，一次通过不能证明策略稳定。报告 trial 数、模型版本、prompt 版本、Memory snapshot、已提交事件序列和 policy revision，才能区分模型波动与系统改动。</p>
 <h2 id="回到问题">回到问题</h2>
-<p>A 的 92 分来自更积极的保存与召回，也隐藏了临时信息持久化、旧版本继续生效和敏感内容越界使用。B 的 86 分并不自动更好，但这个合成例子提醒我们：端到端问答正确率和 Retrieval Recall 都无法单独表达长期 Memory 的质量。</p>
+<p>开头那句“这次周报先写短一点”可以被准确保存和召回，却从一开始就不该进入长期 Memory。只看历史问答正确率或 Retrieval Recall，这次错误甚至可能被记为成功。</p>
 <p>完整评测要沿生命周期同时测写入、版本、读取、Assembly 与结果。只有在需要时想起正确、当前且获授权的记录，并在其他时候保持克制，Memory 才不是一个越来越大的历史搜索框。</p>
 <p>参考：</p>
 <ul>
@@ -211,7 +213,7 @@
 <li><a href="/zh/writing/agent-memory-context-budget/">Agent Memory 六：Hot、Cold 与 Pinned 分层</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-prompt-injection/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 七：Prompt Injection 如何进入长期 Memory</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先把一次得分拆回生命周期">先把一次得分拆回生命周期</a></li><li><a href="#不该记住必须成为一等测试样本">“不该记住”必须成为一等测试样本</a></li><li><a href="#分层指标可能改变单一得分的结论">分层指标可能改变单一得分的结论</a></li><li><a href="#让失败指向可修复的层">让失败指向可修复的层</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-capability-abstraction-layers/">Capability Integration 一：Tool、Skill、Connector 与 MCP 怎样分工</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-prompt-injection/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 七：Prompt Injection 如何进入长期 Memory</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先把一次得分拆回生命周期">先把一次得分拆回生命周期</a></li><li><a href="#不该记住必须成为一等测试样本">“不该记住”必须成为一等测试样本</a></li><li><a href="#分层检查才能区分记住与克制">分层检查才能区分记住与克制</a></li><li><a href="#让失败指向可修复的层">让失败指向可修复的层</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-capability-abstraction-layers/">Capability Integration 一：Tool、Skill、Connector 与 MCP 怎样分工</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
