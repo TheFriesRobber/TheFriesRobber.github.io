@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/designing-agent-tool-surfaces/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Tools · 03 </p> <h1 class="page-title">Agent Tools 三：按任务装配 Tool Surface</h1> <p class="article-deck">从完整 Tool registry 中按权限和任务选择 eager、deferred 与 disabled 能力，并评估 token、延迟和漏召回的取舍。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/designing-agent-tool-surfaces/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Tools · 03 </p> <h1 class="page-title">Agent Tools 三：按任务装配 Tool Surface</h1> <p class="article-deck">从完整 Tool registry 中按权限和任务选择 eager、deferred 与 disabled 能力，并评估 token、延迟和漏召回的取舍。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一个 Agent 刚上线时可能只有五个 Tool：搜索网页、读取文件、写入文件、查询日历和发送消息。随着 connector（连接外部系统的适配器）、设备能力、业务操作和管理动作不断加入，registry 很快会增长到几十甚至上百个定义。</p>
 <p>把所有 Tool 的 name、description 和 parameter schema（参数规则）在每个 Model Turn 都交给模型，至少会产生三个问题：</p>
 <ul>
@@ -36,7 +36,7 @@
 <p>可以把 registry 想成仓库里的全部工具，把 Tool surface 想成这次任务摆在模型桌面上的工具。仓库可以很大，但桌面上只应放当前任务允许且可能用到的那一小部分。</p>
 </blockquote>
 <p>这里的 Run 指一次 Agent Loop：从收到用户输入或恢复动作开始，到给出最终结果、明确暂停为可恢复状态，或者失败、取消时结束。</p>
-<h2 id="先把几个集合说清楚">先把几个集合说清楚</h2>
+<h2 id="registryallowed-setinitial-surface-与-unlocked-set-是四个不同集合">Registry、Allowed set、Initial surface 与 Unlocked set 是四个不同集合</h2>
 <p>先区分四个集合：</p>
 
 
@@ -296,7 +296,7 @@
 <span class="line"><span>  - irrelevant choice and schema cost</span></span>
 <span class="line"><span>  - unauthorized exposure</span></span></code></pre>
 <p>这个式子不是可直接计算的单一分数。它提醒我们，减少 surface 和保持能力可达是两个方向相反的约束，必须用一组指标共同判断。</p>
-<h2 id="设计边界">设计边界</h2>
+<h2 id="deferred-loading-不是所有-tool-surface-的默认答案">Deferred loading 不是所有 Tool surface 的默认答案</h2>
 <ul>
 <li>小型 Agent 只有少量、边界清晰的 Tool 时，全部 eager 往往最简单，也最可靠。</li>
 <li>Deferred loading 优化的是定义暴露与选择空间，不会自动缩短 Tool result、conversation history 或其他上下文。</li>
@@ -324,7 +324,7 @@
 <li><a href="https://platform.claude.com/docs/en/about-claude/pricing">Claude Platform: Pricing and tool-definition input tokens</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/splitting-agent-tools-by-user-intent/" rel="prev"> <span>上一篇</span> <strong>Agent Tools 二：一个 Tool，还是多个？</strong> </a> <a href="/zh/writing/agent-tool-lifecycle/" rel="next"> <span>下一篇</span> <strong>Agent Tools 四：Tool 调用需要完整生命周期</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先把几个集合说清楚">先把几个集合说清楚</a></li><li><a href="#eagerdeferred-和-disabled-是三种不同状态">Eager、deferred 和 disabled 是三种不同状态</a></li><li><a href="#怎样决定一个-tool-是否-eager">怎样决定一个 Tool 是否 eager</a></li><li><a href="#按需-discovery-的完整生命周期">按需 discovery 的完整生命周期</a></li><li><a href="#discovery-index-应该保存什么">Discovery index 应该保存什么</a></li><li><a href="#失败和-fallback降级路径必须显式设计">失败和 fallback（降级路径）必须显式设计</a></li><li><a href="#surface-不是安全边界的全部">Surface 不是安全边界的全部</a></li><li><a href="#怎样评估-eager-与-deferred-的取舍">怎样评估 eager 与 deferred 的取舍</a></li><li><a href="#设计边界">设计边界</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-retrieval-ranking/">Agent Memory 五：Retrieval 不能只看相似度</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/splitting-agent-tools-by-user-intent/" rel="prev"> <span>上一篇</span> <strong>Agent Tools 二：一个 Tool，还是多个？</strong> </a> <a href="/zh/writing/agent-tool-lifecycle/" rel="next"> <span>下一篇</span> <strong>Agent Tools 四：Tool 调用需要完整生命周期</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#registryallowed-setinitial-surface-与-unlocked-set-是四个不同集合">Registry、Allowed set、Initial surface 与 Unlocked set 是四个不同集合</a></li><li><a href="#eagerdeferred-和-disabled-是三种不同状态">Eager、deferred 和 disabled 是三种不同状态</a></li><li><a href="#怎样决定一个-tool-是否-eager">怎样决定一个 Tool 是否 eager</a></li><li><a href="#按需-discovery-的完整生命周期">按需 discovery 的完整生命周期</a></li><li><a href="#discovery-index-应该保存什么">Discovery index 应该保存什么</a></li><li><a href="#失败和-fallback降级路径必须显式设计">失败和 fallback（降级路径）必须显式设计</a></li><li><a href="#surface-不是安全边界的全部">Surface 不是安全边界的全部</a></li><li><a href="#怎样评估-eager-与-deferred-的取舍">怎样评估 eager 与 deferred 的取舍</a></li><li><a href="#deferred-loading-不是所有-tool-surface-的默认答案">Deferred loading 不是所有 Tool surface 的默认答案</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-retrieval-ranking/">Agent Memory 五：Retrieval 不能只看相似度</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -429,7 +429,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -440,16 +440,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -459,8 +463,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

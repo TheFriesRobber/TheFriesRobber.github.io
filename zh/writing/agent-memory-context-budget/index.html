@@ -22,12 +22,12 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-context-budget/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 06 </p> <h1 class="page-title">Agent Memory 六：Hot、Cold 与 Pinned 分层</h1> <p class="article-deck">Memory 不应全量进入 prompt；先按可见性分层，再在当前预算内组装。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-context-budget/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 06 </p> <h1 class="page-title">Agent Memory 六：Hot、Cold 与 Pinned 分层</h1> <p class="article-deck">Memory 不应全量进入 prompt；先按可见性分层，再在当前预算内组装。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户让 Agent 修改一份正在编写的欧洲市场周报。Memory 中同时有三类记录：用户明确要求“所有周报都要列出风险”，近期确认且仍有效的欧洲市场报告口径，以及半年前一次会议的完整笔记。</p>
 <p>最省事的实现，是把三类内容全部塞进 prompt。这样确实不容易漏掉事实，却会让无关旧记录持续占用 token，也扩大敏感内容的暴露面。另一个极端是只做一次相似度检索，但“周报”和半年前的会议笔记可能比那条简短的长期偏好更相似。检索召回了很多内容，模型仍可能漏掉真正不能缺席的规则。</p>
 <p>问题不在于 Memory 存得太多，而在于“能够被读取”和“本轮应该进入 Context”被当成了同一件事。</p>
 <h2 id="memory-budget-不是把总预算再平均分配">Memory Budget 不是把总预算再平均分配</h2>
-<p><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二</a> 已经决定 history、Memory、文件和 Tool Result 怎样竞争总 Context Budget。轮到 Memory 内部时，还需要回答另一个问题：哪些记录必须稳定可见，哪些可以按近期工作集进入，哪些只在命中当前任务时读取？</p>
+<p>全局 Context Budget 先在 history、Memory、文件和 Tool Result 之间分配；Memory 拿到其中一部分后，内部仍要决定哪些记录必须稳定可见，哪些可以按近期工作集进入，哪些只在命中当前任务时读取。<a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二</a> 讨论的是前一层的全局竞争，本文处理后一层的 Memory 内部分层。</p>
 <p>Pinned、Hot 与 Cold 描述的是这三种<strong>可见性策略</strong>，不是三套互不相通的存储系统：</p>
 
 
@@ -62,7 +62,7 @@
 <p>Pinned 并不等于“永远无条件放进 prompt”。一条偏好被撤销、过期或在当前资源范围内没有权限时，即使曾被 pinned，也不能继续可见。Pinned 表示通过有效性检查以后，它在预算竞争中不能被普通相关性分数挤掉。</p>
 <p>Hot 也不只是“最近写入”。最近的无关记录没有理由进入本轮 Context；较早但仍属于当前任务工作集的记录也可能保持 Hot。Cold 更不是删除，它仍可由 Retrieval 按需读取。</p>
 <p>这里的分层只消费已经通过 Writer Gate 的 current Memory record，不负责把当前 Task state 或实时 Tool data 持久化。后两类信息仍由各自 owner 管理，再由 Context Assembly 按本轮需要加入 Context。</p>
-<h2 id="用同一份周报走一遍">用同一份周报走一遍</h2>
+<h2 id="pinnedhot-与-cold-先决定可见性再竞争预算">Pinned、Hot 与 Cold 先决定可见性再竞争预算</h2>
 <p>假设全局 Assembly planner 给 Memory 留出 900 tokens。Memory view builder 随后对已授权的 current records 按 task scope 与 policy revision 分类，并记录每条记录入选或省略的原因；final assembler 在注入前再次检查授权。Pinned、Hot 与 Cold 因而是每个 Model Turn 的派生 view，不是记录的永久属性。</p>
 <p>本轮候选记录如下：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>mem_pref_v3   pinned  周报必须列出风险                 45 tokens</span></span>
@@ -108,7 +108,7 @@
 <li><a href="/zh/writing/versioned-agent-memory/">Agent Memory 四：用版本链管理更正与撤销</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-retrieval-ranking/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 五：Retrieval 不能只看相似度</strong> </a> <a href="/zh/writing/agent-memory-prompt-injection/" rel="next"> <span>下一篇</span> <strong>Agent Memory 七：Prompt Injection 如何进入长期 Memory</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#memory-budget-不是把总预算再平均分配">Memory Budget 不是把总预算再平均分配</a></li><li><a href="#用同一份周报走一遍">用同一份周报走一遍</a></li><li><a href="#更新偏好时旧-pinned-不能留在缓存里">更新偏好时，旧 Pinned 不能留在缓存里</a></li><li><a href="#分层也需要明确的失败语义">分层也需要明确的失败语义</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-retrieval-ranking/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 五：Retrieval 不能只看相似度</strong> </a> <a href="/zh/writing/agent-memory-prompt-injection/" rel="next"> <span>下一篇</span> <strong>Agent Memory 七：Prompt Injection 如何进入长期 Memory</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#memory-budget-不是把总预算再平均分配">Memory Budget 不是把总预算再平均分配</a></li><li><a href="#pinnedhot-与-cold-先决定可见性再竞争预算">Pinned、Hot 与 Cold 先决定可见性再竞争预算</a></li><li><a href="#更新偏好时旧-pinned-不能留在缓存里">更新偏好时，旧 Pinned 不能留在缓存里</a></li><li><a href="#分层也需要明确的失败语义">分层也需要明确的失败语义</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -213,7 +213,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -224,16 +224,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -243,8 +247,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

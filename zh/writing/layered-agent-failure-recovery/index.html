@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/layered-agent-failure-recovery/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 06 </p> <h1 class="page-title">Agent Runtime 六：按失败边界选择恢复动作</h1> <p class="article-deck">从一次被多层重试放大的报告生成任务出发，解释 Runtime 怎样按失败 owner、结果确定性和副作用边界选择 retry、fallback、repair、replan 或 reconcile。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/layered-agent-failure-recovery/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 06 </p> <h1 class="page-title">Agent Runtime 六：按失败边界选择恢复动作</h1> <p class="article-deck">从一次被多层重试放大的报告生成任务出发，解释 Runtime 怎样按失败 owner、结果确定性和副作用边界选择 retry、fallback、repair、replan 或 reconcile。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一个 Agent 正在生成市场报告。它先调用模型整理数据，再调用 <code>create_document</code> 创建文档，最后让模型补写摘要。</p>
 <p>主模型请求 timeout 后，HTTP client 最多执行三次请求（含首次）；Provider Adapter 则在包含主 route 的最多三个 route attempt 中选择；最外层 Run 仍未得到结果，于是把整段流程最多执行三次。每层都是三次 Attempt，嵌套后，一次逻辑 Model Turn 最坏会放大成 27 个物理请求。</p>
 <p>更危险的是 <code>create_document</code>：如果外部服务已经创建文档、只是响应丢失，最外层 Run 重跑会创建多份文档。统一的“失败就重试”没有恢复系统，只有不断扩大的 Attempt 数量。</p>
@@ -112,7 +112,7 @@
 
 <table><thead><tr><th>动作</th><th>适用条件</th><th>不应做什么</th></tr></thead><tbody><tr><td>Retry</td><td>同一逻辑操作可安全再尝试，且仍有 budget</td><td>生成新 identity 掩盖重复执行</td></tr><tr><td>Fallback</td><td>原 route 失败，备用 route 仍满足原契约</td><td>拼接两个 Attempt 的 partial output</td></tr><tr><td>Repair</td><td>模型可根据结构化错误修改 Tool 参数</td><td>原样重复无效参数</td></tr><tr><td>Replan</td><td>前提或依赖失效，旧计划已不能完成目标</td><td>只把失败 item 重新标成 pending</td></tr><tr><td>Reconcile</td><td>外部效果可能已发生但结果未知</td><td>在确认前再次执行不可逆动作</td></tr><tr><td>Escalate / stop</td><td>policy、授权或安全边界不允许自动恢复</td><td>用更多 retry 绕过硬限制</td></tr></tbody></table>
 <p>Backoff 和 jitter 只能控制 retry 的时间分布，不能证明 retry 安全。对于有副作用的调用，Runtime 仍需稳定 idempotency key、可查询的业务 reference 或显式 reconciliation；这些条件都不存在时，应保持 <code>unknown</code> 并停止自动重放。</p>
-<h2 id="把报告例子走一遍">把报告例子走一遍</h2>
+<h2 id="恢复-policy-按失败-owner-选择动作">恢复 Policy 按失败 owner 选择动作</h2>
 <p>现在让所有恢复动作由一个 Runtime policy 协调：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 主模型请求 timeout</span></span>
 <span class="line"><span>   → Routing Decision 已确认当前 route 的 provider_side_effects=none</span></span>
@@ -143,7 +143,7 @@
 <span class="line"><span>  deadline: 45s</span></span></code></pre>
 <p>这些不是通用默认值，只是说明 budget 需要按动作区分。一次便宜的 transport retry 与一次重新规划的成本和风险不同；它们可以有各自上限，但还要受总 deadline、成本和副作用 policy 约束。</p>
 <p>Runtime 还应识别没有进展的循环。若连续两个 Plan revision 仍引用同一个失效前提，或者 Tool repair 反复产生相同参数 digest 和 error code，继续消耗 budget 不会带来新信息。此时应终止、要求用户确认或进入人工恢复，而不是把循环包装成“仍在运行”。</p>
-<h2 id="怎样验证恢复策略">怎样验证恢复策略</h2>
+<h2 id="恢复评估不能只看最终成功率">恢复评估不能只看最终成功率</h2>
 <p>只看最终成功率会奖励无限重试。一次恢复至少应保留：逻辑 operation、所有 Attempt、failure class、选择的恢复动作、budget 消耗、最终副作用和 artifact reference。</p>
 <p>这样才能检查：是否在错误层重跑了整个 Run，fallback 是否违反原能力约束，Tool 是否产生重复副作用，以及 replan 是否真正改变了失效依赖。线上 failure 可以再转成固定 fixture，验证相同分类是否仍产生相同边界内的动作。</p>
 <h2 id="回到问题">回到问题</h2>
@@ -163,7 +163,7 @@
 <li><a href="/zh/writing/agent-checkpoint-recovery-contract/">Agent Runtime 五：Checkpoint 不是对象快照</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-checkpoint-recovery-contract/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 五：Checkpoint 不是对象快照</strong> </a> <a href="/zh/writing/recoverable-agent-streaming/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 七：实时输出不是执行记录</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先确定失败属于哪个-owner">先确定失败属于哪个 owner</a></li><li><a href="#恢复动作不是-retry-的同义词">恢复动作不是 retry 的同义词</a></li><li><a href="#把报告例子走一遍">把报告例子走一遍</a></li><li><a href="#retry-budget-必须跨层共享">Retry budget 必须跨层共享</a></li><li><a href="#怎样验证恢复策略">怎样验证恢复策略</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/model-routing-policy/">Context Engineering 四：Model Routing 怎样安全 Fallback</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-checkpoint-recovery-contract/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 五：Checkpoint 不是对象快照</strong> </a> <a href="/zh/writing/recoverable-agent-streaming/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 七：实时输出不是执行记录</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先确定失败属于哪个-owner">先确定失败属于哪个 owner</a></li><li><a href="#恢复动作不是-retry-的同义词">恢复动作不是 retry 的同义词</a></li><li><a href="#恢复-policy-按失败-owner-选择动作">恢复 Policy 按失败 owner 选择动作</a></li><li><a href="#retry-budget-必须跨层共享">Retry budget 必须跨层共享</a></li><li><a href="#恢复评估不能只看最终成功率">恢复评估不能只看最终成功率</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/model-routing-policy/">Context Engineering 四：Model Routing 怎样安全 Fallback</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -268,7 +268,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -279,16 +279,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -298,8 +302,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

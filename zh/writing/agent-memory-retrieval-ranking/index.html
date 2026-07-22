@@ -22,10 +22,10 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-retrieval-ranking/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 05 </p> <h1 class="page-title">Agent Memory 五：Retrieval 不能只看相似度</h1> <p class="article-deck">从当前有效事实出发，组合 keyword、vector、hybrid search 与 reranking，而不是只优化相似度。</p> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Retrieval/">Retrieval</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-retrieval-ranking/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 05 </p> <h1 class="page-title">Agent Memory 五：Retrieval 不能只看相似度</h1> <p class="article-deck">从当前有效事实出发，组合 keyword、vector、hybrid search 与 reranking，而不是只优化相似度。</p> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Retrieval/">Retrieval</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户问：“帮我安排下周的项目评审。”Memory 中有两条记录：旧版本写着“上午有空，适合评审”，新版本则是“工作日只剩下午有空”。Query 里出现“评审”，所以包含同一个词、描述也更完整的旧版本获得更高相似度。</p>
 <p>Vector search 没有出错。它完成的是“找语义相近文本”，而系统需要回答的是“当前任务可以使用哪些仍有效的事实”。如果检索只按相似度排序，过期、被 supersede 或无权读取的内容仍可能赢得第一名。</p>
-<h2 id="candidate-generation-不等于最终-memory">Candidate generation 不等于最终 Memory</h2>
+<h2 id="候选集还不是可用-memory">候选集还不是可用 Memory</h2>
 <p>Memory Retrieval 可以拆成一条有边界的 pipeline：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task query</span></span>
 <span class="line"><span>  → permission / subject filter</span></span>
@@ -62,7 +62,7 @@
 
 <table><thead><tr><th>方法</th><th>擅长找回</th><th>容易漏掉或误排</th></tr></thead><tbody><tr><td>Keyword</td><td>人名、产品名、错误码、原句和稀有 token</td><td>同义改写、自然语言表达变化</td></tr><tr><td>Vector</td><td>语义相近但措辞不同的记录</td><td>精确标识符；也可能把相似的旧版本排得很高</td></tr><tr><td>Hybrid</td><td>合并 lexical 与 semantic candidate</td><td>仍不理解版本、权限和业务有效性</td></tr></tbody></table>
 <p>Hybrid search 可以用加权分数或 reciprocal rank fusion 合并两路结果。它通常比押注单一路径更稳健，但融合只改变候选顺序，不会自动过滤 revoked record。Subject、tenant 与 read permission 必须在读取 candidate payload 和参与 ranking 之前执行；version 与 expiry 可以在 source-of-truth resolution 时验证，但仍须在 Context Assembly 前完成，并在注入模型前再次校验 authorization。</p>
-<h2 id="把评审安排的例子走一遍">把评审安排的例子走一遍</h2>
+<h2 id="current-view-resolution-先淘汰旧版本">Current-view resolution 先淘汰旧版本</h2>
 <p>候选层可能返回：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. v1  上午有空，适合安排项目评审   keyword/vector: high</span></span>
 <span class="line"><span>2. v2  工作日只剩下午有空          vector: medium</span></span>
@@ -109,7 +109,7 @@
 <li><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/versioned-agent-memory/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 四：用版本链管理更正与撤销</strong> </a> <a href="/zh/writing/agent-memory-context-budget/" rel="next"> <span>下一篇</span> <strong>Agent Memory 六：Hot、Cold 与 Pinned 分层</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#candidate-generation-不等于最终-memory">Candidate generation 不等于最终 Memory</a></li><li><a href="#keywordvector-和-hybrid-各自解决什么">Keyword、vector 和 hybrid 各自解决什么</a></li><li><a href="#把评审安排的例子走一遍">把评审安排的例子走一遍</a></li><li><a href="#reranking-需要哪些信号">Reranking 需要哪些信号</a></li><li><a href="#评估不能只看相似度">评估不能只看相似度</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/versioned-agent-memory/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 四：用版本链管理更正与撤销</strong> </a> <a href="/zh/writing/agent-memory-context-budget/" rel="next"> <span>下一篇</span> <strong>Agent Memory 六：Hot、Cold 与 Pinned 分层</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#候选集还不是可用-memory">候选集还不是可用 Memory</a></li><li><a href="#keywordvector-和-hybrid-各自解决什么">Keyword、vector 和 hybrid 各自解决什么</a></li><li><a href="#current-view-resolution-先淘汰旧版本">Current-view resolution 先淘汰旧版本</a></li><li><a href="#reranking-需要哪些信号">Reranking 需要哪些信号</a></li><li><a href="#评估不能只看相似度">评估不能只看相似度</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -214,7 +214,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -225,16 +225,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -244,8 +248,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

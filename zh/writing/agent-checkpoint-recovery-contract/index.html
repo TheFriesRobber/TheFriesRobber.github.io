@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-checkpoint-recovery-contract/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 05 </p> <h1 class="page-title">Agent Runtime 五：Checkpoint 不是对象快照</h1> <p class="article-deck">设计可版本化、可恢复、可解释，但不假装能够完全确定性重放的 Agent Checkpoint。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Recovery/">Recovery</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-checkpoint-recovery-contract/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 05 </p> <h1 class="page-title">Agent Runtime 五：Checkpoint 不是对象快照</h1> <p class="article-deck">设计可版本化、可恢复、可解释，但不假装能够完全确定性重放的 Agent Checkpoint。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Recovery/">Recovery</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>一个 Agent 正在生成报告。它已经调用 <code>create_document</code>，外部服务返回了 <code>doc_42</code>，接下来准备让模型撰写摘要。此时，负责执行这个 Run 的后台进程（下文简称 worker）崩溃。</p>
 <p>如果系统每隔一分钟序列化一次 Runtime 对象，最近快照可能仍停在 Tool 调用之前：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>内存快照：准备调用 create_document</span></span>
@@ -128,7 +128,7 @@
 </ul>
 <p>所以“从 Checkpoint replay”应该优先理解为<strong>重放已记录事实以重建状态</strong>，而不是重新调用所有外部依赖并期待得到相同结果。</p>
 <p>若确实需要可重复 Eval，应固定 RunSpec、prompt、Tool fixture、model version 和 grader，并把外部调用替换成记录结果；那是另一套可复现性契约，不能由生产 Checkpoint 单独保证。</p>
-<h2 id="schema-与代码升级怎么办">Schema 与代码升级怎么办</h2>
+<h2 id="schema-与恢复语义都需要版本化">Schema 与恢复语义都需要版本化</h2>
 <p>长时间 Run 可能跨过一次部署。<code>checkpoint_version</code> 版本化存储 schema，<code>resume_contract_revision</code> 则版本化 <code>resume_at</code>、状态转移和恢复动作的语义。两者都要进入 worker 的兼容矩阵：schema 没变但恢复逻辑变了，也必须生成新的 resume contract revision。然后为兼容性选择一种策略：</p>
 <ul>
 <li>新代码保持对仍受支持旧 Checkpoint schema 的向后兼容读取。</li>
@@ -137,7 +137,7 @@
 <li>无法安全恢复时进入明确的 <code>manual_recovery</code>，而不是静默从头重跑。</li>
 </ul>
 <p>兼容测试应使用保存下来的旧 Checkpoint fixture，并覆盖其 resume contract revision，验证新代码能否读取、重放和继续。仅测试最新 schema 的 round trip，发现不了真实升级问题。</p>
-<h2 id="checkpoint-的生成频率">Checkpoint 的生成频率</h2>
+<h2 id="checkpoint-应落在可恢复边界">Checkpoint 应落在可恢复边界</h2>
 <p>每个 token 都写 Checkpoint 成本过高，只在 Run 结束时写又失去恢复价值。比较自然的边界包括：</p>
 <ul>
 <li>一个有副作用的 Tool Execution 收敛后。</li>
@@ -157,7 +157,7 @@
 <li><a href="/zh/writing/state-machines-leases-idempotency/">长时间任务的状态机、Lease 与幂等性</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-session-event-log-projections/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 四：让 Event Log 成为事实源</strong> </a> <a href="/zh/writing/layered-agent-failure-recovery/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 六：按失败边界选择恢复动作</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#四种容易混淆的持久化对象">四种容易混淆的持久化对象</a></li><li><a href="#checkpoint-最少保存什么">Checkpoint 最少保存什么</a></li><li><a href="#恢复不是反序列化而是-reconciliation">恢复不是反序列化，而是 reconciliation</a></li><li><a href="#pause-与-crash-使用同一份恢复契约">Pause 与 crash 使用同一份恢复契约</a></li><li><a href="#replay-为什么通常不是完全确定的">Replay 为什么通常不是完全确定的</a></li><li><a href="#schema-与代码升级怎么办">Schema 与代码升级怎么办</a></li><li><a href="#checkpoint-的生成频率">Checkpoint 的生成频率</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-session-event-log-projections/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 四：让 Event Log 成为事实源</strong> </a> <a href="/zh/writing/layered-agent-failure-recovery/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 六：按失败边界选择恢复动作</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#四种容易混淆的持久化对象">四种容易混淆的持久化对象</a></li><li><a href="#checkpoint-最少保存什么">Checkpoint 最少保存什么</a></li><li><a href="#恢复不是反序列化而是-reconciliation">恢复不是反序列化，而是 reconciliation</a></li><li><a href="#pause-与-crash-使用同一份恢复契约">Pause 与 crash 使用同一份恢复契约</a></li><li><a href="#replay-为什么通常不是完全确定的">Replay 为什么通常不是完全确定的</a></li><li><a href="#schema-与恢复语义都需要版本化">Schema 与恢复语义都需要版本化</a></li><li><a href="#checkpoint-应落在可恢复边界">Checkpoint 应落在可恢复边界</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -262,7 +262,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -273,16 +273,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -292,8 +296,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

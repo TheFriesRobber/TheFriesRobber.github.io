@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/versioned-agent-memory/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 04 </p> <h1 class="page-title">Agent Memory 四：用版本链管理更正与撤销</h1> <p class="article-deck">用版本链、current view 和条件写入，让长期 Memory 可以解释、纠正并处理并发修改。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/versioned-agent-memory/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 04 </p> <h1 class="page-title">Agent Memory 四：用版本链管理更正与撤销</h1> <p class="article-deck">用版本链、current view 和条件写入，让长期 Memory 可以解释、纠正并处理并发修改。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户原来要求“会议尽量安排在上午”，后来明确改成“以后只安排下午”。系统直接把同一行的 <code>value</code> 从“上午”覆盖成“下午”。</p>
 <p>当前结果看似正确，却留下两个问题。系统无法解释上周为什么按上午安排；另一个早已读取“上午”的 writer 也可能稍后提交修改，把新偏好再次覆盖。直接 update 只保留最后一个字符串，没有保留变化语义，也没有发现 stale writer。</p>
 <p>Memory 需要允许事实变化，但“可修改”不等于“原地覆盖唯一版本”。</p>
@@ -75,7 +75,7 @@
 
 <table><thead><tr><th>动作</th><th>表达的事实</th><th>结果</th></tr></thead><tbody><tr><td>Supersede</td><td>有一个新的当前值替代旧值</td><td>新建版本并指向被替代版本</td></tr><tr><td>Revoke</td><td>旧记录不再被认可，但没有新值</td><td>将其从 current view 撤下并记录原因</td></tr><tr><td>Delete</td><td>内容必须按用户请求或 retention policy 变得不可用</td><td>删除或擦除受保护内容；只在 policy 允许时保留最小 tombstone</td></tr><tr><td>Undo</td><td>恢复到先前的业务值</td><td>新建一个恢复版本，不让历史“倒流”</td></tr></tbody></table>
 <p>“撤销错误推断”和“用户现在改了偏好”不能都叫 update。前者不应暗示相反事实成立，后者则有新来源支持新值。Delete 更不是把敏感内容永久保留在所谓 append-only log 中；物理保留必须服从 privacy 和 retention 要求。</p>
-<h2 id="把上午改下午的例子走一遍">把上午改下午的例子走一遍</h2>
+<h2 id="更正创建新版本而不是覆盖旧值">更正创建新版本，而不是覆盖旧值</h2>
 <p>旧 current record 是 <code>version_2 = mornings_preferred</code>。用户更正后，writer 提交 <code>version_3</code>，携带原始 message source，并声明 <code>expected_version: 2</code>。Memory service 以条件写入完成切换：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>version_2: superseded by version_3</span></span>
 <span class="line"><span>version_3: current, afternoons_only</span></span>
@@ -88,7 +88,7 @@
 <h2 id="来源失效时current-view-也要变化">来源失效时，current view 也要变化</h2>
 <p>版本 status 不能只由业务更正驱动。Source 被撤权、超过 retention 期限或证据完整性失效时，依赖它的 current record 需要重新验证。默认动作是把记录标为 <code>unavailable</code>、请求确认或触发重建，不能自动复活一个已被 supersede 的旧 claim。只有 record type 明确定义了恢复规则，而且另有独立、当前有效的证据支持旧值时，系统才能选择一个替代 current record。无论如何，都不能继续从搜索索引返回已经无权使用的版本。</p>
 <p>这也是 current view 独立存在的原因。Version history 说明发生过什么，current view 回答现在能用什么。两者如果混成一张“最新更新时间”表，授权变化和 supersede 很容易被当成普通排序问题。</p>
-<h2 id="应该测试什么">应该测试什么</h2>
+<h2 id="版本链测试要覆盖并发与来源失效">版本链测试要覆盖并发与来源失效</h2>
 <p>测试不仅要覆盖 <code>v2 → v3</code> 的正常路径，还要覆盖两个 writer 同时基于 v2 写入、revoke 后没有替代值、delete 后内容不可恢复、undo 生成新版本，以及 source 撤权后 current view 不再泄漏旧值。</p>
 <p>核心检查包括：版本链无环、每个 claim scope 最多一个 current 版本、supersedes 指向存在的版本、条件写入拒绝 stale revision，以及 search index 即使延迟也不能绕过 current-view 验证。</p>
 <h2 id="回到问题">回到问题</h2>
@@ -108,7 +108,7 @@
 <li><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-writer-trust-domains/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 三：按 Writer 隔离写入权限</strong> </a> <a href="/zh/writing/agent-memory-retrieval-ranking/" rel="next"> <span>下一篇</span> <strong>Agent Memory 五：Retrieval 不能只看相似度</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#版本历史current-view-和-audit-解决不同问题">版本历史、current view 和 audit 解决不同问题</a></li><li><a href="#supersederevokedelete-和-undo-不是同一个动作">Supersede、revoke、delete 和 undo 不是同一个动作</a></li><li><a href="#把上午改下午的例子走一遍">把上午改下午的例子走一遍</a></li><li><a href="#条件写入阻止-stale-writer-覆盖新事实">条件写入阻止 stale writer 覆盖新事实</a></li><li><a href="#来源失效时current-view-也要变化">来源失效时，current view 也要变化</a></li><li><a href="#应该测试什么">应该测试什么</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-writer-trust-domains/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 三：按 Writer 隔离写入权限</strong> </a> <a href="/zh/writing/agent-memory-retrieval-ranking/" rel="next"> <span>下一篇</span> <strong>Agent Memory 五：Retrieval 不能只看相似度</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#版本历史current-view-和-audit-解决不同问题">版本历史、current view 和 audit 解决不同问题</a></li><li><a href="#supersederevokedelete-和-undo-不是同一个动作">Supersede、revoke、delete 和 undo 不是同一个动作</a></li><li><a href="#更正创建新版本而不是覆盖旧值">更正创建新版本，而不是覆盖旧值</a></li><li><a href="#条件写入阻止-stale-writer-覆盖新事实">条件写入阻止 stale writer 覆盖新事实</a></li><li><a href="#来源失效时current-view-也要变化">来源失效时，current view 也要变化</a></li><li><a href="#版本链测试要覆盖并发与来源失效">版本链测试要覆盖并发与来源失效</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -213,7 +213,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -224,16 +224,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -243,8 +247,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-delegation-primitives/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 10 </p> <h1 class="page-title">Agent Runtime 十：子任务应该交给谁执行</h1> <p class="article-deck">从 Plan 或 Agent Loop 产生的子问题出发，按状态所有权、持久性、取消方式和结果消费方式选择执行原语。</p> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Workflow/">Workflow</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-delegation-primitives/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 10 </p> <h1 class="page-title">Agent Runtime 十：子任务应该交给谁执行</h1> <p class="article-deck">从 Plan 或 Agent Loop 产生的子问题出发，按状态所有权、持久性、取消方式和结果消费方式选择执行原语。</p> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Workflow/">Workflow</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户让 Agent 比较三个技术方案。主 Agent 在 Plan 中拆出三个研究方向，或者在推理过程中临时发现它们：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subproblem A  研究方案 A</span></span>
 <span class="line"><span>subproblem B  研究方案 B</span></span>
@@ -126,7 +126,7 @@
 <span class="line"><span>publish report</span></span></code></pre>
 <p>这里的核心不是让三个 Agent 自由协商，而是 controller 需要知道依赖、重试、部分完成和 join 条件。如果 controller 把 workflow history/state 持久化，并定义 replay/recovery contract，这些记录可以成为可恢复的控制流事实；单纯写出 fanout + join 结构并不会自动获得 durability。分支结果仍可以保存在业务数据库或 artifact store。</p>
 <p>模型仍可以参与某个节点，但不应该让模型临时改写已承诺的 workflow 终态语义。例如“允许两个分支成功就继续”应是显式 join policy，而不是汇总 Agent 临场猜测。</p>
-<h2 id="同一个例子如何选择">同一个例子如何选择</h2>
+<h2 id="按生命周期与交付责任选择执行原语">按生命周期与交付责任选择执行原语</h2>
 <p>回到“三个技术方案”的请求，可以按下面的顺序判断：</p>
 <ol>
 <li><strong>谁拥有子工作的状态、retry 和终态？</strong> 父 Runtime 为当前 Run 收敛 Child Run，才是本文所说的 SubAgent；Job system 独立 claim、retry 并提交终态，就是 Child Job，即使父 Run 会等待它完成。</li>
@@ -200,7 +200,7 @@
 <li><a href="https://github.com/temporalio/api/blob/master/temporal/api/enums/v1/workflow.proto#L49-L58">Temporal API：ParentClosePolicy definition</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/revisable-agent-plans/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 九：让 Plan 可以安全修订</strong> </a> <a href="/zh/writing/subagent-delegation-isolation/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 十一：Spawn Request 如何变成受控 Child Run</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#子问题的来源不决定执行原语">子问题的来源不决定执行原语</a></li><li><a href="#三种委派的核心差异">三种委派的核心差异</a></li><li><a href="#什么时候选择-subagent">什么时候选择 SubAgent</a></li><li><a href="#什么时候升级为-child-job">什么时候升级为 Child Job</a></li><li><a href="#什么时候使用-durable-workflow-fanout">什么时候使用 durable Workflow Fanout</a></li><li><a href="#同一个例子如何选择">同一个例子如何选择</a></li><li><a href="#失败和取消最能暴露边界">失败和取消最能暴露边界</a></li><li><a href="#组合通常比统一更合理">组合通常比统一更合理</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/revisable-agent-plans/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 九：让 Plan 可以安全修订</strong> </a> <a href="/zh/writing/subagent-delegation-isolation/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 十一：Spawn Request 如何变成受控 Child Run</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#子问题的来源不决定执行原语">子问题的来源不决定执行原语</a></li><li><a href="#三种委派的核心差异">三种委派的核心差异</a></li><li><a href="#什么时候选择-subagent">什么时候选择 SubAgent</a></li><li><a href="#什么时候升级为-child-job">什么时候升级为 Child Job</a></li><li><a href="#什么时候使用-durable-workflow-fanout">什么时候使用 durable Workflow Fanout</a></li><li><a href="#按生命周期与交付责任选择执行原语">按生命周期与交付责任选择执行原语</a></li><li><a href="#失败和取消最能暴露边界">失败和取消最能暴露边界</a></li><li><a href="#组合通常比统一更合理">组合通常比统一更合理</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -305,7 +305,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -316,16 +316,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -335,8 +339,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

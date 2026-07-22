@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-concurrency-agent-runtimes-python/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 13 </p> <h1 class="page-title">Agent Runtime 十三：用 Structured Concurrency 收拢并发任务</h1> <p class="article-deck">从一组失去 owner 的 Tool `asyncio.Task` 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Python/">Python</a><a class="pill" href="/zh/tags/Asyncio/">Asyncio</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/structured-concurrency-agent-runtimes-python/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 13 </p> <h1 class="page-title">Agent Runtime 十三：用 Structured Concurrency 收拢并发任务</h1> <p class="article-deck">从一组失去 owner 的 Tool `asyncio.Task` 出发，解释 TaskGroup 怎样让并发工作能够等待、取消并传播失败。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Python/">Python</a><a class="pill" href="/zh/tags/Asyncio/">Asyncio</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>Python Agent Runtime 已经完成三个 Tool Call 的 admission，并创建了三个可以并行推进的 Tool Execution。最直接的写法是：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="python"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#D73A49;--shiki-dark:#F97583"> def</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> start_tools</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(executions):</span></span>
 <span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> execution </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> executions:</span></span>
@@ -62,7 +62,7 @@
 <span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        execution_id: task.result()</span></span>
 <span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> execution_id, task </span><span style="color:#D73A49;--shiki-dark:#F97583">in</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tasks.items()</span></span>
 <span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span></code></pre>
-<p>现在 <code>execute_tools()</code> 只有两种清晰结果：要么所有子 Task 已经收敛，可以返回结果；要么组内出现未处理失败，异常向父级传播。它不会在子 Task 仍运行时假装阶段已经完成。</p>
+<p>现在 <code>execute_tools()</code> 有三条清晰的收敛路径：正常完成时，所有子 Task 已经结束并返回结果；组内出现未处理失败时，异常向父级传播；父级或整个 group 被外部取消时，取消在子 Task 收敛后继续沿父级 scope 传播。它不会在子 Task 仍运行时假装阶段已经完成。</p>
 <p>默认情况下，一个子 Task 抛出 <code>CancelledError</code> 之外的未处理异常后，TaskGroup 会请求取消其余 Task，并等待它们结束。普通失败会按类型合并成 <code>ExceptionGroup</code> 或 <code>BaseExceptionGroup</code>；<code>KeyboardInterrupt</code> 和 <code>SystemExit</code> 则会在其他 Task 收敛后重新抛出。</p>
 <p>这不代表所有 Tool Execution failure 都应该让整组 fail-fast。参数无效、资源不存在等预期业务失败，可以在 <code>execute_tool_execution()</code> 内转换为 typed result，让其他独立 Tool Execution 继续执行；Runtime bug 或未分类异常则继续抛出，让父级知道当前阶段没有可靠完成。</p>
 <p>Structured Concurrency 提供清楚的失败传播，但是否允许部分成功仍然是业务 policy。</p>
@@ -87,12 +87,11 @@
 <span class="line"><span>请求外 Job：Queue / Workflow 拥有 durable Job</span></span>
 <span class="line"><span>无 owner Task：生命周期没有明确归属</span></span></code></pre>
 <p>区分标准不是工作运行多久，而是谁负责在进程重启、取消和失败后继续解释它的状态。</p>
-<h2 id="taskgroup-不解决资源上限">TaskGroup 不解决资源上限</h2>
+<h2 id="taskgroup-只管理并发工作的生命周期">TaskGroup 只管理并发工作的生命周期</h2>
 <p>TaskGroup 回答“谁拥有这些 Task”，不回答“一次可以运行多少 Task”。如果同时向下游发出一万个请求，它们即使都在同一个 group 中，也可能压垮 connection pool 或 provider limit。</p>
 <p>Semaphore、bounded Queue 和 admission control 负责限制并发与传递 backpressure；deadline 负责限制整个阶段能够消耗的时间。它们与 ownership 互补，但不是 Structured Concurrency 本身。</p>
 <p>同样，两个 Tool Execution 并行修改同一资源仍需 OCC、transaction 或按 key serialization。TaskGroup 只管理 Python Task 的生命周期，不保证业务状态一致性。</p>
-<h2 id="问题不在-create_task而在-ownership">问题不在 <code>create_task()</code>，而在 ownership</h2>
-<p><code>create_task()</code> 本身不是反模式。如果调用方：</p>
+<p>这些边界也说明，<code>create_task()</code> 本身不是反模式。如果调用方：</p>
 <ul>
 <li>保存 Task reference。</li>
 <li>明确谁等待结果或处理异常。</li>
@@ -117,7 +116,7 @@
 <li><a href="https://docs.python.org/3/library/asyncio-task.html">Python <code>asyncio</code> Coroutines and Tasks</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-middleware-hook-contracts/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 十二：为 Middleware Hook 定义执行契约</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#create_task-没有错丢掉-task-才是问题">create_task() 没有错，丢掉 Task 才是问题</a></li><li><a href="#taskgroup-把并发工作放回父级-scope">TaskGroup 把并发工作放回父级 Scope</a></li><li><a href="#cancellation-需要子级配合收敛">Cancellation 需要子级配合收敛</a></li><li><a href="#真正的后台-job-不能只靠裸-task">真正的后台 Job 不能只靠裸 Task</a></li><li><a href="#taskgroup-不解决资源上限">TaskGroup 不解决资源上限</a></li><li><a href="#问题不在-create_task而在-ownership">问题不在 create_task()，而在 ownership</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-middleware-hook-contracts/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 十二：为 Middleware Hook 定义执行契约</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#create_task-没有错丢掉-task-才是问题">create_task() 没有错，丢掉 Task 才是问题</a></li><li><a href="#taskgroup-把并发工作放回父级-scope">TaskGroup 把并发工作放回父级 Scope</a></li><li><a href="#cancellation-需要子级配合收敛">Cancellation 需要子级配合收敛</a></li><li><a href="#真正的后台-job-不能只靠裸-task">真正的后台 Job 不能只靠裸 Task</a></li><li><a href="#taskgroup-只管理并发工作的生命周期">TaskGroup 只管理并发工作的生命周期</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -222,7 +221,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -233,16 +232,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -252,8 +255,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

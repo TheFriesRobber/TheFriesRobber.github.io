@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-run-turn-step-task-state-model/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 02 </p> <h1 class="page-title">Agent Runtime 二：一次执行该怎样分层</h1> <p class="article-deck">用一份 PDF 报告按完成责任和 retry boundary 区分 Task、Run、Model Turn、Tool Execution 与 Job，并映射 OpenAI、Anthropic 和 pi 的常见叫法。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/State%20Machine/">State Machine</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-run-turn-step-task-state-model/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 02 </p> <h1 class="page-title">Agent Runtime 二：一次执行该怎样分层</h1> <p class="article-deck">用一份 PDF 报告按完成责任和 retry boundary 区分 Task、Run、Model Turn、Tool Execution 与 Job，并映射 OpenAI、Anthropic 和 pi 的常见叫法。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/State%20Machine/">State Machine</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户让 Agent：“读取这份文件，生成报告，并导出成 PDF。”</p>
 <p>读取文件、生成 Markdown 和提交转换请求可以在当前 Agent Loop 内完成，但 PDF 转换可能持续几分钟，还要由独立 worker 执行。当前请求返回“正在转换”之后，用户可能继续追问进度，进程也可能重启；这些后续活动仍然服务于同一个目标，却不一定属于同一次 Agent Loop。</p>
 <p>一次执行可能是：</p>
@@ -43,7 +43,7 @@
 <span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <p>这个 <code>running</code> 几乎无法回答任何具体问题。模型还在生成吗？文件已经保存了吗？后台转换是否已经进入 Queue？当前 Agent Loop 已经结束，还是被明确暂停、以后要从原处恢复？用户取消的是这次交互，还是整个报告目标？</p>
 <p>问题不只是缺少几个 status。系统把用户目标、一次 Agent Loop、模型轮次、Tool 副作用和后台调度压成了同一个对象。</p>
-<h2 id="先承认三家并没有共享同一套词典">先承认：三家并没有共享同一套词典</h2>
+<h2 id="runturn-与-step-没有跨框架统一定义">Run、Turn 与 Step 没有跨框架统一定义</h2>
 <p>OpenAI、Anthropic 和 pi 都实现了“调用模型、执行 Tool、把结果交回模型”的循环，但它们对 <code>run</code>、<code>turn</code>、<code>step</code> 的命名并不完全相同：</p>
 
 
@@ -210,7 +210,7 @@
 <li><a href="https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md">pi：Extension events</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-loop-runtime-protocol/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 一：为什么 while 循环还不够</strong> </a> <a href="/zh/writing/runspec-policy-mechanism-boundary/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 三：用 RunSpec 隔离业务策略</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先承认三家并没有共享同一套词典">先承认：三家并没有共享同一套词典</a></li><li><a href="#task-追踪用户目标session-保存跨-run-的上下文">Task 追踪用户目标，Session 保存跨 Run 的上下文</a></li><li><a href="#run-是一次-agent-loop不是用户目标的永久外壳">Run 是一次 Agent Loop，不是用户目标的永久外壳</a></li><li><a href="#model-turn-是-loop-内的一次模型轮次">Model Turn 是 Loop 内的一次模型轮次</a></li><li><a href="#tool-call-是提议tool-execution-才拥有执行状态">Tool Call 是提议，Tool Execution 才拥有执行状态</a></li><li><a href="#生命周期移交调度系统后叫-job">生命周期移交调度系统后，叫 Job</a></li><li><a href="#retry-必须停留在正确的-identity-上">Retry 必须停留在正确的 identity 上</a></li><li><a href="#cancellation-传播意图不覆盖历史事实">Cancellation 传播意图，不覆盖历史事实</a></li><li><a href="#分开以后查询才有明确答案">分开以后，查询才有明确答案</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-loop-runtime-protocol/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 一：为什么 while 循环还不够</strong> </a> <a href="/zh/writing/runspec-policy-mechanism-boundary/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 三：用 RunSpec 隔离业务策略</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#runturn-与-step-没有跨框架统一定义">Run、Turn 与 Step 没有跨框架统一定义</a></li><li><a href="#task-追踪用户目标session-保存跨-run-的上下文">Task 追踪用户目标，Session 保存跨 Run 的上下文</a></li><li><a href="#run-是一次-agent-loop不是用户目标的永久外壳">Run 是一次 Agent Loop，不是用户目标的永久外壳</a></li><li><a href="#model-turn-是-loop-内的一次模型轮次">Model Turn 是 Loop 内的一次模型轮次</a></li><li><a href="#tool-call-是提议tool-execution-才拥有执行状态">Tool Call 是提议，Tool Execution 才拥有执行状态</a></li><li><a href="#生命周期移交调度系统后叫-job">生命周期移交调度系统后，叫 Job</a></li><li><a href="#retry-必须停留在正确的-identity-上">Retry 必须停留在正确的 identity 上</a></li><li><a href="#cancellation-传播意图不覆盖历史事实">Cancellation 传播意图，不覆盖历史事实</a></li><li><a href="#分开以后查询才有明确答案">分开以后，查询才有明确答案</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -315,7 +315,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -326,16 +326,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -345,8 +349,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

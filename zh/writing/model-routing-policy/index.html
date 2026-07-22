@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/model-routing-policy/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Context Engineering · 04 </p> <h1 class="page-title">Context Engineering 四：Model Routing 怎样安全 Fallback</h1> <p class="article-deck">将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。</p> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/model-routing-policy/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Context Engineering · 04 </p> <h1 class="page-title">Context Engineering 四：Model Routing 怎样安全 Fallback</h1> <p class="article-deck">将模型选择建模为可解释 policy，并明确 fallback 后哪些执行状态仍然可以复用。</p> <div class="meta"> <time datetime="2026-07-17T00:00:00.000Z">2026/07/17</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设一个 Agent 要读取截图，整理其中的问题，再调用 <code>create_ticket</code>。这里的 <code>create_ticket</code> 是由本地 Runtime 执行的 client Tool：provider request 只生成 Tool proposal，本身不能执行 provider-side Tool 或产生票据副作用。这次执行要求模型同时具备：</p>
 <ul>
 <li>图片输入能力。</li>
@@ -129,7 +129,7 @@
 </ul>
 <p>如果 Context 过大，系统可以回到结构化降级；如果必需 Tool Schema 无法表达，应该返回 <code>incompatible_route</code>，而不是静默删除约束后继续。</p>
 <p>这一步解释了为什么 Router 与 Provider Adapter 必须分开：Router 决定“选哪个候选”，Adapter 负责回答“如何把 canonical request 表达成该 provider 的协议”。Adapter 报告不兼容后，Router 可以改选；Adapter 本身不应因为转换失败就私自换模型。</p>
-<h2 id="把开场例子走一遍">把开场例子走一遍</h2>
+<h2 id="fallback-只能复用仍兼容的执行状态">Fallback 只能复用仍兼容的执行状态</h2>
 <p>截图任务的完整选择与 fallback 可以是：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. 从 RunSpec 读取图片、Tool contract、Context、数据政策与 provider-side effect 要求。</span></span>
 <span class="line"><span>2. 排除不支持图片、不满足区域政策或会在 provider 内执行 Tool 的 route。</span></span>
@@ -140,7 +140,7 @@
 <span class="line"><span>7. 用 secondary Adapter 重新渲染同一份 canonical request。</span></span>
 <span class="line"><span>8. 新 attempt 返回完整 Tool Call，Runtime 才进入 Tool Lifecycle。</span></span></code></pre>
 <p>如果第 4 步已经收到完整、通过校验的 <code>create_ticket</code> Tool Call，就不应仅因最终文字流中断而让另一模型再生成一个新的票据提案。是否执行原 Tool Call，应由 Runtime 根据已持久化 item 和当前任务状态决定，而不是由 Router 猜测。若换成允许 provider-side Tool 的 route，这条示例路径不再成立：timeout 后必须先查询或对账已有执行。</p>
-<h2 id="怎样验证-router-没有把问题藏起来">怎样验证 Router 没有把问题藏起来</h2>
+<h2 id="router-eval-必须按-failure-class-归因">Router Eval 必须按 failure class 归因</h2>
 <p>Model Routing 的 Eval 不应只统计“最终有没有回答”。至少要按 failure class 观察：</p>
 <ul>
 <li>硬约束过滤是否漏掉不兼容 route。</li>
@@ -167,7 +167,7 @@
 <li><a href="https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use">Anthropic：Tool use</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/incremental-conversation-compression/" rel="prev"> <span>上一篇</span> <strong>Context Engineering 三：用增量压缩管理长对话</strong> </a> <a href="/zh/writing/provider-shaping-model-routing/" rel="next"> <span>下一篇</span> <strong>Context Engineering 五：用 Adapter 隔离 Provider 差异</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先过滤不合格模型再比较成本和延迟">先过滤不合格模型，再比较成本和延迟</a></li><li><a href="#routing-decision-要能解释为什么选它">Routing Decision 要能解释为什么选它</a></li><li><a href="#fallback-取决于失败发生在哪里">Fallback 取决于失败发生在哪里</a></li><li><a href="#切换模型后输入也需要重新检查">切换模型后，输入也需要重新检查</a></li><li><a href="#把开场例子走一遍">把开场例子走一遍</a></li><li><a href="#怎样验证-router-没有把问题藏起来">怎样验证 Router 没有把问题藏起来</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/durable-agent-steering-inbox/">Agent Runtime 八：用持久 Inbox 接收 Steering</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/layered-agent-failure-recovery/">Agent Runtime 六：按失败边界选择恢复动作</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/incremental-conversation-compression/" rel="prev"> <span>上一篇</span> <strong>Context Engineering 三：用增量压缩管理长对话</strong> </a> <a href="/zh/writing/provider-shaping-model-routing/" rel="next"> <span>下一篇</span> <strong>Context Engineering 五：用 Adapter 隔离 Provider 差异</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先过滤不合格模型再比较成本和延迟">先过滤不合格模型，再比较成本和延迟</a></li><li><a href="#routing-decision-要能解释为什么选它">Routing Decision 要能解释为什么选它</a></li><li><a href="#fallback-取决于失败发生在哪里">Fallback 取决于失败发生在哪里</a></li><li><a href="#切换模型后输入也需要重新检查">切换模型后，输入也需要重新检查</a></li><li><a href="#fallback-只能复用仍兼容的执行状态">Fallback 只能复用仍兼容的执行状态</a></li><li><a href="#router-eval-必须按-failure-class-归因">Router Eval 必须按 failure class 归因</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/durable-agent-steering-inbox/">Agent Runtime 八：用持久 Inbox 接收 Steering</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/layered-agent-failure-recovery/">Agent Runtime 六：按失败边界选择恢复动作</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -272,7 +272,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -283,16 +283,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -302,8 +306,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

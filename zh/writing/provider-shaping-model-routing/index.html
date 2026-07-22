@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/provider-shaping-model-routing/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Context Engineering · 05 </p> <h1 class="page-title">Context Engineering 五：用 Adapter 隔离 Provider 差异</h1> <p class="article-deck">用 canonical contract 和 provider adapter 隔离 prompt、Tool Schema、消息与 streaming event 的格式差异。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/provider-shaping-model-routing/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Context Engineering · 05 </p> <h1 class="page-title">Context Engineering 五：用 Adapter 隔离 Provider 差异</h1> <p class="article-deck">用 canonical contract 和 provider adapter 隔离 prompt、Tool Schema、消息与 streaming event 的格式差异。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a><a class="pill" href="/zh/tags/Model%20Routing/">Model Routing</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设 Runtime 已经选好模型，并准备执行一次文档搜索。内部记录的是同一个逻辑交互：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>user request</span></span>
 <span class="line"><span>→ assistant tool call: search_documents(call_17)</span></span>
@@ -171,7 +171,7 @@
 <span class="line"><span>response.failed</span></span></code></pre>
 <p><code>delta</code> 适合实时展示，不一定能独立重放；<code>item.assembled</code> 只表示 provider 已结束这个 item 的传输，Adapter 已把 chunks 组装起来。它不保证 Tool arguments 能解析，更不保证通过 Schema。Runtime 解析并执行 canonical validation 后，才产生 <code>tool_call.validated</code> 或 <code>tool_call.invalid_arguments</code>；只有前者可以进入 handler。</p>
 <p>统一事件也不意味着两个 provider 会产生相同 token 边界、时间顺序或 finish reason。Adapter 应保留原始 reason 供诊断，同时映射出 Runtime 使用的有限分类；无法准确映射时标记 <code>unknown</code>，不要编造一个看似统一的值。</p>
-<h2 id="把一次转换走完">把一次转换走完</h2>
+<h2 id="adapter-转换后仍要保留-identity-与约束">Adapter 转换后仍要保留 identity 与约束</h2>
 <p>文档搜索请求经过 Adapter 的过程可以是：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>1. Router 选择 route_b，固定 Adapter profile revision 9。</span></span>
 <span class="line"><span>2. Adapter 检查 Tool Call identity、streaming 和 Schema 能力。</span></span>
@@ -211,7 +211,7 @@
 <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/fine-grained-tool-streaming">Anthropic：Fine-grained tool streaming</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/model-routing-policy/" rel="prev"> <span>上一篇</span> <strong>Context Engineering 四：Model Routing 怎样安全 Fallback</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#canonical-contract-不是所有-provider-的最小交集">Canonical contract 不是所有 Provider 的最小交集</a></li><li><a href="#adapter-先声明能力再做转换">Adapter 先声明能力，再做转换</a></li><li><a href="#tool-call-identity-不能在转换中丢失">Tool Call identity 不能在转换中丢失</a></li><li><a href="#prompt-shaping-不能改变权限与事实边界">Prompt shaping 不能改变权限与事实边界</a></li><li><a href="#streaming-只能统一事件语义不能统一-chunk-形状">Streaming 只能统一事件语义，不能统一 chunk 形状</a></li><li><a href="#把一次转换走完">把一次转换走完</a></li><li><a href="#contract-test-要检查语义往返">Contract test 要检查语义往返</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-retrieval-ranking/">Agent Memory 五：Retrieval 不能只看相似度</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/model-routing-policy/" rel="prev"> <span>上一篇</span> <strong>Context Engineering 四：Model Routing 怎样安全 Fallback</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#canonical-contract-不是所有-provider-的最小交集">Canonical contract 不是所有 Provider 的最小交集</a></li><li><a href="#adapter-先声明能力再做转换">Adapter 先声明能力，再做转换</a></li><li><a href="#tool-call-identity-不能在转换中丢失">Tool Call identity 不能在转换中丢失</a></li><li><a href="#prompt-shaping-不能改变权限与事实边界">Prompt shaping 不能改变权限与事实边界</a></li><li><a href="#streaming-只能统一事件语义不能统一-chunk-形状">Streaming 只能统一事件语义，不能统一 chunk 形状</a></li><li><a href="#adapter-转换后仍要保留-identity-与约束">Adapter 转换后仍要保留 identity 与约束</a></li><li><a href="#contract-test-要检查语义往返">Contract test 要检查语义往返</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-retrieval-ranking/">Agent Memory 五：Retrieval 不能只看相似度</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -316,7 +316,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -327,16 +327,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -346,8 +350,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-is-not-rag/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 01 </p> <h1 class="page-title">Agent Memory 一：RAG 为什么替代不了 Memory</h1> <p class="article-deck">从一条被反复召回的过期偏好出发，区分历史文本检索与可治理的长期用户状态。</p> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-is-not-rag/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 01 </p> <h1 class="page-title">Agent Memory 一：RAG 为什么替代不了 Memory</h1> <p class="article-deck">从一条被反复召回的过期偏好出发，区分历史文本检索与可治理的长期用户状态。</p> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>6 月 1 日，用户告诉 Agent：“以后尽量把评审安排在上午。”系统把这句话做成 embedding。7 月 10 日，用户又明确更正：“以后都改到下午。”</p>
 <p>下一次安排评审时，vector search 同时找回两条高度相关的历史消息：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>0.93  以后尽量把评审安排在上午</span></span>
@@ -65,27 +65,34 @@
 <span class="line"><span>  → Context Assembly</span></span></code></pre>
 <p>模型或规则可以从对话中提出 candidate，但 candidate 还不是长期事实。Write gate 判断它是否足够持久、与当前用户有关、未来有用、来源明确且允许保存。通过后才生成带 owner、source 和 version 的 Memory record。</p>
 <p>Retrieval 也不是最后的决策者。它从 current view 中找回候选，Context Assembly 再结合当前 Task 的指令、权限和其他来源决定是否采用。这样，Memory 不会因为“被搜到”就自动升级成当前 instruction。</p>
-<h2 id="把上午改成下午">把上午改成下午</h2>
-<p>第一次写入可以形成：</p>
+<h2 id="更正需要改变-current-view">更正需要改变 current view</h2>
+<p>6 月 1 日的表达包含“以后”，描述的是一条跨 Session 仍可能有用的长期偏好。假设它通过 write gate，系统才把这条 source event 转成 Memory record。此时 v1 是 current，而不只是一段等待相似度检索的文本：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">meeting_time_preference</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">morning</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_61</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">superseded</span></span></code></pre>
-<p>7 月 10 日的明确更正形成新版本：</p>
-<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">meeting_time_preference</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">afternoon</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_82</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">supersedes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span></code></pre>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span></code></pre>
+<p>7 月 10 日，用户明确说“以后都改到下午”。这不是新增另一条同类文本，而是对同一偏好的更正。Memory writer 创建 v2，并让 current view 从 v1 切换到 v2；版本历史此时可以表示为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">- </span><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">meeting_time_preference</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">morning</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_61</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">superseded</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  superseded_by</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">- </span><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">meeting_time_preference</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">afternoon</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_82</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  supersedes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span></code></pre>
 <p>下一次查询时，raw history 仍包含两条消息，但 current view 只暴露 v2。若用户问“我以前是不是偏好上午”，系统可以读取 history；若当前任务是安排下周评审，retrieval 应从 v2 开始。</p>
 <p>如果用户说的是“这两周先改到下午”，它可能是一条有有效期的例外，而不是永久 supersede。适用范围不清楚时，系统应先确认，不能让 Memory writer 把临时 Context 决定改成长久事实。</p>
-<h2 id="memory-类型不能共享一个-owner">Memory 类型不能共享一个 owner</h2>
-<p>“Memory”常被用来统称不同对象：用户长期偏好、当前 Task 状态、一次 Run 的 working state、Agent 的固定 persona。它们可以使用相似存储技术，却不应共享更新规则。</p>
-<p>用户偏好由用户表达和受控 writer 更新；Task state 由应用 owner 收敛；Run working state 属于 Runtime；persona 则来自版本化配置。把它们都写进一个 vector index，会让一次相似度查询同时决定用户事实、执行状态和系统行为。</p>
+<h2 id="相似检索不能为不同状态定义更新规则">相似检索不能为不同状态定义更新规则</h2>
+<p>这条版本切换只适用于长期用户偏好，不能因为其他状态也被叫作“Memory”，就把它们交给同一套检索与更新逻辑。“Memory”常被用来统称不同对象：用户长期偏好、当前 Task 状态、一次 Run 的 working state、Agent 的固定 persona。它们可以使用相似存储技术，却不应共享更新规则。</p>
+<p>用户偏好由用户表达和受控 writer 更新；Task state 由应用 owner 收敛；Run working state 属于 Runtime；persona 则来自版本化配置。把它们都写进一个 vector index，会让一次相似度查询的排序结果同时影响用户事实、执行状态和系统行为。</p>
 <p>本文只建立长期用户 Memory 的最小边界。具体什么值得写、不同 writer 能改什么、版本怎样并发更新，以及怎样 ranking，分别需要后续决策。</p>
-<h2 id="存储形态不是语义契约">存储形态不是语义契约</h2>
+<h2 id="vector-index-只能提供候选不能定义事实">Vector index 只能提供候选，不能定义事实</h2>
 <p>Memory 可以落在文件、关系数据库、文档库或搜索索引中。Anthropic 的 Memory Tool 也明确由应用执行 client-side 文件操作，实际数据仍存储在应用控制的基础设施里。这个接口说明“模型可以请求读写”，并不替应用定义版本、授权和 current view。</p>
 <p>同样，向量数据库可以成为 candidate index，却不应成为唯一事实源。Embedding model 或索引变更后，candidate 可以重建；source、version 和撤销关系不能只存在于向量 metadata 中。</p>
 <h2 id="回到问题">回到问题</h2>
@@ -105,7 +112,7 @@
 <li><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <span></span> <a href="/zh/writing/agent-memory-write-gates/" rel="next"> <span>下一篇</span> <strong>Agent Memory 二：什么信息值得长期保存</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#历史证据不等于当前事实">历史证据不等于当前事实</a></li><li><a href="#最小-memory-pipeline">最小 Memory pipeline</a></li><li><a href="#把上午改成下午">把上午改成下午</a></li><li><a href="#memory-类型不能共享一个-owner">Memory 类型不能共享一个 owner</a></li><li><a href="#存储形态不是语义契约">存储形态不是语义契约</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <span></span> <a href="/zh/writing/agent-memory-write-gates/" rel="next"> <span>下一篇</span> <strong>Agent Memory 二：什么信息值得长期保存</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#历史证据不等于当前事实">历史证据不等于当前事实</a></li><li><a href="#最小-memory-pipeline">最小 Memory pipeline</a></li><li><a href="#更正需要改变-current-view">更正需要改变 current view</a></li><li><a href="#相似检索不能为不同状态定义更新规则">相似检索不能为不同状态定义更新规则</a></li><li><a href="#vector-index-只能提供候选不能定义事实">Vector index 只能提供候选，不能定义事实</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -210,7 +217,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -221,16 +228,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -240,8 +251,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-writer-trust-domains/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 03 </p> <h1 class="page-title">Agent Memory 三：按 Writer 隔离写入权限</h1> <p class="article-deck">从后台归纳越权覆盖用户偏好出发，按 writer 的身份、证据与动作拆分 Memory 写权限。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-writer-trust-domains/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 03 </p> <h1 class="page-title">Agent Memory 三：按 Writer 隔离写入权限</h1> <p class="article-deck">从后台归纳越权覆盖用户偏好出发，按 writer 的身份、证据与动作拆分 Memory 写权限。</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">2026/07/14</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户曾明确说：“以后会议尽量安排在下午。”几周后，后台归纳任务发现最近三次会议都在上午，于是把长期偏好改成“上午开会”。</p>
 <p>归纳任务没有伪造数据，但它把观察到的行为当成了用户授权的偏好。如果对话内 Agent、后台归纳、批量导入和用户编辑都调用同一个 <code>write_memory</code>，并且都能修改任意记录，那么写入质量只能依赖 prompt 中一句“请谨慎”。只要某个 writer 判断错了，污染就会进入所有后续 Session。</p>
 <p>问题不只是“谁登录了系统”，而是这次 mutation 代表谁、依据什么证据、可以改哪类 Memory。</p>
@@ -71,9 +71,9 @@
 
 
 
-<table><thead><tr><th>Writer</th><th>可以使用的证据</th><th>合理动作</th><th>不应拥有的权限</th></tr></thead><tbody><tr><td>In-loop Agent</td><td>当前授权 Context 中的用户原话和 Tool Result</td><td>提交 candidate；在 policy 允许时写入显式事实</td><td>修改无关 subject 或任意历史版本</td></tr><tr><td>Background consolidation</td><td>已授权历史中的重复观察</td><td>写入低权重 observation；提出合并或 supersede 建议</td><td>覆盖用户显式声明</td></tr><tr><td>Import job</td><td>已映射的数据集和字段</td><td>写入指定 namespace，并保留 dataset provenance</td><td>越过映射写入其他目录</td></tr><tr><td>User edit</td><td>用户在 Memory UI 中确认的输入</td><td>更正、撤销或删除自己可管理的记录</td><td>绕过隐私、retention 或第三方数据规则</td></tr></tbody></table>
+<table><thead><tr><th>Writer</th><th>可以使用的证据</th><th>合理动作</th><th>不应拥有的权限</th></tr></thead><tbody><tr><td>In-loop Agent</td><td>当前授权 Context 中的用户原话和 Tool Result</td><td>提交 candidate；在 policy 允许时写入显式事实</td><td>修改无关 subject 或任意历史版本</td></tr><tr><td>Background consolidation</td><td>已授权历史中的重复观察</td><td>追加权限级别较低的 observation；提出合并或 supersede 建议</td><td>覆盖用户显式声明</td></tr><tr><td>Import job</td><td>已映射的数据集和字段</td><td>写入指定 namespace，并保留 dataset provenance</td><td>越过映射写入其他目录</td></tr><tr><td>User edit</td><td>用户在 Memory UI 中确认的输入</td><td>更正、撤销或删除自己可管理的记录</td><td>绕过隐私、retention 或第三方数据规则</td></tr></tbody></table>
 <p>这不是给每类 writer 排一个全局优先级。权限必须收窄到 subject、namespace、action 和 evidence；否则“用户编辑最高”也可能被误用来修改别人的记录。</p>
-<h2 id="把上午会议的例子走一遍">把上午会议的例子走一遍</h2>
+<h2 id="observation-不能覆盖显式偏好">Observation 不能覆盖显式偏好</h2>
 <p>后台归纳可以提交“最近三次会议发生在上午”这条 observation，因为来源支持它。但当它试图 supersede “用户偏好下午”时，Memory service 会比较 mutation 与 capability：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">requested_action</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">supersede_explicit_preference</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">actor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">background_consolidation</span></span>
@@ -93,7 +93,7 @@
 </ul>
 <p>检查应由 Memory service 执行，拒绝结果使用稳定 reason code。这样审计才能回答“是谁依据哪些来源试图改什么”，Eval 也能验证越权 mutation 一定失败。</p>
 <p>Agent delegation 也不能绕过这层边界。父 Agent 把归纳工作交给子 Agent 时，传递的是缩小后的 capability；子 Agent 不应继承父级所有 Memory 权限，更不能通过自然语言声称自己代表用户。</p>
-<h2 id="怎样验证隔离真的有效">怎样验证隔离真的有效</h2>
+<h2 id="用越权反例验证隔离边界">用越权反例验证隔离边界</h2>
 <p>除了测试正常写入，还要覆盖反例：后台归纳覆盖显式偏好、import 写错 namespace、in-loop Agent 修改另一个 subject、用户编辑携带未授权第三方数据，以及模型伪造 actor 字段。</p>
 <p>关键指标不是 writer 的成功率，而是 unauthorized mutation acceptance rate、provenance completeness 和冲突升级是否正确。一个安全的 writer 可以经常提出候选，但越过 capability 的写入必须稳定失败。</p>
 <h2 id="回到问题">回到问题</h2>
@@ -113,7 +113,7 @@
 <li><a href="/zh/writing/agent-memory-write-gates/">Agent Memory 二：什么信息值得长期保存</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-write-gates/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 二：什么信息值得长期保存</strong> </a> <a href="/zh/writing/versioned-agent-memory/" rel="next"> <span>下一篇</span> <strong>Agent Memory 四：用版本链管理更正与撤销</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#writer-identity-不能由模型自己声明">Writer identity 不能由模型自己声明</a></li><li><a href="#四类-writer-不应共享-write-all-surface">四类 writer 不应共享 write-all surface</a></li><li><a href="#把上午会议的例子走一遍">把上午会议的例子走一遍</a></li><li><a href="#最小权限要落实到-mutation">最小权限要落实到 mutation</a></li><li><a href="#怎样验证隔离真的有效">怎样验证隔离真的有效</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-memory-write-gates/" rel="prev"> <span>上一篇</span> <strong>Agent Memory 二：什么信息值得长期保存</strong> </a> <a href="/zh/writing/versioned-agent-memory/" rel="next"> <span>下一篇</span> <strong>Agent Memory 四：用版本链管理更正与撤销</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#writer-identity-不能由模型自己声明">Writer identity 不能由模型自己声明</a></li><li><a href="#四类-writer-不应共享-write-all-surface">四类 writer 不应共享 write-all surface</a></li><li><a href="#observation-不能覆盖显式偏好">Observation 不能覆盖显式偏好</a></li><li><a href="#最小权限要落实到-mutation">最小权限要落实到 mutation</a></li><li><a href="#用越权反例验证隔离边界">用越权反例验证隔离边界</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/incremental-conversation-compression/">Context Engineering 三：用增量压缩管理长对话</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -218,7 +218,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -229,16 +229,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -248,8 +252,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

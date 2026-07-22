@@ -22,7 +22,7 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/tool-schemas-model-facing-apis/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Tools · 01 </p> <h1 class="page-title">Agent Tools 一：Tool Schema 是面向模型的 API</h1> <p class="article-deck">Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。</p> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time> <span>更新于 2026/07/14</span> <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/tool-schemas-model-facing-apis/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Tools · 01 </p> <h1 class="page-title">Agent Tools 一：Tool Schema 是面向模型的 API</h1> <p class="article-deck">Tool schema 不是 backend DTO 的复制，而是帮助模型选择能力、生成参数并从错误中恢复的接口。</p> <div class="meta"> <time datetime="2026-07-12T00:00:00.000Z">2026/07/12</time> <span>更新于 2026/07/14</span> <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Tools/">Tools</a><a class="pill" href="/zh/tags/API%20Design/">API Design</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>假设后端已经有一个创建日历事件的接口。它接收十几个字段：用户 ID、组织 ID、标题、开始时间、结束时间、参与者、通知策略、审计来源、请求 ID 和重试配置。</p>
 <p>最直接的做法，是把这份 request DTO（Data Transfer Object，服务之间传递参数的数据结构）转成 JSON Schema（描述 JSON 数据形状与约束的规则），再注册成 Agent Tool。类型能对上，执行函数也可以复用，似乎没有必要再设计一层接口。</p>
 <p>但模型不是一个按固定代码调用 API 的客户端。它必须先从自然语言中判断<strong>要不要调用</strong>，再判断<strong>调用哪个 Tool</strong>，最后生成一组满足规则的参数。DTO 中每多一个名字含糊的字段、每少一个必要约束，都会让模型多做一次不必要的猜测。</p>
@@ -322,7 +322,7 @@
 <table><thead><tr><th>指标</th><th>它暴露的问题</th></tr></thead><tbody><tr><td>Tool selection accuracy</td><td>name/description 是否让模型选对能力</td></tr><tr><td>First-call valid rate</td><td>schema 和字段说明是否足够清楚</td></tr><tr><td>Repair success rate</td><td>错误是否支持下一步修复</td></tr><tr><td>Redundant call rate</td><td>Tool 是否诱导重复读取或重复写入</td></tr><tr><td>Task success rate</td><td>合法调用是否真的完成用户目标</td></tr><tr><td>Permission violation attempts</td><td>可见 Tool、prompt 或参数是否在诱导越权尝试</td></tr></tbody></table>
 <p>诊断时不要只看最终 task success。两个版本都可能完成任务，但一个版本第一次调用就成功，另一个版本需要三次无效参数重试；它们在延迟、成本和脆弱性上完全不同。</p>
 <p>迭代也应一次只改变有限变量。例如，先保持 schema 不变，只修改 Tool name 和 description，观察选择率；再收紧字段与错误提示，观察首次合法率和修复率。否则结果改善后，很难知道真正起作用的是哪一层。</p>
-<h2 id="设计边界">设计边界</h2>
+<h2 id="schema-只能约束模型可见的输入形状">Schema 只能约束模型可见的输入形状</h2>
 <p>Tool schema 不是所有问题的答案：</p>
 <ul>
 <li>Tool 太多导致模型选择空间过大，需要单独设计 Tool registry（完整工具目录）、权限过滤和按需发现；这属于 Tool surface（模型当前实际可见的工具集合），而不是单个 schema。</li>
@@ -349,7 +349,7 @@
 <li><a href="https://json-schema.org/understanding-json-schema/reference/object">JSON Schema: Objects</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <span></span> <a href="/zh/writing/splitting-agent-tools-by-user-intent/" rel="next"> <span>下一篇</span> <strong>Agent Tools 二：一个 Tool，还是多个？</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#一个-tool-同时参与两次决策">一个 Tool 同时参与两次决策</a></li><li><a href="#先从-backend-dto-的反例开始">先从 backend DTO 的反例开始</a></li><li><a href="#name-和-description-是路由接口">Name 和 description 是路由接口</a></li><li><a href="#schema-应表达最小充分输入">Schema 应表达最小充分输入</a></li><li><a href="#schema-validation-不能代替-handler-validation">Schema validation 不能代替 handler validation</a></li><li><a href="#错误也是-model-facing-api-的一部分">错误也是 model-facing API 的一部分</a></li><li><a href="#用-trace-和-eval-改-schema">用 trace 和 eval 改 schema</a></li><li><a href="#设计边界">设计边界</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-retrieval-ranking/">Agent Memory 五：Retrieval 不能只看相似度</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <span></span> <a href="/zh/writing/splitting-agent-tools-by-user-intent/" rel="next"> <span>下一篇</span> <strong>Agent Tools 二：一个 Tool，还是多个？</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#一个-tool-同时参与两次决策">一个 Tool 同时参与两次决策</a></li><li><a href="#先从-backend-dto-的反例开始">先从 backend DTO 的反例开始</a></li><li><a href="#name-和-description-是路由接口">Name 和 description 是路由接口</a></li><li><a href="#schema-应表达最小充分输入">Schema 应表达最小充分输入</a></li><li><a href="#schema-validation-不能代替-handler-validation">Schema validation 不能代替 handler validation</a></li><li><a href="#错误也是-model-facing-api-的一部分">错误也是 model-facing API 的一部分</a></li><li><a href="#用-trace-和-eval-改-schema">用 trace 和 eval 改 schema</a></li><li><a href="#schema-只能约束模型可见的输入形状">Schema 只能约束模型可见的输入形状</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-retrieval-ranking/">Agent Memory 五：Retrieval 不能只看相似度</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-session-event-log-projections/">Agent Runtime 四：让 Event Log 成为事实源</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -454,7 +454,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -465,16 +465,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -484,8 +488,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;

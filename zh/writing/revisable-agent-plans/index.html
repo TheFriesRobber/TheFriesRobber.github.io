@@ -22,14 +22,14 @@
           // Keep the sidebar expanded when storage is unavailable.
         }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/revisable-agent-plans/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 09 </p> <h1 class="page-title">Agent Runtime 九：让 Plan 可以安全修订</h1> <p class="article-deck">从一个前提已经失效但仍继续执行的研究计划出发，解释 Plan revision、执行事实、evidence 与 delegation proposal 应怎样分工。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Planning/">Planning</a> </div> </header>  <h2 id="问题">问题</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.BZfOq-vt.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/revisable-agent-plans/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 09 </p> <h1 class="page-title">Agent Runtime 九：让 Plan 可以安全修订</h1> <p class="article-deck">从一个前提已经失效但仍继续执行的研究计划出发，解释 Plan revision、执行事实、evidence 与 delegation proposal 应怎样分工。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/Planning/">Planning</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户让 Agent 比较 2024 与 2025 年的公开数据。Agent 先生成一份计划：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>plan v1</span></span>
 <span class="line"><span>P1 找到并验证 2025 数据集可比性</span></span>
 <span class="line"><span>P2 计算 2024 / 2025 差异，depends_on P1</span></span>
 <span class="line"><span>P3 写比较结论，depends_on P2</span></span></code></pre>
 <p>搜索结果随后表明：发布方在 2025 年改了统计口径，没有可直接比较的数据集。可 Plan 只是一段早先生成的 checklist，Runtime 找到数据集后就把 P1 标成“完成”，没有验证可比性，继续计算 P2，最后得到一份看似完整、前提却不成立的报告。</p>
-<p>重新让模型列一份计划并不能自动解决问题。系统还需要知道新旧计划是什么关系、哪些 item 已经执行、哪些 evidence 仍然有效，以及旧 revision 下已经启动的工作怎样停止收敛。</p>
+<p>重新让模型列一份计划并不能自动解决问题。系统还需要知道新旧计划是什么关系、哪些 item 已经执行、哪些 evidence 仍然有效，以及旧 revision 下已经启动的工作怎样停止并完成状态收敛。</p>
 <h2 id="plan-描述待办不拥有执行事实">Plan 描述待办，不拥有执行事实</h2>
 <p>Plan item 回答“为了当前目标，接下来还需要什么”；Run、Tool Execution 或 Child Job 回答“实际执行了什么”。两者可以关联，但不能共享状态 owner。</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Plan item P1：验证 2025 数据是否可比</span></span>
@@ -59,7 +59,7 @@
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    depends_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">P2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
 <p>依赖不是为了把 Plan 画成复杂 DAG，而是让修订具有作用范围。P1 的前提失效时，Runtime 可以沿依赖把 P2、P3 标成 <code>superseded</code> 或重新生成，而不影响与该前提无关、已经确认的工作。</p>
 <p>Plan 更新还应带 <code>expected_revision</code>。Plan owner 必须在同一个原子边界内校验 current revision 并写入新 revision：只有 <code>expected_revision=1</code> 与 current revision 匹配时，才能把 v1 推进到 v2。两个 writer 同时基于 v1 修改时，一个成功后，另一个会因 conditional / CAS update 失败，必须读取 v2 后重新判断。否则，字段本身挡不住人工修改被后台 replan 静默覆盖。</p>
-<h2 id="从-v1-修订到-v2">从 v1 修订到 v2</h2>
+<h2 id="plan-revision-必须让旧待办显式失效">Plan Revision 必须让旧待办显式失效</h2>
 <p>把开场例子走一遍：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  search_7 返回 source_12：2025 年统计口径已变化</span></span>
 <span class="line"><span>T2  Runtime 追加 evidence，并把 P1 的 premise 标记为 invalid</span></span>
@@ -109,7 +109,7 @@
 <li><a href="/zh/writing/agent-delegation-primitives/">Agent Runtime 十：子任务应该交给谁执行</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/durable-agent-steering-inbox/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 八：用持久 Inbox 接收 Steering</strong> </a> <a href="/zh/writing/agent-delegation-primitives/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 十：子任务应该交给谁执行</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#plan-描述待办不拥有执行事实">Plan 描述待办，不拥有执行事实</a></li><li><a href="#最小-plan-artifact-需要-revision-和依赖">最小 Plan Artifact 需要 revision 和依赖</a></li><li><a href="#从-v1-修订到-v2">从 v1 修订到 v2</a></li><li><a href="#replan-需要说明什么改变了">Replan 需要说明什么改变了</a></li><li><a href="#plan-item-怎样进入-delegation">Plan item 怎样进入 Delegation</a></li><li><a href="#work-panel-展示的是承诺不是内部推理">Work panel 展示的是承诺，不是内部推理</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/durable-agent-steering-inbox/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 八：用持久 Inbox 接收 Steering</strong> </a> <a href="/zh/writing/agent-delegation-primitives/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 十：子任务应该交给谁执行</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#plan-描述待办不拥有执行事实">Plan 描述待办，不拥有执行事实</a></li><li><a href="#最小-plan-artifact-需要-revision-和依赖">最小 Plan Artifact 需要 revision 和依赖</a></li><li><a href="#plan-revision-必须让旧待办显式失效">Plan Revision 必须让旧待办显式失效</a></li><li><a href="#replan-需要说明什么改变了">Replan 需要说明什么改变了</a></li><li><a href="#plan-item-怎样进入-delegation">Plan item 怎样进入 Delegation</a></li><li><a href="#work-panel-展示的是承诺不是内部推理">Work panel 展示的是承诺，不是内部推理</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');
@@ -214,7 +214,7 @@
       (() => {
         const sidebarStorageKey = 'xiaoyuan-sidebar';
         const root = document.documentElement;
-        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
         const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
 
         const persistSidebar = (collapsed) => {
@@ -225,16 +225,20 @@
           }
         };
         const updateSidebarToggle = () => {
-          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
           const collapsed = root.dataset.sidebar === 'collapsed';
-          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
-          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
-          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
-          if (label) {
-            sidebarToggle.setAttribute('aria-label', label);
-            sidebarToggle.title = label;
-          }
-          if (icon) icon.textContent = collapsed ? '›' : '‹';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
         };
         const setSidebarCollapsed = (collapsed, persist = false) => {
           if (collapsed) root.dataset.sidebar = 'collapsed';
@@ -244,8 +248,10 @@
         };
 
         updateSidebarToggle();
-        sidebarToggle?.addEventListener('click', () => {
-          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
         });
 
         if (!(readingModeToggle instanceof HTMLButtonElement)) return;
