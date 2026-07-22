@@ -1,6 +1,7 @@
 <!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A temporary location mistaken for a permanent residence motivates explicit write gates for information that should survive across Sessions."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Agent Memory 2: What Deserves Long-Term Retention? | Xiaoyuan"><meta property="og:description" content="A temporary location mistaken for a permanent residence motivates explicit write gates for information that should survive across Sessions."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-write-gates/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>Agent Memory 2: What Deserves Long-Term Retention? | Xiaoyuan</title><script>
       (() => {
         const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
         let storedTheme = null;
         try {
           storedTheme = localStorage.getItem(storageKey);
@@ -13,8 +14,15 @@
         document.documentElement.dataset.theme = theme;
         const themeColor = document.querySelector('meta[name="theme-color"]');
         themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.DiTwpWXa.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-memory-write-gates/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 02 </p> <h1 class="page-title">Agent Memory 2: What Deserves Long-Term Retention?</h1> <p class="article-deck">A temporary location mistaken for a permanent residence motivates explicit write gates for information that should survive across Sessions.</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-memory-write-gates/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Memory · 02 </p> <h1 class="page-title">Agent Memory 2: What Deserves Long-Term Retention?</h1> <p class="article-deck">A temporary location mistaken for a permanent residence motivates explicit write gates for information that should survive across Sessions.</p> <div class="meta"> <time datetime="2026-07-14T00:00:00.000Z">07/14/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Data%20Governance/">Data Governance</a> </div> </header>  <h2 id="the-problem">The problem</h2>
 <p>While traveling, a user says, “I am staying in Berlin this week. Find a nearby meeting room.” After the Agent completes the Task, a background consolidation process writes “the user lives in Berlin” into long-term Memory.</p>
 <p>Two months later, the user plans an event in Shanghai and the Agent still prioritizes Berlin locations. The original sentence was accurate and its embedding did not expire. The error happened during the write: a Task fact with an explicit time scope became a user attribute with no expiry.</p>
 <p>If the rule is “save anything that might help later,” Memory accumulates addresses, temporary goals, third-party details, and model guesses. Recall may increase while current Context becomes less trustworthy.</p>
@@ -214,6 +222,87 @@
         systemPreference.addEventListener('change', (event) => {
           if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
         });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+          if (label) {
+            sidebarToggle.setAttribute('aria-label', label);
+            sidebarToggle.title = label;
+          }
+          if (icon) icon.textContent = collapsed ? '›' : '‹';
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggle?.addEventListener('click', () => {
+          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
       })();
     </script> <script>
         (() => {

@@ -1,6 +1,7 @@
 <!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Writing about distributed data systems, ML platforms, and AI agents."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="website"><meta property="og:title" content="标签：Asyncio | Xiaoyuan"><meta property="og:description" content="Writing about distributed data systems, ML platforms, and AI agents."><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/tags/Asyncio/"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/tags/Asyncio/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/tags/Asyncio/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/tags/Asyncio/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/tags/Asyncio/"><link rel="icon" href="/images/avatar-furhead.jpeg"><title>标签：Asyncio | Xiaoyuan</title><script>
       (() => {
         const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
         let storedTheme = null;
         try {
           storedTheme = localStorage.getItem(storageKey);
@@ -13,8 +14,15 @@
         document.documentElement.dataset.theme = theme;
         const themeColor = document.querySelector('meta[name="theme-color"]');
         themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
       })();
-    </script><link rel="stylesheet" href="/_astro/BaseLayout.DiTwpWXa.css"></head> <body>  <div class="site-shell"> <aside class="sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/tags/Asyncio/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <p class="eyebrow">标签</p> <h1 class="page-title">Asyncio</h1> <section class="post-list" aria-label="包含 Asyncio 标签的文章"> <article class="post-card"> <h2><a href="/zh/writing/structured-concurrency-agent-runtimes-python/">Agent Runtime 十三：用 Structured Concurrency 收拢并发任务</a></h2> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time> <span>AI Agents</span> </div> </article> </section>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <script>
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.COT-SC75.css"></head> <body>  <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control sidebar-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">‹</span> </button>  </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/tags/Asyncio/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <p class="eyebrow">标签</p> <h1 class="page-title">Asyncio</h1> <section class="post-list" aria-label="包含 Asyncio 标签的文章"> <article class="post-card"> <h2><a href="/zh/writing/structured-concurrency-agent-runtimes-python/">Agent Runtime 十三：用 Structured Concurrency 收拢并发任务</a></h2> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time> <span>AI Agents</span> </div> </article> </section>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <script>
       (() => {
         const storageKey = 'xiaoyuan-theme';
         const root = document.documentElement;
@@ -61,5 +69,86 @@
         systemPreference.addEventListener('change', (event) => {
           if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
         });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+          const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+          sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+          if (label) {
+            sidebarToggle.setAttribute('aria-label', label);
+            sidebarToggle.title = label;
+          }
+          if (icon) icon.textContent = collapsed ? '›' : '‹';
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggle?.addEventListener('click', () => {
+          setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
       })();
     </script>  <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
