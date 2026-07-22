@@ -46,10 +46,11 @@
 <p>类型不是由句子语气决定，而是由 content origin、capture context 和写入政策共同决定。同一句“导出到 A”，用户在设置页确认时可以成为 preference；它出现在待总结文档里时，只是 untrusted observation，甚至可能完全没有保存价值。内容来源与授权主体必须分开：subject 是 Memory 所描述的用户，authenticated request actor 发起写入请求，writer actor 执行写入，connector 只能附加不可变 provenance，不能替任何 actor 声明权限。</p>
 <h2 id="writer-gate-要审查来源不只审查内容">Writer Gate 要审查来源，不只审查内容</h2>
 <p><a href="/zh/writing/agent-memory-writer-trust-domains/">Agent Memory 三</a> 把不同 Writer 放在不同信任域；这里的安全含义是：看过不可信内容的生成器只能提出 candidate，不能自行把它提升成长期指令。</p>
-<p>一次写入至少要验证：</p>
-<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>candidate:</span></span>
+<p>一次写入决定至少要验证以下信息。这里的对象不是模型一次生成的完整 JSON：提取模型只提出 <code>value</code> 和 <code>proposed_type</code> 这类语义内容；Runtime 从已认证请求中绑定 subject 与 actor，Connector 附加不可修改的来源信息；<code>write_policy</code> 则是工程团队审查并版本化的系统配置，由 Writer Gate 加载执行，不由模型临场生成。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>candidate_proposal:             # extraction model</span></span>
 <span class="line"><span>  value: archive.example.invalid</span></span>
 <span class="line"><span>  proposed_type: preference</span></span>
+<span class="line"><span>trusted_envelope:               # Runtime and Connector</span></span>
 <span class="line"><span>  subject: user_42</span></span>
 <span class="line"><span>  request_actor: task_runtime_9</span></span>
 <span class="line"><span>  writer_actor: memory_writer_2</span></span>
@@ -58,7 +59,8 @@
 <span class="line"><span>  source_digest: sha256:...</span></span>
 <span class="line"><span>  capture_task: summarize(document_77)</span></span>
 <span class="line"><span></span></span>
-<span class="line"><span>write_policy:</span></span>
+<span class="line"><span>write_policy:                   # versioned system configuration</span></span>
+<span class="line"><span>  revision: memory_write_policy@12</span></span>
 <span class="line"><span>  preference.allowed_origins: [explicit_user_setting, confirmed_user_message]</span></span></code></pre>
 <p>这个 candidate 会因为来源不满足政策而被拒绝。系统仍可把它保留为短期、隔离的 observation，用于完成“总结文档”这个 Task；它只证明该版本文档包含这段声明，不能进入用户级 preference namespace，也不能被别的 Session 当作行为依据。</p>
 <p>对高影响 Memory，确认必须绑定具体 candidate，而不是问一句模糊的“是否允许 Agent 记住信息”。用户应该看到“将 <code>archive.example.invalid</code> 保存为默认导出目标”，并能拒绝。确认记录还要绑定 authenticated confirming actor、subject、request actor、scope、Memory type、candidate version 与 source digest，防止身份、来源内容或候选值变化后复用旧确认。</p>

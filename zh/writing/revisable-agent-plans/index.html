@@ -29,7 +29,7 @@
 <span class="line"><span>P2 计算 2024 / 2025 差异，depends_on P1</span></span>
 <span class="line"><span>P3 写比较结论，depends_on P2</span></span></code></pre>
 <p>搜索结果随后表明：发布方在 2025 年改了统计口径，没有可直接比较的数据集。可 Plan 只是一段早先生成的 checklist，Runtime 找到数据集后就把 P1 标成“完成”，没有验证可比性，继续计算 P2，最后得到一份看似完整、前提却不成立的报告。</p>
-<p>重新让模型列一份计划并不能自动解决问题。系统还需要知道新旧计划是什么关系、哪些 item 已经执行、哪些 evidence 仍然有效，以及旧 revision 下已经启动的工作怎样停止并完成状态收敛。</p>
+<p>重新让模型列一份计划并不能自动解决问题。这里需要先分开两个动作：模型生成 Plan 内容或 revision proposal；程序中的 Plan owner 校验 schema、evidence reference、policy 与 <code>expected_revision</code>，再决定是否用 CAS 提交为 current revision。模型不能直接改写 current Plan。系统还需要知道新旧计划是什么关系、哪些 item 已经执行、哪些 evidence 仍然有效，以及旧 revision 下已经启动的工作怎样停止并完成状态收敛。</p>
 <h2 id="plan-描述待办不拥有执行事实">Plan 描述待办，不拥有执行事实</h2>
 <p>Plan item 回答“为了当前目标，接下来还需要什么”；Run、Tool Execution 或 Child Job 回答“实际执行了什么”。两者可以关联，但不能共享状态 owner。</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Plan item P1：验证 2025 数据是否可比</span></span>
@@ -63,10 +63,10 @@
 <p>把开场例子走一遍：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  search_7 返回 source_12：2025 年统计口径已变化</span></span>
 <span class="line"><span>T2  Runtime 追加 evidence，并把 P1 的 premise 标记为 invalid</span></span>
-<span class="line"><span>T3  生成 plan v2，replaces plan v1</span></span>
+<span class="line"><span>T3  模型提出 plan v2 diff；Plan owner 校验后以 CAS 提交 v2，replaces plan v1</span></span>
 <span class="line"><span>T4  P2、P3 在 v1 中变为 superseded</span></span>
 <span class="line"><span>T5  v2 新增 P4：先建立可比口径，或向用户说明无法直接比较</span></span>
-<span class="line"><span>T6  只有 P4 得到可验证结果后，才生成新的计算与写作 item</span></span></code></pre>
+<span class="line"><span>T6  只有 P4 得到可验证结果后，模型才能提出新的计算与写作 item，由 Plan owner 再次校验提交</span></span></code></pre>
 <p>v2 不会删除 v1。保留 revision 关系后，系统可以解释为什么 work panel 改变，也能判断一条迟到结果属于哪个计划版本。</p>
 <p>假设 v1 的 P2 已经启动 <code>job_compare_9</code>。切换 v2 时，Plan owner 可以发出 cancellation request，但不能直接把 Job 历史改成 cancelled。Job owner 必须在 claim、retry 以及发起不可逆 effect 前，校验 <code>plan_revision=1</code>、<code>item_id=P2</code> 是否仍被 current Plan 接受，并检查 cancellation fence 是否已经推进。P2 被 supersede 后，尚未提交的 effect 必须停止；如果 effect intent 已经提交但结果仍是 <code>unknown</code>，则进入 reconciliation，而不是再次执行。Plan revision 的 CAS 只保护 Plan 更新，不能代替 Job system 收敛执行状态。若结果稍后返回，consumer 仍要检查它绑定的 revision 和 item；结果可以留作审计或 artifact，却不能自动推进 v2。</p>
 <h2 id="replan-需要说明什么改变了">Replan 需要说明什么改变了</h2>
@@ -80,7 +80,7 @@
 <p>Revision decision 应记录 change reason、受影响 item、保留的 evidence 和替代关系。纯文案改写或相同 item 的重复排序不必制造新版本。</p>
 <p>计划循环也要有上限。如果连续 revision 没有新增 evidence，只是在两个等价方案之间来回切换，Runtime 应消耗 replan budget 并最终请求确认，而不是把 revision 数量当作进展。</p>
 <h2 id="plan-item-怎样进入-delegation">Plan item 怎样进入 Delegation</h2>
-<p>当 P4 需要独立研究时，Plan 可以产生一个与执行原语无关的 delegation proposal：</p>
+<p>当 P4 需要独立研究时，模型或确定性 planning module 可以基于 current Plan 提出一个与执行原语无关的 delegation proposal；Plan owner 校验 proposal 引用的 revision、item 和 evidence 后，才把它保存为 Plan artifact：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">proposal_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delegation_17</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  plan_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">plan_report_4</span></span>

@@ -89,7 +89,8 @@
 <span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "degradation"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"full"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"excerpt"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"reference"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
 <span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "provenance"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"file_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"design_4"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">8</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
 <span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
-<p>这里的 <code>priority</code> 只是策略输入，不应单独决定结果。一个低相关性的安全约束仍然不能删除；一段高相关性的文件内容也可能因为无权限而根本不能成为候选。权限、来源角色和冲突应先由 Context Assembly 处理，Budget 只在合格候选中做取舍。</p>
+<p>这些字段也有不同生成方：可信 source adapter 提供 <code>source</code> 与 <code>provenance</code>，tokenizer 计算 <code>tokens</code>，版本化 Policy Engine 或评分组件给出 <code>priority</code> 与允许的 <code>degradation</code>。如果模型参与 relevance 评分，它的输出仍只是 policy input；最终分类和预算决定由 Budget 程序完成。需要生成 summary 正文时，Budget 只发出 <code>summarize</code> 决定，正文由独立 compression/summarizer 组件生成并校验，不能由 Budget 层静默改写候选含义。</p>
+<p>因此，<code>priority</code> 只是策略输入，不应单独决定结果。一个低相关性的安全约束仍然不能删除；一段高相关性的文件内容也可能因为无权限而根本不能成为候选。权限、来源角色和冲突应先由 Context Assembly 处理，Budget 只在合格候选中做取舍。</p>
 <p>候选项可以按降级能力分成四类：</p>
 
 

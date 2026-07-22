@@ -38,7 +38,7 @@
 <li><strong>Raw history</strong>：在保留期限与当前授权允许范围内可读的用户消息、模型回复、Tool Call 与 Tool Result 原始记录。</li>
 <li><strong>Context view</strong>：当前 Model Turn 真正送给模型的 history 视图，可以由 summary 加最近原文组成。</li>
 </ul>
-<p>Raw history 是 summary 的来源；summary 是为了满足 Context Budget 生成的派生内容。只保留 summary，相当于用缓存替代了原始数据：一旦压错，就没有可靠依据修复。反过来，来源被删除或权限被撤销后，依赖它生成的 summary 也不能继续绕过原策略提供内容。</p>
+<p>Raw history 是 summary 的来源；summary 是为了满足 Context Budget 生成的派生内容。本文示例把生成责任拆成两部分：Compression Controller 由程序选择仍获授权的 source span、稳定边界和 metadata，summarizer 模型只生成结构化正文；程序再校验 coverage、引用与版本条件，并通过 CAS 提交 active summary。实现也可以换成确定性 summarizer，但这只改变正文生成器，不会把来源选择、授权或提交权交给生成器。只保留 summary，相当于用缓存替代了原始数据：一旦压错，就没有可靠依据修复。反过来，来源被删除或权限被撤销后，依赖它生成的 summary 也不能继续绕过原策略提供内容。</p>
 <p>这里说的 compression checkpoint 是“历史压缩到哪个位置”的水位，不是 Runtime 恢复执行所用的 Checkpoint。它不负责恢复 Tool attempt、外部副作用或进程状态。</p>
 <h2 id="一次增量压缩包含三个区间">一次增量压缩包含三个区间</h2>
 <p>可以把当前 history 分成三部分：</p>
@@ -90,7 +90,7 @@
 <p>假设 active summary 仍写着“欧洲和北美”，用户随后明确要求“只保留欧洲”：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_3：报告覆盖欧洲与北美，covers event_seq 1..checkpoint_seq</span></span>
 <span class="line"><span>correction_seq：用户说“只保留欧洲”（message_id=msg_scope_correction）</span></span></code></pre>
-<p>系统先把更正追加到 Raw history，不改写 <code>summary_3</code>。Context Assembly 再判断两件事：当前 Task 采用“只保留欧洲”，而且这项更正需要影响后续对话。由于旧 summary 与它冲突，Assembly 暂不渲染模型请求，而是让压缩层沿 <code>dependencies</code> 读取仍获授权的来源，重建 <code>covers</code> 对应的稳定区间：</p>
+<p>系统先把更正追加到 Raw history，不改写 <code>summary_3</code>。Context Assembly 的程序化 policy 再判断两件事：当前 Task 采用“只保留欧洲”，而且这项更正需要影响后续对话。实现可以让模型协助识别语义 scope，但 policy record 与是否触发重建仍由 Assembly Controller 决定。由于旧 summary 与它冲突，Assembly 暂不渲染模型请求，而是让压缩层沿 <code>dependencies</code> 读取仍获授权的来源，交给 summarizer 重建 <code>covers</code> 对应的稳定区间：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>summary_4：covers event_seq 1..checkpoint_seq</span></span>
 <span class="line"><span>replaces：summary_3</span></span>
 <span class="line"><span>dependencies：</span></span>

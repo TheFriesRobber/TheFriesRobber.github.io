@@ -29,7 +29,7 @@
 <span class="line"><span>P2 compute the 2024 / 2025 difference, depends_on P1</span></span>
 <span class="line"><span>P3 write the comparison, depends_on P2</span></span></code></pre>
 <p>Search results then reveal that the publisher changed its methodology in 2025, so no directly comparable dataset exists. The Plan is only an earlier checklist, however. The Runtime marks P1 complete as soon as it finds the dataset, without validating comparability, continues with P2, and eventually produces a polished report whose premise is invalid.</p>
-<p>Asking the model for another list does not solve the problem by itself. The system still needs to relate the old and new Plans, determine which items actually ran, preserve valid evidence, and converge work already started under the old revision.</p>
+<p>Asking the model for another list does not solve the problem by itself. Two actions must remain separate: the model generates Plan content or a revision proposal; the programmatic Plan owner validates its schema, evidence references, policy, and <code>expected_revision</code>, then decides whether to commit it as the current revision with CAS. The model cannot overwrite the current Plan directly. The system still needs to relate the old and new Plans, determine which items actually ran, preserve valid evidence, and converge work already started under the old revision.</p>
 <h2 id="a-plan-describes-work-it-does-not-own-execution-facts">A Plan describes work; it does not own execution facts</h2>
 <p>A Plan item answers what remains necessary for the current goal. A Run, Tool Execution, or Child Job answers what actually ran. They may reference each other, but they do not share a state owner.</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Plan item P1: validate whether the 2025 data is comparable</span></span>
@@ -63,24 +63,24 @@
 <p>Walk the opening example through the model:</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>T1  search_7 returns source_12: the 2025 methodology changed</span></span>
 <span class="line"><span>T2  the Runtime appends the evidence and marks P1's premise invalid</span></span>
-<span class="line"><span>T3  it creates plan v2, which replaces plan v1</span></span>
+<span class="line"><span>T3  the model proposes a plan v2 diff; after validation, the Plan owner commits v2 with CAS, replacing v1</span></span>
 <span class="line"><span>T4  P2 and P3 become superseded in v1</span></span>
 <span class="line"><span>T5  v2 adds P4: establish a comparable definition or explain why the datasets cannot be compared directly</span></span>
-<span class="line"><span>T6  only after P4 has verifiable evidence may new compute and writing items be created</span></span></code></pre>
+<span class="line"><span>T6  only after P4 has verifiable evidence may the model propose new compute and writing items for the Plan owner to validate and commit</span></span></code></pre>
 <p>v2 does not delete v1. The revision relationship explains why the work panel changed and lets the system classify a late result by the Plan version that requested it.</p>
 <p>Suppose v1 already started <code>job_compare_9</code> for P2. When activating v2, the Plan owner may issue a cancellation request, but it cannot rewrite Job history to <code>cancelled</code>. Before a claim, retry, or irreversible effect, the Job owner must verify that <code>plan_revision=1</code> and <code>item_id=P2</code> are still accepted by the current Plan and that the cancellation fence has not advanced. Once P2 is superseded, an unsubmitted effect must stop. If an effect intent was already committed but its result remains <code>unknown</code>, the owner reconciles it instead of executing it again. CAS on the Plan revision protects only Plan mutation; it cannot converge Job execution state. If a result arrives later, the consumer still checks its revision and item. The result may remain as audit evidence or an artifact, but it cannot advance v2 automatically.</p>
 <h2 id="a-replan-should-say-what-changed">A replan should say what changed</h2>
-<p>Creating a revision whenever a model phrases a list differently turns the Plan into noise. A revision is useful when it changes execution choice, for example:</p>
+<p>Creating a revision whenever a model phrases a list differently turns the Plan into noise. Only changes that affect execution choice require a revision, for example:</p>
 <ul>
 <li>new evidence invalidates a premise;</li>
 <li>the user changes the goal, constraint, or priority;</li>
-<li>an execution owner reaches an unrecoverable terminal state and needs an alternative;</li>
+<li>an execution object reaches an unrecoverable terminal state and needs an alternative;</li>
 <li>a human explicitly inserts, skips, or reorders work.</li>
 </ul>
 <p>The revision decision should record the reason, affected items, retained evidence, and replacement relationship. Editorial rewrites or equivalent item orderings do not need another version.</p>
 <p>Planning loops also need a limit. If repeated revisions add no evidence and alternate between equivalent approaches, the Runtime should spend a replan budget and eventually request confirmation instead of treating revision count as progress.</p>
 <h2 id="from-a-plan-item-to-delegation">From a Plan item to delegation</h2>
-<p>When P4 needs independent research, the Plan can create an execution-neutral delegation proposal:</p>
+<p>When P4 needs independent research, a model or deterministic planning module can propose an execution-neutral delegation request from the current Plan. The Plan owner validates its revision, item, and evidence references before storing it as a Plan artifact:</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">proposal_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delegation_17</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  plan_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">plan_report_4</span></span>

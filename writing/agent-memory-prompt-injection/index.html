@@ -46,10 +46,11 @@
 <p>Sentence form does not determine the type. Content origin, capture context, and write policy do. “Export to A” can become a preference when the user confirms it in settings. In a document being summarized, it is merely an untrusted observation and may not be worth storing at all. Origin must remain separate from authority: the subject is the user described by the Memory, an authenticated request actor initiates the write request, a writer actor performs it, and a connector may attach immutable provenance but cannot claim authority for any actor.</p>
 <h2 id="the-writer-gate-must-inspect-source-not-just-content">The Writer Gate must inspect source, not just content</h2>
 <p><a href="/writing/agent-memory-writer-trust-domains/">Agent Memory 3</a> assigns different Memory Writers to different trust domains. The security consequence is that a generator exposed to untrusted content may propose a candidate but cannot promote it to a durable instruction by itself.</p>
-<p>A write decision needs at least this information:</p>
-<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>candidate:</span></span>
+<p>A write decision needs at least this information. The object below is not one JSON document emitted by the model. The extraction model proposes semantic content such as <code>value</code> and <code>proposed_type</code>; the Runtime binds the subject and actors from the authenticated request; the connector attaches immutable source metadata; and <code>write_policy</code> is reviewed, versioned system configuration loaded by the Writer Gate rather than generated ad hoc by the model.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>candidate_proposal:             # extraction model</span></span>
 <span class="line"><span>  value: archive.example.invalid</span></span>
 <span class="line"><span>  proposed_type: preference</span></span>
+<span class="line"><span>trusted_envelope:               # Runtime and connector</span></span>
 <span class="line"><span>  subject: user_42</span></span>
 <span class="line"><span>  request_actor: task_runtime_9</span></span>
 <span class="line"><span>  writer_actor: memory_writer_2</span></span>
@@ -58,7 +59,8 @@
 <span class="line"><span>  source_digest: sha256:...</span></span>
 <span class="line"><span>  capture_task: summarize(document_77)</span></span>
 <span class="line"><span></span></span>
-<span class="line"><span>write_policy:</span></span>
+<span class="line"><span>write_policy:                   # versioned system configuration</span></span>
+<span class="line"><span>  revision: memory_write_policy@12</span></span>
 <span class="line"><span>  preference.allowed_origins: [explicit_user_setting, confirmed_user_message]</span></span></code></pre>
 <p>The candidate is rejected because its source does not satisfy the preference policy. The Runtime may keep a short-lived, isolated observation while completing the summary Task, but that observation proves only that this document version contained the assertion. It cannot enter the user’s preference namespace or guide another Session.</p>
 <p>Confirmation for high-impact Memory must bind a specific candidate instead of asking “may the Agent remember information?” The user should see “save <code>archive.example.invalid</code> as the default export target” and be able to decline. The confirmation record also binds the authenticated confirming actor, subject, request actor, scope, Memory type, candidate version, and source digest so a changed identity, source, or value cannot reuse old consent.</p>

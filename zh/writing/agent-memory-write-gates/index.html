@@ -27,11 +27,14 @@
 <p>两个月后，用户在上海安排活动，Agent 仍优先推荐柏林地点。原句没有写错，embedding 也没有失效；错误发生在写入时：一个有明确时间范围的任务事实，被升级成了没有期限的用户属性。</p>
 <p>如果规则只是“以后可能有用就保存”，Memory 会不断吸收地址、临时目标、第三方信息和模型猜测。Recall 可能变高，current Context 却越来越不可信。</p>
 <h2 id="candidate-还不是可写入事实">Candidate 还不是可写入事实</h2>
-<p>从 conversation 提取出的内容应先成为 <code>memory_candidate</code>。Candidate 保留原始表达、source、subject、适用范围和提取方式，但不会自动进入长期 current view。</p>
-<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user lives in Berlin</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_41</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">observed_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">this week</span></span>
-<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">extraction</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model_inference</span></span></code></pre>
+<p>从 conversation 提取出的内容应先成为 <code>memory_candidate</code>。在下面的例子里，提取模型只提出 claim 和适用范围；可信 Runtime 再从当前请求绑定 subject、source reference 和提取方式。Candidate 因而是程序组装的待审对象，不是模型可以自行补齐身份与来源的原始输出，也不会自动进入长期 current view。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate_proposal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:              </span><span style="color:#6A737D;--shiki-dark:#6A737D"># extraction model</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user lives in Berlin</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  observed_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">this week</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">trusted_envelope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:                </span><span style="color:#6A737D;--shiki-dark:#6A737D"># Runtime</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  subject</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current_user</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_41</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  extraction</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model_inference</span></span></code></pre>
 <p>这条 candidate 的问题已经可见：source 只支持“本周在柏林”，而不是“长期居住在柏林”。Write gate 的任务不是润色句子，而是判断现有证据能否支持一种可持续、可治理的长期记录。</p>
 <h2 id="五个条件共同限制长期写入">五个条件共同限制长期写入</h2>
 <p>一条候选信息通常需要同时通过五个判断：</p>
@@ -73,7 +76,7 @@
 <table><thead><tr><th>Gate</th><th>要回答的问题</th><th>失败时怎样处理</th></tr></thead><tbody><tr><td>Durable</td><td>它是否会在当前 Turn / Task 之后继续成立？</td><td>留在当前 Context，或加明确 expiry</td></tr><tr><td>User-specific</td><td>它是否描述当前 subject，而不是第三方或一般事实？</td><td>不进入用户 Memory</td></tr><tr><td>Future-useful</td><td>将来是否有清晰任务会使用它？</td><td>不因“也许有用”默认保存</td></tr><tr><td>Source-grounded</td><td>Source 是否支持要写入的 claim 和 scope？</td><td>缩小 claim、要求确认或拒写</td></tr><tr><td>Permission-safe</td><td>当前 writer 是否允许保存这类内容和敏感度？</td><td>拒写或转入需要确认的受控流程</td></tr></tbody></table>
 <p>五个 gate 不是加权评分。某条信息很有用，也不能弥补它属于第三方或没有保存权限。产品可以为不同 Memory 类型设置不同 threshold，但硬授权边界不能由 relevance 覆盖。</p>
 <h2 id="临时地点应该停在-candidate">临时地点应该停在 Candidate</h2>
-<p>这条候选可以生成一份可解释的决定：</p>
+<p>Writer Gate 可以根据 candidate、可信 Context 与版本化 policy 生成一份可解释的决定：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">do_not_write_long_term</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">reasons</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  durable</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span>
@@ -83,6 +86,7 @@
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  permission_safe</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">alternative</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
 <span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  keep_in_task_context_until</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-21</span></span></code></pre>
+<p>Gate 内部可以组合确定性规则与语义分类模型，但最终的写入、确认或拒绝必须由程序控制的 policy boundary 授权。模型给出的标签或自然语言理由只是判断输入，不能直接成为写权限。</p>
 <p>如果用户说“我已经搬到柏林，以后优先推荐这里”，durable、future-useful 与 source-grounded 才同时成立；系统仍要根据位置数据 policy 决定直接写入还是先确认。相同地点，不同表达范围，会得到不同 write decision。</p>
 <h2 id="用户明说与模型推断不是同等证据">用户明说与模型推断不是同等证据</h2>
 <p>“我以后都安排下午”可以直接支持一条显式偏好；一次下午开会只能支持一条观察，不能自动推出长期偏好。重复行为也可能来自时区、日程冲突或临时项目。</p>

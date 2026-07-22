@@ -62,7 +62,7 @@
 <p>Tool 的 owner 负责模型能否区分这个动作、Schema 怎样演进、错误怎样进入下一轮，以及当前 surface 是否应该暴露它。Tool 不必拥有外部 credential，也不必决定整个能力包如何安装。</p>
 <h2 id="skill-封装可复用的工作方法">Skill 封装可复用的工作方法</h2>
 <p>对于需要发现、加载、升级和回滚的 Skill，本文把它视为一组可版本化的 instructions、references、scripts、assets 和依赖声明。它回答的是“Agent 怎样完成一类工作”，不只是“调用哪个函数”。</p>
-<p>例如“发送周报” Skill 可以描述：先读取本周 Artifact，按模板生成摘要，检查收件人范围，最后调用 <code>send_email</code>。其中只有最后一步是 Tool action；前面的说明、模板和校验脚本属于可加载的工作方法。</p>
+<p>例如“发送周报” Skill 可以描述：让模型读取本周 Artifact 并按模板生成摘要，运行确定性校验脚本检查收件人范围，最后由模型提出 <code>send_email</code> Tool Call，再由 Runtime 校验并执行。Skill 只封装这些步骤和依赖，不亲自生成摘要、执行校验或发送邮件；其中只有最后一步是 Tool action，前面的说明、模板和脚本属于可加载的工作方法。</p>
 <p>公开的 SKILL.md 格式是这种设计的一种实例：Skill 目录至少包含带 metadata 的 <code>SKILL.md</code>，还可以带 <code>scripts/</code>、<code>references/</code> 和 <code>assets/</code>。但具体格式不是本文结论。更重要的 contract 是：</p>
 <ul>
 <li>Skill 有稳定 identity 和可 pin 的版本。</li>
@@ -96,7 +96,7 @@
 <h2 id="同一条调用链可以同时包含四种抽象">同一条调用链可以同时包含四种抽象</h2>
 <p>回到发送周报的例子，一条完整路径可以是：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Skill: weekly-report@3</span></span>
-<span class="line"><span>  读取 Artifact、生成摘要、检查发送步骤</span></span>
+<span class="line"><span>  模型读取 Artifact 并生成摘要；校验脚本检查发送步骤</span></span>
 <span class="line"><span>          ↓ requires</span></span>
 <span class="line"><span>Tool: send_email schema v2</span></span>
 <span class="line"><span>  模型只生成 recipient、subject、body</span></span>

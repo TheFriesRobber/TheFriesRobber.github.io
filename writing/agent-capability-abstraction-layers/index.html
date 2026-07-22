@@ -62,7 +62,7 @@
 <p>The Tool owner is responsible for whether the model can distinguish the action, how the Schema evolves, how errors enter the next turn, and whether the Tool should appear in the current surface. The Tool does not need to own an external credential or decide how an entire capability package is installed.</p>
 <h2 id="a-skill-packages-a-reusable-way-of-working">A Skill packages a reusable way of working</h2>
 <p>For Skills that need discovery, loading, upgrade, and rollback, this article treats a Skill as a versioned package of instructions, references, scripts, assets, and dependency declarations. It answers “how should the Agent complete this class of work?” rather than only “which function should it call?”</p>
-<p>A weekly-report Skill might say: read this week’s Artifact, summarize it with a template, check the recipient scope, and finally call <code>send_email</code>. Only the last step is a Tool action. The instructions, template, and validation script are parts of the loadable method.</p>
+<p>A weekly-report Skill might instruct the model to read this week’s Artifact and produce a template-based summary, run a deterministic validation script to check recipient scope, and finally have the model propose a <code>send_email</code> Tool Call for the Runtime to validate and execute. The Skill packages these steps and dependencies; it does not itself generate the summary, perform validation, or send the email. Only the last step is a Tool action, while the instructions, template, and script belong to the loadable method.</p>
 <p>The public SKILL.md format is one example of this design. A Skill directory contains at least a <code>SKILL.md</code> with metadata and may also include <code>scripts/</code>, <code>references/</code>, and <code>assets/</code>. The exact format is not the conclusion here. The more important contract is:</p>
 <ul>
 <li>The Skill has a stable identity and a version that can be pinned.</li>
@@ -96,7 +96,7 @@
 <h2 id="one-call-chain-can-contain-all-four-abstractions">One call chain can contain all four abstractions</h2>
 <p>Return to the weekly-report example. A complete path could be:</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Skill: weekly-report@3</span></span>
-<span class="line"><span>  read the Artifact, produce the summary, check the send procedure</span></span>
+<span class="line"><span>  the model reads the Artifact and produces the summary; a validation script checks the send procedure</span></span>
 <span class="line"><span>          ↓ requires</span></span>
 <span class="line"><span>Tool: send_email schema v2</span></span>
 <span class="line"><span>  the model generates only recipient, subject, and body</span></span>
