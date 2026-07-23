@@ -25,17 +25,16 @@
     </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-run-turn-step-task-state-model/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Runtime · 02 </p> <h1 class="page-title">Agent Runtime 二：一次执行该怎样分层</h1> <p class="article-deck">用一份 PDF 报告按完成责任和 retry boundary 区分 Task、Run、Model Turn、Tool Execution 与 Job，并映射 OpenAI、Anthropic 和 pi 的常见叫法。</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">2026/07/15</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Runtime/">Runtime</a><a class="pill" href="/zh/tags/State%20Machine/">State Machine</a> </div> </header>  <h2 id="问题">问题</h2>
 <p>用户让 Agent：“读取这份文件，生成报告，并导出成 PDF。”</p>
 <p>读取文件、生成 Markdown 和提交转换请求可以在当前 Agent Loop 内完成，但 PDF 转换可能持续几分钟，还要由独立 worker 执行。当前请求返回“正在转换”之后，用户可能继续追问进度，进程也可能重启；这些后续活动仍然服务于同一个目标，却不一定属于同一次 Agent Loop。</p>
-<p>一次执行可能是：</p>
-<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task：生成并交付 PDF 报告</span></span>
-<span class="line"><span>  Run 1：处理用户最初的请求</span></span>
-<span class="line"><span>    Model Turn 1：模型提出 read_file</span></span>
-<span class="line"><span>    Tool Execution 1：read_file 成功</span></span>
-<span class="line"><span>    Model Turn 2：模型生成正文并提出 save_report</span></span>
-<span class="line"><span>    Tool Execution 2：save_report 成功</span></span>
-<span class="line"><span>    Tool Execution 3：enqueue_pdf_conversion 成功</span></span>
-<span class="line"><span>    Model Turn 3：模型回复“报告正在转换”</span></span>
-<span class="line"><span>  Job：worker 将 report.md 转成 report.pdf</span></span>
-<span class="line"><span>  Run 2：用户稍后询问进度</span></span></code></pre>
+<p>在本文采用的对象关系里，这次目标可以先写成：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Session session_3：共享对话与 Context</span></span>
+<span class="line"><span>  Task task_report_7：生成并交付 PDF 报告</span></span>
+<span class="line"><span>    Run run_18：处理用户最初的请求</span></span>
+<span class="line"><span>      Model Turn 1 → Tool Execution：read_file</span></span>
+<span class="line"><span>      Model Turn 2 → Tool Execution：save_report</span></span>
+<span class="line"><span>      Model Turn 3 → Tool Execution：enqueue_pdf_conversion</span></span>
+<span class="line"><span>      Model Turn 4：回复“报告正在转换”</span></span>
+<span class="line"><span>    Job job_pdf_9：worker 将 report.md 转成 report.pdf</span></span>
+<span class="line"><span>    Run run_19：用户稍后询问进度</span></span></code></pre>
 <p>如果系统只保存一条记录：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
 <span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_18"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
@@ -112,19 +111,27 @@
 
 
 
-<table><thead><tr><th>本系列术语</th><th>它回答的问题</th><th>常见 owner</th></tr></thead><tbody><tr><td>Session</td><td>哪些交互共享持久对话、Context 与资源？</td><td>application / session service</td></tr><tr><td>Task</td><td>用户的持久目标是否已经完成？</td><td>application / orchestrator</td></tr><tr><td>Run</td><td>由一次新输入或恢复动作启动的 Agent Loop 是否已经停止、暂停或失败？</td><td>Agent Runtime</td></tr><tr><td>Model Turn</td><td>一次模型响应及其 Tool 调用处理是否到达下一次模型请求前的边界？</td><td>Agent runner</td></tr><tr><td>Tool Execution</td><td>某个获准执行的 Tool 动作是否得到确定结果？</td><td>Tool Runtime</td></tr><tr><td>Job</td><td>已移交调度系统的后台工作是否收敛？</td><td>Queue、worker 或 workflow engine</td></tr></tbody></table>
+<table><thead><tr><th>本系列术语</th><th>它回答的问题</th><th>常见 owner</th></tr></thead><tbody><tr><td>Session</td><td>哪些交互共享持久对话、Context 与资源？</td><td>application / session service</td></tr><tr><td>Task</td><td>用户的持久目标是否已经完成？</td><td>application / orchestrator</td></tr><tr><td>Run</td><td>由一次新输入或恢复动作启动的 Agent Loop 是否已经停止、暂停或失败？</td><td>Agent Runtime</td></tr><tr><td>Model Turn</td><td>一次模型响应及其 Tool 调用处理，是否已到达下一次模型请求或当前 Run 暂停、终止前的边界？</td><td>Agent runner</td></tr><tr><td>Tool Execution</td><td>某个获准执行的 Tool 动作是否得到确定结果？</td><td>Tool Runtime</td></tr><tr><td>Job</td><td>已移交调度系统的后台工作是否收敛？</td><td>Queue、worker 或 workflow engine</td></tr></tbody></table>
 <p><code>Model Turn</code> 特意带上 <code>Model</code>，用于避开 OpenAI 把整个 Run 称为 application-level turn 的歧义。<code>Step</code> 则不再作为本系列的固定运行时对象：有的框架用 step 表示一次循环，有的产品把任意进度都叫 step。需要谈模型决定时写 <code>Model Turn</code>，谈 Tool 时写 <code>Tool Call</code> 或 <code>Tool Execution</code>，谈物理重试时写 <code>Attempt</code>。</p>
-<p><img src="/posts/zh/agent-run-turn-step-task-state-model/execution-grains.svg" alt="报告生成中 Session、Task、Run、Model Turn、Tool Execution 与 Job 的时间线。Run 结束后，Task 仍可等待后台 Job，并由后续 Run 查询进度。"></p>
-<p><em>这些对象通过 causality 和 parent identity 关联，但不共享完成条件。</em></p>
-<h2 id="task-追踪用户目标session-保存跨-run-的上下文">Task 追踪用户目标，Session 保存跨 Run 的上下文</h2>
+<p>下图先画身份关系，再列同一时刻的状态。外层框表示“共享哪个范围或服务于哪个目标”，不表示它们共用一个状态机；箭头只表示 <code>enqueue</code> 创建了后台 Job。</p>
+<p><img src="/posts/zh/agent-run-turn-step-task-state-model/execution-grains.svg" alt="Session 包含多个用户目标；报告 Task 关联两个 Run 和一个后台 Job。第一个 Run 内部包含 Model Turn 与 Tool Execution，而 Job 由独立调度系统负责。右侧列出这些对象在同一时刻可以拥有不同状态。"></p>
+<p><em>Session、Task、Run 与 Job 通过 identity 和 causality 关联，但各自判断完成。</em></p>
+<h2 id="session-定义上下文范围task-追踪目标完成">Session 定义上下文范围，Task 追踪目标完成</h2>
+<p>先把两个问题分开：</p>
+<ul>
+<li>Session 回答“哪些交互共享对话历史、Context 和资源”。</li>
+<li>Task 回答“某一个用户目标是否已经完成”。</li>
+</ul>
+<p>它们可以关联，却不共用生命周期。<code>session_3</code> 可以一直保持 <code>active</code>，先承载“生成并交付 PDF”这个 <code>task_report_7</code>，以后再承载“把报告发给我”这个新 Task。反过来，<code>task_report_7</code> 在第一次交互结束后仍可保持 <code>waiting</code>，因为 PDF 还没有交付。</p>
 <p>这个例子中的 Task 是“生成并交付 PDF 报告”。用户第一次发出要求时创建 <code>task_report_7</code>；系统回复“正在转换”后，这个目标还没有完成，所以 Task 仍是 <code>waiting</code>。</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_report_7：waiting</span></span>
 <span class="line"><span>已完成证据：report.md@v3 已保存</span></span>
-<span class="line"><span>等待条件：job_pdf_9 产生并发布 report.pdf</span></span></code></pre>
+<span class="line"><span>等待条件：job_pdf_9 产生 artifact_ready 的 report.pdf，再由 Task owner 提交交付</span></span></code></pre>
 <p>用户稍后询问“转换好了吗”，这是同一个 Session 中的新输入，也会启动新的 Run。新 Run 可以读取 <code>task_report_7</code> 和 <code>job_pdf_9</code> 的状态后回答，但不必假装最初的 Agent Loop 一直占着执行权。</p>
-<p>Session 与 Task 也不能合并。Session 是对话和 Context 的持久容器，可以先后承载“生成报告”和“把报告发给我”两个 Task；一个 Task 也可能因为通知或审批跨越多个交互。是否复用 Task，取决于应用认定用户目标是否仍是同一个，不取决于消息是否在同一个 Session。</p>
+<p>因此，<code>Session active</code> 不表示某个 Task 仍在执行，<code>Task succeeded</code> 也不表示 Session 应该结束。是否复用 Task，取决于应用认定用户目标是否仍是同一个，不取决于消息是否在同一个 Session。</p>
 <p><code>Task</code> 在这里是应用层术语，不等同于 Python 的 <code>asyncio.Task</code>，也不等同于 Queue 中的一条 Job。框架没有替应用自动定义“用户目标何时算完成”；这项判断必须由产品或 orchestrator 持有。</p>
-<h2 id="run-是一次-agent-loop不是用户目标的永久外壳">Run 是一次 Agent Loop，不是用户目标的永久外壳</h2>
+<h2 id="一个-task-可以跨多个-runrun-只负责一次-agent-loop">一个 Task 可以跨多个 Run，Run 只负责一次 Agent Loop</h2>
+<p>在这个例子中，Task 与 Run 是一对多关系：<code>task_report_7</code> 是稳定的目标 identity，<code>run_18</code> 处理最初请求，<code>run_19</code> 处理后来的进度查询。两个 Run 都服务于同一个 Task，但各自拥有独立的开始、停止和恢复状态。这个关系是本文的应用模型，不是声称所有框架都采用同一数据库 Schema。</p>
 <p><code>run_18</code> 从用户最初的输入开始，Runner 在其中多次调用模型、执行 Tool，直到模型给出“报告正在转换”的最终回复。这时本次 application-level turn 已经结束，Run 可以进入 <code>succeeded</code>，而 <code>task_report_7</code> 继续等待后台 Job。</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>run_18：succeeded</span></span>
 <span class="line"><span>final output：报告正在转换</span></span>
@@ -133,7 +140,7 @@
 <p>有一种情况可以保留同一个 Run identity：Runtime 明确把它暂停为可恢复执行，例如等待审批，或持久保存了继续 Agent Loop 所需的状态。恢复动作是在继续同一个未完成的 application-level turn，而不是仅仅因为同一个 Task 还有后续工作。若最初的 Run 已经向用户给出 final output，之后的新消息通常启动新 Run。</p>
 <p>因此，Run 的 terminal state 只说明这次 Agent Loop 如何停止。它可以成功地产生“转换已受理”的回复，却不能据此推断 PDF Task 已完成。</p>
 <h2 id="model-turn-是-loop-内的一次模型轮次">Model Turn 是 Loop 内的一次模型轮次</h2>
-<p>在 <code>run_18</code> 中，第一次 Model Turn 让模型看到用户要求和文件 Tool，模型返回 <code>read_file</code> 调用；Tool Runtime 执行后，把结果加入下一次模型可见输入。第二次 Model Turn 再根据文件内容生成报告并提出保存动作。</p>
+<p>在 <code>run_18</code> 中，第一次 Model Turn 让模型看到用户要求和文件 Tool，模型返回 <code>read_file</code> 调用；Tool Runtime 执行后，把结果加入下一次模型可见输入。第二次 Model Turn 根据文件内容生成报告并提出 <code>save_report</code>；第三次在看到保存结果后提出 <code>enqueue_pdf_conversion</code>；第四次在转换 Job 已受理后回复“报告正在转换”。这个展开也说明 Model Turn 与 Tool Execution 不是同一个对象，只是在 Loop 中前后衔接。</p>
 <p>每个 Model Turn 可以独立记录：</p>
 <ul>
 <li>实际使用的 model/provider；</li>
@@ -141,10 +148,10 @@
 <li>模型响应、token、latency 和 finish reason；</li>
 <li>它提出的 Tool Call，以及随后形成的 Tool Execution identity。</li>
 </ul>
-<p>只有当 Tool 结果已经处理完毕、Runner 准备发起下一次模型请求时，这个 Model Turn 才到达边界。这样既能对应 pi 的 turn 事件，也能解释 Anthropic 文档中的 assistant turn。对 OpenAI 而言，它是 SDK Run 内部的一次模型/Tool 循环，不要把它误称为另一个 application-level turn。</p>
+<p>当模型响应及其 Tool 调用处理完毕，Runner 要么准备发起下一次模型请求，要么暂停或终止当前 Run 时，这个 Model Turn 才到达边界。第四次 Model Turn 没有 Tool Call，它在 final output 完成并终止 <code>run_18</code> 时到达边界。这样既能对应 pi 的 turn 事件，也能解释 Anthropic 文档中的 assistant turn。对 OpenAI 而言，它是 SDK Run 内部的一次模型/Tool 循环，不要把它误称为另一个 application-level turn。</p>
 <p>如果 provider 在接受请求前发生 transport error，并且可以安全重试，第二次物理请求仍可记作同一个 Model Turn 的 transport Attempt。只有模型获得新的可见输入，例如 <code>read_file</code> 的结果已经加入 Context，才开始新的 Model Turn。否则，指标会把基础设施 retry 误算成 Agent 多思考了一轮。</p>
 <h2 id="tool-call-是提议tool-execution-才拥有执行状态">Tool Call 是提议，Tool Execution 才拥有执行状态</h2>
-<p>模型返回 <code>save_report(path, content)</code> 时，产生的是 Tool Call：一份结构化的动作提议。Runtime 完成参数校验、权限判断和 policy 检查后，才创建 Tool Execution 并产生外部效果。</p>
+<p>模型返回 <code>save_report(path, content)</code> 时，产生的是 Tool Call：一份结构化的动作提议。Runtime 完成参数校验、权限判断和 policy 检查后，才创建 Tool Execution；该执行随后可能产生外部效果。</p>
 <p>假设 <code>save_report</code> 已经写入 <code>report.md</code>，但响应丢失。Runtime 看到 timeout 时，不能把 Tool Execution 直接标记为 <code>failed</code>；外部效果可能已经发生，只是当前没有确认结果。</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>tool_execution_save_4</span></span>
 <span class="line"><span>  logical identity：保存 report.md@v3</span></span>
@@ -152,18 +159,21 @@
 <span class="line"><span>  attempt 1：timeout</span></span></code></pre>
 <p>后续 retry 如果仍在确认或完成同一次保存，应保留 <code>tool_execution_save_4</code>，只新增 Attempt。若用户要求“另存一份”，那才是新的 Tool Execution。</p>
 <p>这也是不再使用泛化 <code>Step</code> 的原因。Tool Call 回答“模型提出了什么”，Tool Execution 回答“Runtime 实际授权并执行了什么”，Attempt 回答“物理上试了几次”。把三者都叫 Step，会再次丢失重试和外部副作用的 identity。</p>
-<h2 id="生命周期移交调度系统后叫-job">生命周期移交调度系统后，叫 Job</h2>
-<p>PDF 转换进入 Queue 后，当前 Agent Loop 可以结束，worker 也可能重启。它由调度系统独立排队、租约、重试和收敛，因此本文称它为 Job：</p>
+<h2 id="job-是由独立调度系统负责收敛的后台工作">Job 是由独立调度系统负责收敛的后台工作</h2>
+<p>PDF 转换进入 Queue 后，当前 Agent Loop 可以结束，worker 也可能重启。它由调度系统独立排队、租约、重试和收敛，因此本文称它为 Job。</p>
+<p>这里不是因为 PDF 转换“耗时较长”就换了一个名字。判断标准是：Run 结束后，谁继续拥有这项工作的 identity、retry 和 terminal state。若独立调度系统可以在不重新运行模型的情况下继续执行和恢复，它就是本文所说的 Job。</p>
+<p>例如：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>job_pdf_9：convert report.md@v3 to PDF</span></span>
 <span class="line"><span>  attempt 1：worker lost</span></span>
 <span class="line"><span>  attempt 2：running</span></span></code></pre>
-<p>Job 的 retry unit 是同一项后台工作，不是重新创建 Run，也不是让模型重新生成报告。只要输入仍是 <code>report.md@v3</code>，而且转换可以安全重放或按 <code>job_pdf_9</code> 去重，worker retry 就可以继续属于同一个 Job。若报告正文更新到 version 4，应明确取消旧 Job 或创建新 Job，不能让两个版本竞争同一个输出路径。</p>
-<p>Job 成功产生 <code>report.pdf</code> 后，应用再根据正确版本、原子发布和完整性验证等证据，把 <code>task_report_7</code> 收敛为 <code>succeeded</code>。这里不是把 Job 状态自动复制给 Task，而是 Task owner 重新判断用户目标是否满足。</p>
-<p>如果转换只是当前 Tool 函数中的一次同步调用，例如 <code>await convert_to_pdf(report)</code>，则无需创建 Job；它仍属于当前 Tool Execution。区分 Tool Execution 与 Job 的标准不是动作名称或耗时长短，而是生命周期和 owner 是否已经移交给独立调度系统。</p>
+<p>Job 的 retry unit 是同一项后台工作，不是重新创建 Run，也不是让模型重新生成报告。只要输入仍是 <code>report.md@v3</code>，而且转换可以安全重放或按 <code>job_pdf_9</code> 去重，worker retry 就可以继续属于同一个 Job。若报告正文更新到 version 4，v4 转换必须创建新的 Job identity；同时应取消旧 Job，或通过 fencing、隔离输出、版本化输出路径等方式阻止 v3 与 v4 竞争同一个结果。</p>
+<p><code>job_pdf_9</code> 成功只表示它根据正确输入版本产生了通过完整性检查、尚未交付给用户的 <code>artifact_ready</code> PDF。本文例子把“交付”限定为：在与 Task state 相同的事务边界内发布下载引用或访问权限。Task owner 以 <code>Task state=waiting + state_version</code> 为前置条件，在同一次条件写入中让引用变为用户可见、记录 <code>delivery_committed</code>，并把 Task 转为 <code>succeeded</code>。若 cancellation 已先把 Task 转为 <code>cancelling</code>，交付提交就必须失败。这里不是把 Job 状态自动复制给 Task，而是为“后台结果已准备好”和“用户目标已交付”设置两个不同的完成边界。</p>
+<p>如果交付动作是发送邮件、消息或调用另一个外部系统，就不能声称它与本地 Task state 原子提交。此时需要单独的 Delivery identity 与稳定 effect key：先持久化 delivery intent，再幂等发送或 reconciliation。结果未确认时，Task 应保持 <code>delivering</code>、<code>cancelling</code> 或显式 <code>unknown</code>，不能直接宣称 <code>succeeded</code> 或 <code>cancelled</code>。这属于跨系统交付协议，不改变本文例子中 Task 与 Job 的层级关系。</p>
+<p>如果转换只是当前 Tool 函数中的一次同步调用，例如 <code>await convert_to_pdf(report)</code>，则无需创建 Job；它仍属于当前 Tool Execution。是否进入 Queue 也不是唯一标准，关键仍是生命周期和 owner 是否已经移交给可独立恢复的调度系统。</p>
 <h2 id="retry-必须停留在正确的-identity-上">Retry 必须停留在正确的 identity 上</h2>
 <p>现在假设 PDF worker 第一次崩溃、第二次成功。正确的恢复路径是：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_report_7 保持 waiting</span></span>
-<span class="line"><span>run_18、model_turn_1..3 保持 succeeded</span></span>
+<span class="line"><span>run_18、model_turn_1..4 保持 succeeded</span></span>
 <span class="line"><span>tool_execution_read、tool_execution_save、tool_execution_enqueue 保持 succeeded</span></span>
 <span class="line"><span>job_pdf_9 新增 attempt 2</span></span></code></pre>
 <p>如果系统只能 retry 整个 Run，模型会重新读取文件、生成正文并保存。即使最后 PDF 正确，系统也无法解释多出来的 token、文件版本和外部写入。</p>
@@ -176,23 +186,48 @@
 <li>用户发出新的交互输入，通常创建新 Run；</li>
 <li>是否新建 Task，由应用判断它是不是同一个用户目标实例；目标改变、用户明确要求重新执行，或旧 Task 已终态而开始新的交付，通常都创建新 Task。</li>
 </ul>
-<h2 id="cancellation-传播意图不覆盖历史事实">Cancellation 传播意图，不覆盖历史事实</h2>
-<p>用户在 PDF 转换期间说“不要这份报告了”，应用先把 <code>task_report_7</code> 置为 <code>cancelling</code>，并向 <code>job_pdf_9</code> 发出 cancellation request。已经结束的 <code>run_18</code>、Model Turn 和 Tool Execution 不能改写为 <code>cancelled</code>：报告正文确实生成并保存过，这是历史事实。</p>
-<p>Job 也不能在收到请求时立刻宣称 <code>cancelled</code>。worker 可能正在写文件，远端转换服务也可能已经产生结果。只有 owner 确认工作停止并处理残留 Artifact 后，Job 才进入相应 terminal state；确认前可以保持 <code>cancelling</code>。</p>
-<p>如果用户只说“停止当前回答”，应用也不能默认取消整个 Task。取消请求必须带上目标 identity：是当前 Run、某个 Tool Execution、后台 Job，还是用户目标本身。父级传播的是意图，每个 owner 仍根据自己观察到的事实收敛。</p>
+<h2 id="cancellation-先进入中间态再由各-owner-收敛">Cancellation 先进入中间态，再由各 owner 收敛</h2>
+<p>用户在 PDF 转换期间说“不要这份报告了”之前，各对象的状态是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task task_report_7              → waiting</span></span>
+<span class="line"><span>Run run_18                      → succeeded</span></span>
+<span class="line"><span>Tool Execution save / enqueue  → succeeded</span></span>
+<span class="line"><span>Job job_pdf_9                   → running</span></span></code></pre>
+<p>这句话是新的用户输入，因此会启动 <code>run_20</code>。这个 Run 负责解释用户意图并提交一条以 <code>task_report_7</code> 为目标的 control command；它既不恢复 <code>run_18</code>，也不把 <code>run_18</code> 当成取消目标。</p>
+<p>应用持久化 cancellation request，并以带前置状态检查的写入把 Task 从 <code>waiting</code> 转为 <code>cancelling</code>。如果 Task 已经进入终态，这个转移必须失败，不能覆盖终态。Orchestrator 随后把请求发送给 <code>job_pdf_9</code>；只有调度系统接收请求后，Job 才从 <code>running</code> 转为 <code>cancelling</code>。请求被接受后，<code>run_20</code> 可以回复“正在取消”并进入 <code>succeeded</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task  waiting  → cancelling</span></span>
+<span class="line"><span>Job   running  → cancelling</span></span>
+<span class="line"><span>Run   run_18   → succeeded  （历史状态不变）</span></span>
+<span class="line"><span>Run   run_20   → succeeded  （cancellation request 已接受）</span></span>
+<span class="line"><span>Tool Execution succeeded  （不变）</span></span></code></pre>
+<p><code>cancelling</code> 表示“取消意图已经被 owner 接收，但终止结果还没有确认”，不是 terminal state。已经结束的 <code>run_18</code>、Model Turn 和 Tool Execution 不能改写为 <code>cancelled</code>：报告正文确实生成并保存过，这是历史事实。</p>
+<p>接下来，调度系统停止派发新的 Attempt，并要求正在执行的 worker 停止。但 worker 退出或 lease 失效本身不够：暂停的旧 worker 仍可能恢复并迟到写入。调度系统还要递增 cancellation generation 或 fencing token，或者撤销旧 Attempt 的发布 capability；最终接收 PDF 的 Artifact store 必须在一次原子提交中检查当前 Job state、version 与 token，并拒绝旧 Attempt。</p>
+<p>只有当前 Attempt 已停止，而且旧 Attempt 已无法再提交 <code>artifact_ready</code> 结果后，Job owner 才能把 Job 从 <code>cancelling</code> 转为 <code>cancelled</code>。Task owner 再确认没有 <code>delivery_committed</code>，并按 cancellation contract 处理 Artifact 的访问权限后，才把 Task 从 <code>cancelling</code> 转为 <code>cancelled</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Job   cancelling → cancelled</span></span>
+<span class="line"><span>Task  cancelling → cancelled</span></span></code></pre>
+<p>这两个转移不能合并成一次状态复制。Job 的 <code>cancelled</code> 只证明后台转换已经停止；Task owner 还要确认没有其他 Run 或 Job 会继续完成这个目标，也没有 <code>delivery_committed</code> 或仍可由用户访问的 Artifact。</p>
+<p>进入 <code>cancelling</code> 也不保证 Job 最终一定是 <code>cancelled</code>。调度系统接收请求后，active worker 仍可能在新的 fencing boundary 生效前抢先提交 <code>artifact_ready</code> PDF。此时生成完成赢得 Job 层的竞态：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Job   cancelling → succeeded</span></span>
+<span class="line"><span>Task  cancelling → cancelling  （交付提交因前置状态不符而失败）</span></span></code></pre>
+<p>Job 必须保留 <code>succeeded</code>，不能事后改写为 <code>cancelled</code>；但 Job 的成功只证明 Artifact 已准备好。由于 Task 已是 <code>cancelling</code>，带前置条件的 <code>delivery_committed</code> 写入会失败。应用处理这个未交付 Artifact 后，Task 仍可从 <code>cancelling</code> 转为 <code>cancelled</code>。</p>
+<p>Task 层的竞态发生在两个条件写入之间：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>waiting → cancelling  （cancellation request 赢）</span></span>
+<span class="line"><span>waiting → succeeded   （delivery_committed 赢）</span></span></code></pre>
+<p>只有一个转移可以匹配同一个 <code>state_version</code>。如果交付先提交，Task 已进入 <code>succeeded</code>，后来的 cancellation 转移必须失败；<code>run_20</code> 应回复“取消已太晚”并单独记录这次请求。无法确认交付或残留效果时，Task 不能宣称 <code>cancelled</code>，应继续保持 <code>cancelling</code>，或进入产品显式定义的异常终态。</p>
+<p>Task 的 <code>cancelled</code> 也不表示系统自动删除了 <code>report.md@v3</code> 或已经生成的 PDF。它只证明这个目标不会再向用户交付。是否删除底层 Artifact、保留多久、何时撤销访问权限属于独立的 retention 与 deletion contract；若产品把删除定义为取消成功的必要条件，Task owner 还必须等待相应的删除证据。</p>
+<p>如果用户只说“停止当前回答”，目标 identity 则是正在生成回答的 Run，而不是整个 Task。应用只向该 Run 传播 cancellation request；<code>task_report_7</code> 和 <code>job_pdf_9</code> 是否继续，由产品 policy 决定。取消请求必须明确指向 Run、Tool Execution、Job 或 Task，父级只能传播意图，每个 owner 仍根据自己观察到的事实完成状态转移。</p>
 <h2 id="分开以后查询才有明确答案">分开以后，查询才有明确答案</h2>
 <p>同一时刻可以保存：</p>
 <pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Session session_3               → active</span></span>
 <span class="line"><span>Task task_report_7              → waiting for job_pdf_9</span></span>
 <span class="line"><span>Run run_18                      → succeeded</span></span>
-<span class="line"><span>Model Turn model_turn_1..3      → succeeded</span></span>
+<span class="line"><span>Model Turn model_turn_1..4      → succeeded</span></span>
 <span class="line"><span>Tool Execution tool_exec_save_4 → succeeded, report.md@v3</span></span>
 <span class="line"><span>Job job_pdf_9                   → running, attempt 2</span></span></code></pre>
 <p>产品界面查询 Task，知道用户目标仍在处理中；交互历史查询 Run；模型成本查询 Model Turn；Tool 可靠性查询 Tool Execution 与 Attempt；Queue 运维查询 Job。它们通过 parent、causality 和 Artifact version 关联，但不再争用同一个 <code>status</code> 字段。</p>
 <p>Checkpoint 需要保存哪些状态、event log 怎样派生 current snapshot，是后续的持久化问题。分析仓库怎样按 grain 计算指标，则可参考 <a href="/zh/writing/modeling-agent-activity/">Agent Observability 一：建模前先明确 Grain</a>。本文先固定本系列的 Runtime 语义：谁拥有状态，谁判断完成，失败应在哪个 identity 上恢复。</p>
 <h2 id="回到问题">回到问题</h2>
 <p>业界一致的是 Agent Runtime 需要反复调用模型和 Tool，不一致的是每一层究竟叫 run、turn 还是 step。直接搬用其中一家的裸词，会让同一个 <code>Turn</code> 在不同文章里一会儿表示整次应用交互，一会儿表示一次模型响应。</p>
-<p>本系列因此使用显式名称：Session 保存跨 Run 的上下文，Task 表示用户目标，Run 表示一次 Agent Loop，Model Turn 表示 Loop 内模型轮次，Tool Execution 表示获准执行的动作，Job 表示移交调度系统的后台工作。<code>Step</code> 只作为普通流程词，不再承担固定状态机语义。</p>
+<p>本系列因此使用显式名称：Session 定义共享对话与 Context 的范围；Task 记录一个用户目标，并可关联多个 Run 与后台 Job；Run 表示一次 Agent Loop，其内部再记录 Model Turn 与 Tool Execution；Job 表示由独立调度系统负责收敛的后台工作。<code>Step</code> 只作为普通流程词，不再承担固定状态机语义。</p>
 <p>名称对齐之后，更重要的边界也随之清楚：模型响应不证明 Tool 已执行，Run 成功不证明 Task 已完成，Job 重试也不应让 Agent 从头再跑一遍。</p>
 <h2 id="后续问题">后续问题</h2>
 <ul>
@@ -207,10 +242,10 @@
 <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls">Anthropic：Handle tool calls</a></li>
 <li><a href="https://platform.claude.com/docs/en/managed-agents/sessions">Anthropic：Managed sessions</a></li>
 <li><a href="https://platform.claude.com/docs/en/managed-agents/migration">Anthropic：Migrate from the Agent SDK</a></li>
-<li><a href="https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md">pi：Extension events</a></li>
+<li><a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md">pi：Extension events</a></li>
 </ul>
 <hr>
-<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-loop-runtime-protocol/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 一：为什么 while 循环还不够</strong> </a> <a href="/zh/writing/runspec-policy-mechanism-boundary/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 三：用 RunSpec 隔离业务策略</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#runturn-与-step-没有跨框架统一定义">Run、Turn 与 Step 没有跨框架统一定义</a></li><li><a href="#task-追踪用户目标session-保存跨-run-的上下文">Task 追踪用户目标，Session 保存跨 Run 的上下文</a></li><li><a href="#run-是一次-agent-loop不是用户目标的永久外壳">Run 是一次 Agent Loop，不是用户目标的永久外壳</a></li><li><a href="#model-turn-是-loop-内的一次模型轮次">Model Turn 是 Loop 内的一次模型轮次</a></li><li><a href="#tool-call-是提议tool-execution-才拥有执行状态">Tool Call 是提议，Tool Execution 才拥有执行状态</a></li><li><a href="#生命周期移交调度系统后叫-job">生命周期移交调度系统后，叫 Job</a></li><li><a href="#retry-必须停留在正确的-identity-上">Retry 必须停留在正确的 identity 上</a></li><li><a href="#cancellation-传播意图不覆盖历史事实">Cancellation 传播意图，不覆盖历史事实</a></li><li><a href="#分开以后查询才有明确答案">分开以后，查询才有明确答案</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-loop-runtime-protocol/" rel="prev"> <span>上一篇</span> <strong>Agent Runtime 一：为什么 while 循环还不够</strong> </a> <a href="/zh/writing/runspec-policy-mechanism-boundary/" rel="next"> <span>下一篇</span> <strong>Agent Runtime 三：用 RunSpec 隔离业务策略</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#runturn-与-step-没有跨框架统一定义">Run、Turn 与 Step 没有跨框架统一定义</a></li><li><a href="#session-定义上下文范围task-追踪目标完成">Session 定义上下文范围，Task 追踪目标完成</a></li><li><a href="#一个-task-可以跨多个-runrun-只负责一次-agent-loop">一个 Task 可以跨多个 Run，Run 只负责一次 Agent Loop</a></li><li><a href="#model-turn-是-loop-内的一次模型轮次">Model Turn 是 Loop 内的一次模型轮次</a></li><li><a href="#tool-call-是提议tool-execution-才拥有执行状态">Tool Call 是提议，Tool Execution 才拥有执行状态</a></li><li><a href="#job-是由独立调度系统负责收敛的后台工作">Job 是由独立调度系统负责收敛的后台工作</a></li><li><a href="#retry-必须停留在正确的-identity-上">Retry 必须停留在正确的 identity 上</a></li><li><a href="#cancellation-先进入中间态再由各-owner-收敛">Cancellation 先进入中间态，再由各 owner 收敛</a></li><li><a href="#分开以后查询才有明确答案">分开以后，查询才有明确答案</a></li><li><a href="#回到问题">回到问题</a></li><li><a href="#后续问题">后续问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-tool-lifecycle/">Agent Tools 四：Tool 调用需要完整生命周期</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/context-assembly-policy-engine/">Context Engineering 一：Context Assembly 不是消息拼接</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/structured-context-budget-degradation/">Context Engineering 二：Context 超预算时怎样降级</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
 
   (() => {
     const container = document.querySelector('[data-comments]');

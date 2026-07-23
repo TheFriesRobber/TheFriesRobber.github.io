@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 620" role="img" aria-labelledby="title desc">
-  <title id="title">Execution timeline for Agent Runtime objects</title>
-  <desc id="desc">A report Task spans two Runs in one Session. The first Run contains Model Turns and Tool Executions, then its background Job continues after the Run ends. The second Run queries progress.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" role="img" aria-labelledby="title desc">
+  <title id="title">Identity relationships among Session, Task, Run, and Job</title>
+  <desc id="desc">A Session is a shared context scope that can contain multiple Tasks. The report Task is associated with two Runs and one Job. The first Run contains Model Turns and Tool Executions. A side panel lists their independent states at one instant.</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
       <path d="M0,0 L8,4 L0,8 Z" fill="#6b7280"/>
@@ -8,69 +8,88 @@
   </defs>
   <style>
     text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #202124; }
-    .heading { font-size: 21px; font-weight: 700; }
-    .label { font-size: 17px; font-weight: 650; }
+    .heading { font-size: 22px; font-weight: 700; }
+    .label { font-size: 17px; font-weight: 700; }
     .small { font-size: 14px; fill: #4b5563; }
     .tiny { font-size: 12px; fill: #4b5563; }
-    .lane { stroke: #d1d5db; stroke-width: 2; }
-    .scope { fill: #f3f4f6; stroke: #6b7280; stroke-width: 2; }
-    .done { fill: #e8f5ec; stroke: #3f7d52; stroke-width: 2; }
-    .waiting { fill: #fff4d6; stroke: #a66b00; stroke-width: 2; }
-    .running { fill: #e7f0ff; stroke: #3c6fb6; stroke-width: 2; }
-    .flow { fill: none; stroke: #6b7280; stroke-width: 1.8; stroke-dasharray: 5 5; marker-end: url(#arrow); }
+    .session { fill: #f7f7f8; stroke: #6b7280; stroke-width: 2; }
+    .task { fill: #fffaf0; stroke: #a66b00; stroke-width: 2; stroke-dasharray: 7 5; }
+    .run { fill: #f0f7f2; stroke: #3f7d52; stroke-width: 2; }
+    .job { fill: #eef4ff; stroke: #3c6fb6; stroke-width: 2; }
+    .secondary { fill: #ffffff; stroke: #9ca3af; stroke-width: 1.5; }
+    .state { fill: #ffffff; stroke: #d1d5db; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #6b7280; stroke-width: 1.8; marker-end: url(#arrow); }
   </style>
-  <rect width="1100" height="620" rx="18" fill="#fafafa"/>
-  <text x="34" y="42" class="heading">One user goal can span multiple Runs</text>
-  <text x="34" y="68" class="small">A Run ends after final output; the Task can keep waiting for an independently scheduled Job</text>
+  <rect width="1100" height="700" rx="18" fill="#fafafa"/>
+  <text x="34" y="42" class="heading">Start with identity relationships, then compare states</text>
+  <text x="34" y="68" class="small">An outer box means shared scope or goal association, not one shared status</text>
 
-  <text x="34" y="126" class="label">Session</text>
-  <line x1="165" y1="120" x2="1060" y2="120" class="lane"/>
-  <rect x="180" y="98" width="850" height="44" rx="11" class="scope"/>
-  <text x="528" y="126" class="small">session_3 · cross-interaction Context</text>
+  <rect x="34" y="94" width="730" height="560" rx="16" class="session"/>
+  <text x="56" y="126" class="label">Session session_3</text>
+  <text x="300" y="126" class="small">shared conversation, Context, and resource scope</text>
 
-  <text x="34" y="204" class="label">Task</text>
-  <line x1="165" y1="198" x2="1060" y2="198" class="lane"/>
-  <rect x="180" y="176" width="720" height="44" rx="11" class="waiting"/>
-  <text x="446" y="204" class="small">task_report_7 · waiting for Job</text>
-  <rect x="910" y="176" width="120" height="44" rx="11" class="done"/>
-  <text x="930" y="204" class="small">succeeded</text>
+  <rect x="64" y="148" width="670" height="408" rx="14" class="task"/>
+  <text x="86" y="180" class="label">Task task_report_7</text>
+  <text x="274" y="180" class="small">goal: generate and deliver the PDF</text>
 
-  <text x="34" y="282" class="label">Run</text>
-  <line x1="165" y1="276" x2="1060" y2="276" class="lane"/>
-  <rect x="190" y="254" width="560" height="44" rx="11" class="done"/>
-  <text x="355" y="282" class="small">run_18 · initial request · succeeded</text>
-  <rect x="840" y="254" width="190" height="44" rx="11" class="done"/>
-  <text x="865" y="282" class="small">run_19 · get status</text>
+  <rect x="92" y="204" width="390" height="306" rx="13" class="run"/>
+  <text x="114" y="236" class="label">Run run_18 · initial request</text>
+  <text x="114" y="261" class="small">one Agent Loop</text>
 
-  <text x="34" y="360" class="label">Model Turn</text>
-  <line x1="165" y1="354" x2="1060" y2="354" class="lane"/>
-  <rect x="200" y="332" width="132" height="44" rx="11" class="done"/>
-  <text x="222" y="359" class="tiny">1 · read_file</text>
-  <rect x="390" y="332" width="146" height="44" rx="11" class="done"/>
-  <text x="406" y="359" class="tiny">2 · write &amp; save</text>
-  <rect x="600" y="332" width="140" height="44" rx="11" class="done"/>
-  <text x="620" y="359" class="tiny">3 · final output</text>
-  <rect x="850" y="332" width="170" height="44" rx="11" class="done"/>
-  <text x="874" y="359" class="tiny">4 · report Job state</text>
+  <rect x="118" y="274" width="152" height="48" rx="9" class="secondary"/>
+  <text x="136" y="295" class="small">Model Turn 1</text>
+  <text x="136" y="313" class="tiny">proposes read_file</text>
+  <rect x="302" y="274" width="152" height="48" rx="9" class="secondary"/>
+  <text x="320" y="295" class="small">Tool Execution</text>
+  <text x="320" y="313" class="tiny">read_file · done</text>
 
-  <text x="34" y="438" class="label">Tool Execution</text>
-  <line x1="165" y1="432" x2="1060" y2="432" class="lane"/>
-  <rect x="260" y="410" width="130" height="44" rx="11" class="done"/>
-  <text x="281" y="437" class="tiny">read · done</text>
-  <rect x="470" y="410" width="130" height="44" rx="11" class="done"/>
-  <text x="491" y="437" class="tiny">save · done</text>
-  <rect x="610" y="410" width="140" height="44" rx="11" class="done"/>
-  <text x="625" y="437" class="tiny">enqueue · done</text>
+  <rect x="118" y="332" width="152" height="48" rx="9" class="secondary"/>
+  <text x="136" y="353" class="small">Model Turn 2</text>
+  <text x="136" y="371" class="tiny">drafts; proposes save</text>
+  <rect x="302" y="332" width="152" height="48" rx="9" class="secondary"/>
+  <text x="320" y="353" class="small">Tool Execution</text>
+  <text x="320" y="371" class="tiny">save_report · done</text>
 
-  <text x="34" y="516" class="label">Job</text>
-  <line x1="165" y1="510" x2="1060" y2="510" class="lane"/>
-  <rect x="690" y="488" width="210" height="44" rx="11" class="running"/>
-  <text x="722" y="516" class="small">job_pdf_9 · running</text>
-  <rect x="910" y="488" width="120" height="44" rx="11" class="done"/>
-  <text x="930" y="516" class="small">succeeded</text>
+  <rect x="118" y="390" width="152" height="48" rx="9" class="secondary"/>
+  <text x="136" y="411" class="small">Model Turn 3</text>
+  <text x="136" y="429" class="tiny">proposes conversion</text>
+  <rect x="302" y="390" width="152" height="48" rx="9" class="secondary"/>
+  <text x="320" y="411" class="small">Tool Execution</text>
+  <text x="320" y="429" class="tiny">enqueue · done</text>
 
-  <path d="M680 455 C680 470 720 470 720 486" class="flow"/>
-  <path d="M900 486 C900 450 935 420 935 378" class="flow"/>
-  <text x="675" y="572" class="small">time →</text>
-  <text x="760" y="572" class="tiny">Queue / worker owns Job retry</text>
+  <rect x="118" y="448" width="336" height="46" rx="9" class="secondary"/>
+  <text x="136" y="477" class="small">Model Turn 4 · replies “conversion in progress”</text>
+
+  <rect x="520" y="244" width="184" height="104" rx="12" class="job"/>
+  <text x="540" y="273" class="label">Job job_pdf_9</text>
+  <text x="540" y="298" class="small">scheduler owns state</text>
+  <text x="540" y="322" class="tiny">convert report.md@v3</text>
+  <path d="M454 414 C500 414 490 327 518 315" class="flow"/>
+
+  <rect x="520" y="382" width="184" height="86" rx="12" class="run"/>
+  <text x="540" y="411" class="label">Run run_19</text>
+  <text x="540" y="436" class="small">new input: get status</text>
+  <text x="540" y="457" class="tiny">reads Task / Job state</text>
+
+  <rect x="64" y="578" width="352" height="54" rx="11" class="task"/>
+  <text x="84" y="610" class="label">Another Task: send me the report</text>
+
+  <rect x="790" y="94" width="276" height="560" rx="16" class="state"/>
+  <text x="812" y="128" class="label">States at one instant</text>
+  <text x="812" y="161" class="small">They can differ:</text>
+
+  <rect x="812" y="188" width="232" height="52" rx="10" class="secondary"/>
+  <text x="830" y="220" class="small">Session → active</text>
+  <rect x="812" y="256" width="232" height="52" rx="10" class="secondary"/>
+  <text x="830" y="288" class="small">Task → waiting</text>
+  <rect x="812" y="324" width="232" height="52" rx="10" class="secondary"/>
+  <text x="830" y="356" class="small">Run 18 → succeeded</text>
+  <rect x="812" y="392" width="232" height="52" rx="10" class="secondary"/>
+  <text x="830" y="424" class="small">Job → running</text>
+  <rect x="812" y="460" width="232" height="52" rx="10" class="secondary"/>
+  <text x="830" y="492" class="small">Run 19 → succeeded</text>
+
+  <text x="812" y="548" class="small">PDF → artifact_ready</text>
+  <text x="812" y="574" class="tiny">Task owner commits delivery</text>
+  <text x="812" y="604" class="label">Task → succeeded</text>
 </svg>
