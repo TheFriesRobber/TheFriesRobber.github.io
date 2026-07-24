@@ -1,0 +1,314 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Separate long-lived policy from per-turn snapshots, and constrain how control Hooks and read-only Observers may affect those snapshots."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="How Run Configuration Stabilizes for Each Turn | Xiaoyuan"><meta property="og:description" content="Separate long-lived policy from per-turn snapshots, and constrain how control Hooks and read-only Observers may affect those snapshots."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-run-configuration-hooks/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="How Run Configuration Stabilizes for Each Turn | Xiaoyuan"><meta name="twitter:description" content="Separate long-lived policy from per-turn snapshots, and constrain how control Hooks and read-only Observers may affect those snapshots."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Core"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Runtime"><meta property="article:tag" content="Hooks"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-run-configuration-hooks/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-run-configuration-hooks/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-run-configuration-hooks/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-run-configuration-hooks/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-run-configuration-hooks/#article","headline":"How Run Configuration Stabilizes for Each Turn","description":"Separate long-lived policy from per-turn snapshots, and constrain how control Hooks and read-only Observers may affect those snapshots.","url":"https://xiaoyuan-gu.github.io/writing/agent-run-configuration-hooks/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-run-configuration-hooks/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Core","Agent","Runtime","Hooks"]}</script><title>How Run Configuration Stabilizes for Each Turn | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-run-configuration-hooks/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Core · 02 </p> <h1 class="page-title">How Run Configuration Stabilizes for Each Turn</h1> <p class="article-deck">Separate long-lived policy from per-turn snapshots, and constrain how control Hooks and read-only Observers may affect those snapshots.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Core/">Agent Core</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Runtime/">Runtime</a><a class="pill" href="/tags/Hooks/">Hooks</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent is waiting for a model response, and its current Tool surface includes <code>write_file</code>. An administrator disables that Tool before the response arrives. When the model still proposes <code>write_file</code>, should the Runtime execute or reject it?</p>
+<p>If the Runtime reads the “latest configuration” throughout one Model Turn, the model sees an old Tool schema while the executor uses a new allowed set. If configuration is frozen for the entire Run, an emergency disable may take too long to become effective. The question is not whether configuration may change, but at which explicit boundary a change becomes visible.</p>
+<h2 id="policy-is-not-the-configuration-used-by-one-turn">Policy is not the configuration used by one Turn</h2>
+<p>Long-lived policy expresses what the host wants the system to obey, such as which models and Tools are allowed and which resource limits apply. It can change during a Run and may depend on the current user, tenant, and environment.</p>
+<p>A Model Turn needs fully resolved concrete values:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>policy + identity + session state + runtime resources</span></span>
+<span class="line"><span>                      ↓ compile</span></span>
+<span class="line"><span>                turn snapshot</span></span></code></pre>
+<p>At a minimum, the snapshot fixes messages, model, thinking parameters, Tool definitions, resource references, and the policy revision. The model input, Tool binding, and later validation can then explain which revision each decision used.</p>
+<p>“Fixed” does not require copying an entire object graph. It requires the observable semantics of this Turn not to be modified in place. Immutable data, versioned references, or controlled reads can implement that rule. The important property is that one Turn must not silently consume two revisions.</p>
+<h2 id="pi-currently-creates-a-per-turn-object">Pi currently creates a per-turn object</h2>
+<p>Pi Harness’s <code>createTurnState()</code> constructs an object that is then reused for the Turn. That is a clearer boundary than reading every field ad hoc. The current construction process, however, contains several asynchronous steps: Session context, resources, metadata, Tool context, and the system prompt may be resolved in sequence while Harness setters can still change the model, Tools, and other configuration.</p>
+<p>The resulting object can therefore combine old resources with a new model. A top-level spread is also only a shallow copy and does not guarantee that nested references remain unchanged. Calling this object an “atomic snapshot” would overstate what the current implementation provides.</p>
+<p>A host that needs a same-revision guarantee can use either of two common approaches:</p>
+<ol>
+<li>Capture <code>configurationRevision</code> before construction, then validate it again after asynchronous resolution; discard and rebuild the snapshot if the revision changed.</li>
+<li>Serialize configuration writes while a snapshot is being built, giving readers and writers the same critical boundary.</li>
+</ol>
+<p>Both are target contracts for the host layer, not behavior that Pi currently supplies automatically. Pi’s current boundary is visible in <a href="https://github.com/earendil-works/pi/blob/7df73a00c6cf85c000bf1ce1594c9284067a92f0/packages/agent/src/harness/agent-harness.ts"><code>agent-harness.ts</code></a>.</p>
+<h2 id="configuration-changes-need-declared-visibility">Configuration changes need declared visibility</h2>
+<p>With revisions in place, disabling <code>write_file</code> has a precise interpretation:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Moment</th><th>Visible configuration</th><th>Handling</th></tr></thead><tbody><tr><td>Model request already sent</td><td>revision 12</td><td>Preserve the semantics of this Turn’s input</td></tr><tr><td>Before Tool execution</td><td>revision 12 + current security authorization</td><td>Reauthorize the Tool</td></tr><tr><td>Next Model Turn</td><td>revision 13</td><td>Do not expose <code>write_file</code> to the model</td></tr><tr><td>After process recovery</td><td>host recompiles</td><td>Validate the revision and dependencies before continuing</td></tr></tbody></table>
+<p>A snapshot is not a pass that bypasses current security checks. A Tool being visible to the model proves only that it was available at proposal time. Backend authorization still evaluates current facts before execution. If an emergency disable must block every new side effect, the host may reject the old proposal at the execution boundary and return an explainable rejection result.</p>
+<h2 id="hooks-may-affect-a-revision-only-at-a-declared-boundary">Hooks may affect a revision only at a declared boundary</h2>
+<p>Hooks can destabilize the same boundary. If a <code>beforeModel</code> Hook can change the Tool surface, it must say whether the result belongs to the current revision or the next one. An Observer that is nominally read-only must not mutate the snapshot through a shared reference.</p>
+<p>Pi currently has several distinct mechanisms:</p>
+<ul>
+<li>low-level before/after Tool callbacks;</li>
+<li>typed Harness <code>on()</code> events and their current result-composition semantics;</li>
+<li>subscription interfaces such as <code>subscribe()</code>.</li>
+</ul>
+<p>These should not be described collectively as a complete Hook framework. This article considers only their intersection with snapshots: when control-return values take effect and what read-only observers may see. Hook containers, cleanup, a generic reducer, and replay form a separate API-design question.</p>
+<p>A simple rule is:</p>
+<ul>
+<li>A Hook result that changes a later model, Tool surface, resource, or other snapshot configuration must enter a named configuration revision. If it cannot belong to the current revision, it takes effect on the next Turn.</li>
+<li>A result that only allows or denies the current Tool Call, patches its result, or short-circuits execution is an execution decision or outcome bound to the current snapshot revision; it does not create a new configuration revision.</li>
+</ul>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Disabling <code>write_file</code> during a Run does not require choosing between “always use the old configuration” and “mix in the new configuration immediately”:</p>
+<ul>
+<li>The model request already sent remains interpreted under revision 12.</li>
+<li>The Tool Call is still only a proposal, so the execution boundary may reject it under current security policy.</li>
+<li>The next Turn uses revision 13 and no longer exposes the Tool.</li>
+<li>Only a Hook or configuration update recorded in an explicit revision may change a later snapshot; a call-local execution decision remains bound to the current snapshot revision and does not create a configuration revision.</li>
+</ul>
+<p>Pi provides a reusable per-turn object and several callback and event boundaries, but it does not automatically provide one atomic revision across asynchronously resolved fields. Making that limit explicit lets the host add a real snapshot contract where needed instead of depending on a reassuring name.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-loop-execution-protocol/" rel="prev"> <span>Previous</span> <strong>The Agent&#39;s Minimal Core: Loop, Turn, and Execution State</strong> </a> <a href="/writing/agent-context-projection/" rel="next"> <span>Next</span> <strong>Context Is a Constrained Projection</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#policy-is-not-the-configuration-used-by-one-turn">Policy is not the configuration used by one Turn</a></li><li><a href="#pi-currently-creates-a-per-turn-object">Pi currently creates a per-turn object</a></li><li><a href="#configuration-changes-need-declared-visibility">Configuration changes need declared visibility</a></li><li><a href="#hooks-may-affect-a-revision-only-at-a-declared-boundary">Hooks may affect a revision only at a declared boundary</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-workspace/">Why One File Needs Both an Artifact Identity and a Workspace Reference</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-connectors-mcp-boundary/">How Connectors, MCP, and the Host Control Plane Divide Responsibility</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

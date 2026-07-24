@@ -1,0 +1,339 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Connect candidate generation, current-view filtering, reranking, authorization, and the Context budget into one read decision."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="How Retrieved Memory Enters Context | Xiaoyuan"><meta property="og:description" content="Connect candidate generation, current-view filtering, reranking, authorization, and the Context budget into one read decision."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-context/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="How Retrieved Memory Enters Context | Xiaoyuan"><meta name="twitter:description" content="Connect candidate generation, current-view filtering, reranking, authorization, and the Context budget into one read decision."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent State"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Memory"><meta property="article:tag" content="Retrieval"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-context/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-retrieval-context/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-context/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-context/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-context/#article","headline":"How Retrieved Memory Enters Context","description":"Connect candidate generation, current-view filtering, reranking, authorization, and the Context budget into one read decision.","url":"https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-context/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-memory-retrieval-context/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent State","Agent","Memory","Retrieval"]}</script><title>How Retrieved Memory Enters Context | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-memory-retrieval-context/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent State · 02 </p> <h1 class="page-title">How Retrieved Memory Enters Context</h1> <p class="article-deck">Connect candidate generation, current-view filtering, reranking, authorization, and the Context budget into one read decision.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20State/">Agent State</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Retrieval/">Retrieval</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user asks, “Can you contact me this afternoon?” Vector search returns two highly similar Memory records:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>0.94  v1: preferred_contact_time = morning</span></span>
+<span class="line"><span>0.91  v2: preferred_contact_time = afternoon</span></span></code></pre>
+<p>The user has corrected v1; only v2 is current. If the system takes the top result directly, the more similar stale version becomes active again. If it simply raises <code>top_k</code>, the model sees a more complete contradiction.</p>
+<p>A retrieval score expresses some form of match. It does not prove that a record is current, true, or authorized for use. Memory needs a layered decision chain before entering Context: <strong>first constrain the query with trusted identity and scope, then generate candidates inside that isolation boundary; filter them by the current view, record-level permission, source, and expiry; rerank them for the current Task; and finally let Context Assembly allocate budget across all sources.</strong></p>
+<h2 id="candidate-generation-only-broadens-the-candidate-set">Candidate generation only broadens the candidate set</h2>
+<p>Keyword, vector, and hybrid retrieval suit different kinds of matches:</p>
+<ul>
+<li>keyword retrieval preserves exact names, IDs, and enumerated values;</li>
+<li>vector retrieval finds semantically similar content with different wording;</li>
+<li>hybrid retrieval combines the two signals.</li>
+</ul>
+<p>They produce candidates, not verdicts. But the query must not begin against an unisolated global collection. A trusted Runtime should first bind the tenant, subject, namespace, or authorized resource partitions, and the Memory service should perform coarse query admission. Otherwise, unauthorized records can fill <code>top_k</code>, create side channels, or damage availability even if they are filtered later.</p>
+<p>Within that constrained set, the embedding model, index revision, and query expansion can all change the score. Scores that have not been versioned and evaluated cannot be compared across configurations, much less used for record-level authorization. A candidate record should carry at least a stable <code>memory_id</code>, version, source reference, and index revision so that downstream code can validate it against the Memory service rather than consume only a text copy from the search engine.</p>
+<h2 id="hard-filters-come-before-reranking">Hard filters come before reranking</h2>
+<p>After coarse isolation, the candidate list still needs record-level checks that relevance cannot override:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Filter</th><th>Rejection condition</th></tr></thead><tbody><tr><td>Current view</td><td>Superseded, revoked, or deleted</td></tr><tr><td>Permission</td><td>The current subject/actor may not read it</td></tr><tr><td>Tenant/scope</td><td>Outside the current isolation domain or resource scope</td></tr><tr><td>Expiry</td><td>Past its permitted use time</td></tr><tr><td>Source policy</td><td>Its source type is not allowed for this Memory category</td></tr></tbody></table>
+<p>A trusted service should perform these checks against current state. The model cannot request “include old versions too” through an argument, and metadata in the search index cannot replace the Source of Truth.</p>
+<p>After filtering, the opening candidates become:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>v1 morning    → drop: superseded</span></span>
+<span class="line"><span>v2 afternoon  → keep: current + authorized</span></span></code></pre>
+<p>This happens before reranking, so a highly similar unauthorized or stale record never gets another chance to compete.</p>
+<h2 id="reranking-answers-what-the-current-task-needs">Reranking answers what the current Task needs</h2>
+<p>Even after hard filtering, too many candidates may remain. Reranking can use:</p>
+<ul>
+<li>relevance to the current Task;</li>
+<li>freshness and remaining validity;</li>
+<li>source/evidence class;</li>
+<li>record specificity;</li>
+<li>conflicts with the current instruction or another source;</li>
+<li>retrieval configuration.</li>
+</ul>
+<p>Reranking output should preserve the reason and score provenance. A high score does not promote an observation into an explicit user preference, and it does not turn Memory into an instruction. It only helps Context Assembly allocate attention among valid candidates.</p>
+<p>If two current records genuinely conflict in scope, the right result may be to preserve the conflict and ask for clarification rather than let the higher score silently win.</p>
+<h2 id="pinned-hot-and-cold-are-policies-inside-memory">Pinned, hot, and cold are policies inside Memory</h2>
+<p>The Memory service may assign records visibility tiers:</p>
+<ul>
+<li><code>pinned</code>: explicitly prioritized for matching tasks;</li>
+<li><code>hot</code>: recent or frequently relevant, but still query-dependent;</li>
+<li><code>cold</code>: considered only when explicitly recalled.</li>
+</ul>
+<p>Pinned does not mean permanently included in every prompt, and it cannot override permission, expiry, or supersession. It is only a priority policy within Memory’s candidate set.</p>
+<p>The final Model Turn must also contain the current user input, system constraints, unresolved Tool Results, files, and other data sources. Cross-source Context budget belongs to Context Assembly. The Memory service should return candidates with provenance and budget suggestions, not fill the entire window by itself.</p>
+<h2 id="budget-degradation-should-preserve-semantics-not-truncate-the-tail">Budget degradation should preserve semantics, not truncate the tail</h2>
+<p>Suppose the valid candidates are:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>v2 contact_time=afternoon     required for task</span></span>
+<span class="line"><span>timezone=Asia/Shanghai        required for interpretation</span></span>
+<span class="line"><span>old meeting summaries        optional</span></span></code></pre>
+<p>When the budget is tight, the system should first preserve the current Task constraint and the timezone needed to interpret v2, then compress or drop unrelated summaries. Truncating by score or cutting from the tail can preserve “afternoon” while losing its timezone, or protect a long old summary while dropping the current correction.</p>
+<p>Every include, drop, or compress decision should be tied to an assembly revision. When the result is wrong, this makes it possible to distinguish a missed candidate from a bad hard filter, incorrect reranking, or a mistaken global-budget decision.</p>
+<h2 id="walk-the-opening-query-through-the-pipeline">Walk the opening query through the pipeline</h2>
+<p>A conceptual decision record could be:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">query</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact availability this afternoon</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">query_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  tenant</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">tenant_7</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  subject</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_42</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate_generation</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  returned</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time@v1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time@v2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">timezone@v3</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">hard_filter</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  dropped</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time@v1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      reason</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">superseded</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">rerank</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time@v2</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">timezone@v3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">context_projection</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  included</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time@v2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">timezone@v3</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  provenance_preserved</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span></code></pre>
+<p>This is a design example, not the current schema of a particular product. Its value is giving every layer one clear question and one owner.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The opening v1 has the higher similarity score, but it should never enter Context because the current view has already established that v2 superseded it. V2 and the timezone pass permission, scope, and expiry checks, receive budget based on the current question, and enter the projection with their source and version intact.</p>
+<p>Memory retrieval is therefore not “find the most similar text.” It first constrains the query to a trusted isolation domain, then ensures that every candidate is current and authorized, and only then decides which content is most useful to this Turn. Context Assembly still makes the final tradeoff across all sources.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-memory-lifecycle/" rel="prev"> <span>Previous</span> <strong>Memory Writes, Versions, and the Current View</strong> </a> <a href="/writing/agent-memory-safety-evaluation/" rel="next"> <span>Next</span> <strong>How to Test Memory&#39;s Persistent-Risk Defenses</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#candidate-generation-only-broadens-the-candidate-set">Candidate generation only broadens the candidate set</a></li><li><a href="#hard-filters-come-before-reranking">Hard filters come before reranking</a></li><li><a href="#reranking-answers-what-the-current-task-needs">Reranking answers what the current Task needs</a></li><li><a href="#pinned-hot-and-cold-are-policies-inside-memory">Pinned, hot, and cold are policies inside Memory</a></li><li><a href="#budget-degradation-should-preserve-semantics-not-truncate-the-tail">Budget degradation should preserve semantics, not truncate the tail</a></li><li><a href="#walk-the-opening-query-through-the-pipeline">Walk the opening query through the pipeline</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-capability-surface/">Which Capabilities Should an Agent Expose on Each Turn?</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-concurrency-cancellation/">Ordering, Consistency, and Cancellation for Concurrent Tools</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

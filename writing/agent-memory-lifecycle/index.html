@@ -1,0 +1,381 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Connect write gates, Writer trust domains, version chains, and the current view into a complete lifecycle for long-term Memory."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Memory Writes, Versions, and the Current View | Xiaoyuan"><meta property="og:description" content="Connect write gates, Writer trust domains, version chains, and the current view into a complete lifecycle for long-term Memory."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Memory Writes, Versions, and the Current View | Xiaoyuan"><meta name="twitter:description" content="Connect write gates, Writer trust domains, version chains, and the current view into a complete lifecycle for long-term Memory."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent State"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Memory"><meta property="article:tag" content="Data Modeling"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-lifecycle/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/#article","headline":"Memory Writes, Versions, and the Current View","description":"Connect write gates, Writer trust domains, version chains, and the current view into a complete lifecycle for long-term Memory.","url":"https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent State","Agent","Memory","Data Modeling"]}</script><title>Memory Writes, Versions, and the Current View | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-memory-lifecycle/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent State · 01 </p> <h1 class="page-title">Memory Writes, Versions, and the Current View</h1> <p class="article-deck">Connect write gates, Writer trust domains, version chains, and the current view into a complete lifecycle for long-term Memory.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20State/">Agent State</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Memory/">Memory</a><a class="pill" href="/tags/Data%20Modeling/">Data Modeling</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user first tells an Agent, “When possible, contact me in the morning from now on.” The system saves this as a long-term preference. A few weeks later, the user explicitly corrects it: “Use the afternoon from now on.” A background consolidation job nevertheless regenerates “morning” from the old record, and the next Session still contacts the user at the wrong time.</p>
+<p>No historical message was lost, and retrieval did find relevant content. The problem occurred earlier: the system treated every extraction result as a new long-term fact without defining who may write, which version is current, or what correction, revocation, and deletion each mean.</p>
+<p>Long-term Memory needs a complete lifecycle: <strong>candidate information first passes through a write gate; a constrained Writer commits a sourced version; readers consume the current view by default; and correction, revocation, deletion, and undo change future visibility according to distinct semantics.</strong></p>
+<h2 id="extraction-does-not-make-something-worth-preserving">Extraction does not make something worth preserving</h2>
+<p>Content extracted from a conversation by a model or rule can only become a <code>memory_candidate</code>. A trusted Runtime adds the subject, source reference, and actor; the model cannot declare those identities itself:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  claim</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">preferred_contact_time = morning</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  observed_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">future</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">trusted_envelope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  subject</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_42</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_61</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  actor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">in_loop_agent</span></span></code></pre>
+<p>The write gate then asks:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Gate</th><th>Question</th></tr></thead><tbody><tr><td>Durable</td><td>Could this still hold after the current Task ends?</td></tr><tr><td>User-specific</td><td>Does it describe the current subject rather than a third party?</td></tr><tr><td>Future-useful</td><td>Is there a clear future use for it?</td></tr><tr><td>Source-grounded</td><td>Does the source support both the claim and its scope?</td></tr><tr><td>Permission-safe</td><td>May the current actor retain this kind of data?</td></tr></tbody></table>
+<p>These are not weighted scores. Usefulness cannot compensate for weak sourcing or missing permission to retain the data. A temporary location, a one-time formatting request, or fast-changing external state should usually remain in the current Task—or carry an explicit expiry—instead of being promoted to a permanent user attribute.</p>
+<h2 id="writer-authority-must-apply-to-every-mutation">Writer authority must apply to every mutation</h2>
+<p>An in-conversation Agent, a background consolidation job, a bulk import, and a user edit have different evidence and authority:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Writer</th><th>Reasonable actions</th><th>Authority it should not have</th></tr></thead><tbody><tr><td>In-loop Agent</td><td>Submit a candidate supported by the currently authorized Context</td><td>Modify another subject</td></tr><tr><td>Background consolidation</td><td>Append an observation or propose a change</td><td>Override an explicit user statement</td></tr><tr><td>Import job</td><td>Write into a mapped namespace</td><td>Cross that mapping into another namespace</td></tr><tr><td>User edit</td><td>Correct, revoke, or delete manageable records</td><td>Bypass retention and third-party data rules</td></tr></tbody></table>
+<p>The Memory service should obtain the actor from the trusted execution environment instead of accepting <code>writer: user</code> in Tool arguments. Every mutation should validate at least the subject, namespace, action, evidence class, source references, and expected revision.</p>
+<p>A background job may therefore record that “the last three contacts happened in the morning,” but it cannot use that observation to override the user’s explicit afternoon preference. An observed event and a user’s intent can both be true; they should not be flattened into one string and compared by similarity.</p>
+<h2 id="a-version-chain-lets-a-correction-change-the-current-view">A version chain lets a correction change the current view</h2>
+<p>The first write creates version 1:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">morning</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_61</span></span></code></pre>
+<p>When the user corrects it, an authorized Writer submits version 2 with <code>expected_current_version: 1</code>:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">afternoon</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_82</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">supersedes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span></code></pre>
+<p>The same commit boundary marks v1 as <code>superseded</code> and advances the current pointer. If another Writer concurrently submits a change still based on v1, the expected revision no longer matches. The service should return a conflict so that the caller can reread and decide again, rather than apply last-write-wins.</p>
+<p>Repeated delivery of the same logical mutation should reuse a stable operation ID and return the version already created. Different intents must not share an idempotency key merely because their content is similar.</p>
+<h2 id="supersede-revoke-delete-and-undo-are-not-synonyms">Supersede, revoke, delete, and undo are not synonyms</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Operation</th><th>Future reads</th><th>Historical content</th></tr></thead><tbody><tr><td>Supersede</td><td>Use the new version</td><td>Retain the old version according to retention policy</td></tr><tr><td>Revoke</td><td>Stop applying the current value</td><td>May retain the revocation fact and authorized history</td></tr><tr><td>Delete/erasure</td><td>Remove the content from ordinary reads and derived paths</td><td>When retention is not mandatory, retain only a tombstone that excludes the original value</td></tr><tr><td>Undo</td><td>Create a new version that restores an earlier business value</td><td>Keep moving the version chain forward</td></tr></tbody></table>
+<p>Undo must not silently move the current pointer back to v1. That would hide the fact that the value changed to afternoon and was later restored to morning. It should create v3 and point the restoration reason to v1.</p>
+<p>Deletion also cannot mean setting <code>hidden=true</code> while leaving the original text in an index, cache, summary, and ordinary backup read path. The original content should leave business reads and derived paths. If an applicable policy mandates legal or security retention, any retained copy must be isolated, restricted in purpose and access, and accompanied by a record of the deletion’s coverage, exception period, and final purge time. If policy forbids retaining history, superseded values must also be erased, leaving only content-free version metadata.</p>
+<h2 id="the-current-view-is-a-read-contract">The current view is a read contract</h2>
+<p>The current view is not another independent fact. It is the canonical projection produced by the Memory service from versions, expiry, and revoke/delete state. Ordinary retrieval starts from this view and then applies a separate authorization filter for the current subject or actor; it must not search all history and ask similarity to decide which version is effective.</p>
+<p>Audit or repair actors may read history only when retention and authorization permit it. Their access to history does not mean that history may reenter a new Model Turn. Indexes, caches, and summaries should carry the Memory revision so that advancing the current view invalidates stale derived results.</p>
+<h2 id="walk-the-opening-preference-through-the-lifecycle">Walk the opening preference through the lifecycle</h2>
+<p>The opening lifecycle can be represented as:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>message_61 “morning” → write gate pass → v1 current</span></span>
+<span class="line"><span>message_82 “afternoon” → authorized supersede(v1) → v2 current</span></span>
+<span class="line"><span>background observation “recent contacts were in the morning” → append observation</span></span>
+<span class="line"><span>                                                         → cannot supersede v2</span></span></code></pre>
+<p>If the user later revokes the contact-time preference, the system creates a revoke event and the current view stops returning it. If the user requests deletion, the content is removed from permitted read and derived paths. If the user later chooses mornings again, that is a new v3—not a chance for a deleted or superseded old value to revive itself.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The old morning preference overriding the afternoon correction was not a retrieval-ranking problem. It was a Memory system without controlled mutation and a current view.</p>
+<p>When candidates first pass a write gate, Writers are authorized by subject, namespace, action, and evidence, and version-chain commits use an expected revision, readers receive only v2. Background consolidation can still preserve a sourced observation, but it cannot change the user’s explicit preference.</p>
+<p>The long-term value of Memory is not storing more text. It is making every current state answer three questions: who wrote it based on what evidence, whether it is still effective, and how it can be corrected, revoked, or deleted.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <span></span> <a href="/writing/agent-memory-retrieval-context/" rel="next"> <span>Next</span> <strong>How Retrieved Memory Enters Context</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#extraction-does-not-make-something-worth-preserving">Extraction does not make something worth preserving</a></li><li><a href="#writer-authority-must-apply-to-every-mutation">Writer authority must apply to every mutation</a></li><li><a href="#a-version-chain-lets-a-correction-change-the-current-view">A version chain lets a correction change the current view</a></li><li><a href="#supersede-revoke-delete-and-undo-are-not-synonyms">Supersede, revoke, delete, and undo are not synonyms</a></li><li><a href="#the-current-view-is-a-read-contract">The current view is a read contract</a></li><li><a href="#walk-the-opening-preference-through-the-lifecycle">Walk the opening preference through the lifecycle</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-capability-surface/">Which Capabilities Should an Agent Expose on Each Turn?</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-concurrency-cancellation/">Ordering, Consistency, and Cancellation for Concurrent Tools</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

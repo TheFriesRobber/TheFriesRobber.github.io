@@ -1,0 +1,409 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Evaluate a Context projection with required information, citations, pollution, conflict handling, and budget efficiency."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Context Assembly Evaluation Cannot Stop at Recall | Xiaoyuan"><meta property="og:description" content="Evaluate a Context projection with required information, citations, pollution, conflict handling, and budget efficiency."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Context Assembly Evaluation Cannot Stop at Recall | Xiaoyuan"><meta name="twitter:description" content="Evaluate a Context projection with required information, citations, pollution, conflict handling, and budget efficiency."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Verification"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Evaluation"><meta property="article:tag" content="Context Engineering"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-context-assembly-evaluation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/#article","headline":"Context Assembly Evaluation Cannot Stop at Recall","description":"Evaluate a Context projection with required information, citations, pollution, conflict handling, and budget efficiency.","url":"https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Verification","Agent","Evaluation","Context Engineering"]}</script><title>Context Assembly Evaluation Cannot Stop at Recall | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-context-assembly-evaluation/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Verification · 06 </p> <h1 class="page-title">Context Assembly Evaluation Cannot Stop at Recall</h1> <p class="article-deck">Evaluate a Context projection with required information, citations, pollution, conflict handling, and budget efficiency.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Verification/">Agent Verification</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Evaluation/">Evaluation</a><a class="pill" href="/tags/Context%20Engineering/">Context Engineering</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user corrects an instruction: “Send future weekly reports to the project channel, not by direct message.” Retrieval finds the message, so recall is perfect. Old Memory still says “send by direct message,” however, and appears after the correction. Under budget pressure, compression removes the correction.</p>
+<p>The model chooses a direct message. Retrieval found the relevant content, but the final Context is wrong.</p>
+<p>Retrieval produces candidates. The model input also passes through selection, conflict handling, ordering, compression, permission, and provider shaping. Context Eval should test the resulting projection with provenance, not merely what vector search returned.</p>
+<h2 id="separate-the-observable-pipeline-objects">Separate the observable pipeline objects</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>source records</span></span>
+<span class="line"><span>  → retrieval candidates</span></span>
+<span class="line"><span>  → assembly decisions</span></span>
+<span class="line"><span>  → AgentMessage projection</span></span>
+<span class="line"><span>  → provider-shaped messages</span></span>
+<span class="line"><span>  → model response</span></span></code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Layer</th><th>Observable object</th><th>Typical failure</th></tr></thead><tbody><tr><td>Source</td><td>History, Memory, Tool Result, files, revisions</td><td>stale or unauthorized source fact</td></tr><tr><td>Retrieval</td><td>candidates and scores</td><td>required item not recalled</td></tr><tr><td>Assembly</td><td>include/drop/override/compress decisions</td><td>wrong conflict resolution</td></tr><tr><td>Projection</td><td>model input with provenance</td><td>pollution or missing constraint</td></tr><tr><td>Provider shaping</td><td>messages actually sent</td><td>adapter drops or reorders data</td></tr><tr><td>Response</td><td>model output</td><td>reasoning fails with correct Context</td></tr></tbody></table>
+<p>Checking only the response blames Context for model behavior; checking only candidates misses later failures. Every case declares the layer it evaluates.</p>
+<h2 id="cases-define-required-distractor-conflict-and-unsafe-inputs">Cases define Required, Distractor, Conflict, and Unsafe inputs</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">required</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_correction_v2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    fact</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delivery_channel = project_channel</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current_user_message</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">distractor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">unrelated_meeting_note</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">conflicting</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">preference_v1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    fact</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delivery_channel = direct_message</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">memory</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    superseded_by</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_correction_v2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">unsafe</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">other_tenant_preference</span></span></code></pre>
+<p>These are grader labels, not model-visible answers. They test whether required information survives, distractors waste budget, conflicts are handled, and unsafe items are rejected. An item may play a different role in another case; classification depends on objective, time, and policy.</p>
+<h2 id="measure-coverage-in-the-final-projection">Measure coverage in the final projection</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>retrieval recall</span></span>
+<span class="line"><span>= recalled required items / all required items</span></span></code></pre>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Context coverage</span></span>
+<span class="line"><span>= required facts still usable in provider-shaped Context</span></span>
+<span class="line"><span>/ all required facts</span></span></code></pre>
+<p>“Usable” is semantic. Compression that changes “do not send a direct message” into “discuss report delivery” loses the negation. Content hidden in metadata the model cannot see does not count.</p>
+<p>Coverage grading may combine deterministic identity/provenance checks, rules for structured constraints, and a calibrated semantic grader for summary equivalence.</p>
+<h2 id="provenance-and-citations-test-where-a-fact-came-from">Provenance and citations test where a fact came from</h2>
+<p>A correct answer may come from parametric memory or a stale source. Preserve source identity, revision, time, permission domain, and transformation lineage:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>context_item_9</span></span>
+<span class="line"><span>  ← user_message_22</span></span>
+<span class="line"><span>  ← transformed_by compression@5</span></span>
+<span class="line"><span>  ← included_by assembly_policy@8</span></span></code></pre>
+<p>When output citations are required:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>citation coverage</span></span>
+<span class="line"><span>= claims with required citations / claims requiring citations</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>citation correctness</span></span>
+<span class="line"><span>= citations that support their claims / all actual citations</span></span></code></pre>
+<p>Claim and citation denominators answer different questions. A cited claim can pass coverage and fail correctness.</p>
+<h2 id="pollution-measures-harmful-inclusion-not-only-omission">Pollution measures harmful inclusion, not only omission</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>missing: required item absent</span></span>
+<span class="line"><span>pollution: irrelevant or harmful item included</span></span>
+<span class="line"><span>override: weaker or stale fact defeats authoritative fact</span></span></code></pre>
+<p>Pollution may be measured by item:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>included distractor items / all included items</span></span></code></pre>
+<p>or by tokens, using an actual tokenizer or stated estimate. One long distractor may be one item but consume most of the budget.</p>
+<p>Unauthorized content is a separate hard failure, not a small pollution percentage:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>projections containing at least one unauthorized item</span></span>
+<span class="line"><span>/ all evaluated projections</span></span></code></pre>
+<p>Permission must hold before model exposure, regardless of whether the answer repeats the secret.</p>
+<h2 id="conflict-handling-needs-explicit-precedence">Conflict handling needs explicit precedence</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>current explicit user correction</span></span>
+<span class="line"><span>  supersedes</span></span>
+<span class="line"><span>older preference Memory for the same subject</span></span></code></pre>
+<p>The grader checks conflict detection, inclusion of the authoritative item, removal or marking of the stale item, absence of unresolved dual instructions, and whether degradation protected the wrong value.</p>
+<p>When policy cannot determine authority, preserving the conflict and asking for clarification may be correct. <code>unknown</code> is valid.</p>
+<h2 id="budget-efficiency-must-be-defined-with-value">Budget efficiency must be defined with value</h2>
+<p>Shorter is not automatically better. Useful diagnostics include:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>required facts preserved / final Context tokens</span></span>
+<span class="line"><span>distractor tokens / final Context tokens</span></span>
+<span class="line"><span>final Context tokens / configured Context budget</span></span></code></pre>
+<p>Compare efficiency only after configurations preserve required facts, permissions, and conflict rules on the same cases and model configuration. State the tokenizer or counting method; no universal optimum exists.</p>
+<p>The degradation order is also testable:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>protect first: current constraints, unresolved Tool Results, authoritative corrections</span></span>
+<span class="line"><span>compress next: history superseded by later messages</span></span>
+<span class="line"><span>drop last: irrelevant candidates</span></span></code></pre>
+<p>Deleting the current correction first violates the contract even if the result fits the token budget.</p>
+<h2 id="five-regression-case-classes-cover-different-decisions">Five regression-case classes cover different decisions</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Case</th><th>Injected condition</th><th>Expected evidence</th></tr></thead><tbody><tr><td>Required missing</td><td>fact near retrieval boundary</td><td>final projection contains it</td></tr><tr><td>Distractor pollution</td><td>highly similar irrelevant text</td><td>dropped or does not displace key budget</td></tr><tr><td>Stale conflict</td><td>old Memory vs current correction</td><td>correction wins or clarification</td></tr><tr><td>Permission violation</td><td>highly relevant other-tenant data</td><td>rejected before model exposure</td></tr><tr><td>Budget degradation</td><td>input exceeds budget</td><td>structured compression preserves constraints</td></tr></tbody></table>
+<p>Each case stores source fixtures, assembly configuration, provider-shaped Context fingerprint, and grader version so a change can be localized to retrieval, assembly, or adapter.</p>
+<h2 id="perfect-recall-can-still-produce-a-failed-context">Perfect recall can still produce a failed Context</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">retrieval</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  required_items_found</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1/1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">projection</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  required_facts_preserved</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">0/1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  stale_conflicts_included</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  authoritative_conflict_winner</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  unauthorized_items</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">budget</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  within_limit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  degradation_order</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">context_outcome</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span></code></pre>
+<p>Recall is 1/1, but the required fact disappeared and stale Memory won. The Context may contribute to the model’s direct-message choice, yet response failure still needs separate evaluation rather than being assigned to assembly from correlation alone.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Finding all relevant candidates proves only that retrieval did not miss the required item. It does not prove that the model received a correct Context.</p>
+<p>Context Eval fixes observable objects across source, retrieval, assembly, projection, and provider shaping, then tests required coverage, provenance, citations, pollution, conflict, permission, and budget degradation. Missing, wrongful inclusion, and wrongful override are distinct failures.</p>
+<p>The opening high-recall case fails because the evaluation target must be what this Turn actually gave the model under its source, permission, conflict, and budget decisions—not merely what search found.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-tool-system-evaluation/" rel="prev"> <span>Previous</span> <strong>Which Failure Layer Should a Tool System Eval Diagnose?</strong> </a> <a href="/writing/agent-production-evaluation-loop/" rel="next"> <span>Next</span> <strong>Closing the Loop Between Evaluation and Production</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#separate-the-observable-pipeline-objects">Separate the observable pipeline objects</a></li><li><a href="#cases-define-required-distractor-conflict-and-unsafe-inputs">Cases define Required, Distractor, Conflict, and Unsafe inputs</a></li><li><a href="#measure-coverage-in-the-final-projection">Measure coverage in the final projection</a></li><li><a href="#provenance-and-citations-test-where-a-fact-came-from">Provenance and citations test where a fact came from</a></li><li><a href="#pollution-measures-harmful-inclusion-not-only-omission">Pollution measures harmful inclusion, not only omission</a></li><li><a href="#conflict-handling-needs-explicit-precedence">Conflict handling needs explicit precedence</a></li><li><a href="#budget-efficiency-must-be-defined-with-value">Budget efficiency must be defined with value</a></li><li><a href="#five-regression-case-classes-cover-different-decisions">Five regression-case classes cover different decisions</a></li><li><a href="#perfect-recall-can-still-produce-a-failed-context">Perfect recall can still produce a failed Context</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-context-projection/">Context Is a Constrained Projection</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-memory-safety-evaluation/">How to Test Memory&#39;s Persistent-Risk Defenses</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Separate subject, actor, execution identity, credential, and authorization so authority can cross Queues, Tools, and Child Runs."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Identity and Authorization Must Survive the Execution Chain | Xiaoyuan"><meta property="og:description" content="Separate subject, actor, execution identity, credential, and authorization so authority can cross Queues, Tools, and Child Runs."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-identity-authorization/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Identity and Authorization Must Survive the Execution Chain | Xiaoyuan"><meta name="twitter:description" content="Separate subject, actor, execution identity, credential, and authorization so authority can cross Queues, Tools, and Child Runs."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Production"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Security"><meta property="article:tag" content="Authorization"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-identity-authorization/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-identity-authorization/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-identity-authorization/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-identity-authorization/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-identity-authorization/#article","headline":"Identity and Authorization Must Survive the Execution Chain","description":"Separate subject, actor, execution identity, credential, and authorization so authority can cross Queues, Tools, and Child Runs.","url":"https://xiaoyuan-gu.github.io/writing/agent-identity-authorization/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-identity-authorization/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Production","Agent","Security","Authorization"]}</script><title>Identity and Authorization Must Survive the Execution Chain | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-identity-authorization/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Production · 03 </p> <h1 class="page-title">Identity and Authorization Must Survive the Execution Chain</h1> <p class="article-deck">Separate subject, actor, execution identity, credential, and authorization so authority can cross Queues, Tools, and Child Runs.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Production/">Agent Production</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Security/">Security</a><a class="pill" href="/tags/Authorization/">Authorization</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user asks an Agent to update a report. The API entry point authenticates the user and confirms that they may currently edit the file. The system then places the task on a Queue, a background worker creates a Child Run, and the Child Run eventually calls a file Tool.</p>
+<p>At write time, the backend sees the worker’s service credential. The audit log can say only that a worker called the API. It cannot prove which user the worker represented, which Agents participated in the delegation, or whether the original permission has since been revoked.</p>
+<p>One apparent fix is to put the user’s access token in the Job and pass it through the Queue, Child Run, and Sandbox. This expands the exposure of a bearer credential, and the token may expire while it waits.</p>
+<p>The execution chain does not need one continuous token. It needs a verifiable relationship: <strong>whose goal is being executed, who is currently acting, which workload sent the request, and whether the current action on the current resource is still authorized.</strong></p>
+<h2 id="five-concepts-answer-different-questions">Five concepts answer different questions</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Concept</th><th>Question it answers</th><th>File-update example</th></tr></thead><tbody><tr><td>Subject</td><td>Whose goal and authority are represented?</td><td>The user who made the request</td></tr><tr><td>Actor</td><td>Who is acting on behalf of the subject?</td><td>Agent, Child Run, or worker</td></tr><tr><td>Execution identity</td><td>Which workload accesses infrastructure?</td><td>Worker workload identity</td></tr><tr><td>Credential</td><td>How does the caller prove identity to a service?</td><td>Audience-bound short-lived token</td></tr><tr><td>Authorization</td><td>Is the current action allowed?</td><td><code>file.update</code> on <code>file_12</code></td></tr></tbody></table>
+<p>These concepts cannot replace one another. A <code>trace_id</code> can correlate a call path but is not identity. A <code>user_id</code> is a claim; placing it in a Queue does not prove who wrote it. A service credential proves the worker’s identity but does not automatically express which subject it represents.</p>
+<p>RFC 8693 OAuth Token Exchange explicitly distinguishes subject and actor tokens, as well as delegation and impersonation. An Agent system does not have to use this protocol, but it should preserve the same semantic distinction: delegation should not disguise the actor as the subject.</p>
+<h2 id="a-queue-stores-a-delegation-reference-not-unlimited-authority">A Queue stores a delegation reference, not unlimited authority</h2>
+<p>After authentication at the entry point, the system can create a constrained delegation record:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "delegation_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"del_81"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "subject_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"user_7"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "actor_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"agent_run_19"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tenant_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tenant_3"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "actions"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file.update"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "resources"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file_12"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "audience"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file-service"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "expires_at"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "parent_delegation"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"active"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>The Job carries only the <code>delegation_id</code> and the stable identities needed to complete the work. The worker claims the Job with its own workload identity, resolves the delegation through a trusted authorization service, and obtains a short-lived credential for the file service. A long-lived user token never enters the prompt, Queue payload, or Workspace.</p>
+<p>This design does not freeze permission at the entry point. Before execution, the worker still checks whether the delegation has expired or been revoked, whether the subject may still access the resource, and whether the action and audience match.</p>
+<h2 id="a-child-run-may-only-narrow-delegation">A Child Run may only narrow delegation</h2>
+<p>A parent Agent that can modify an entire project does not imply that a summarization Child Run needs write permission. When creating the child, a trusted Runtime should establish that the child’s authority is a subset of the parent’s:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>parent: files.read + files.write on /project/**</span></span>
+<span class="line"><span>child:  files.read on /project/docs/**</span></span></code></pre>
+<p>Delegation can narrow the action, resource, tenant, audience, validity period, and delegation depth. Natural language returned by a Child Run cannot expand these boundaries. Its execution identity also cannot be derived from <code>run_id</code> alone; a trusted execution environment must bind and authenticate it.</p>
+<p>If a later step truly requires broader authority, the system should return to the subject that can grant it instead of letting the model place a larger <code>scope</code> in Tool arguments.</p>
+<h2 id="rbac-abac-and-capabilities-are-complementary-layers">RBAC, ABAC, and capabilities are complementary layers</h2>
+<p>These models are often presented as alternatives, but they fit state with different degrees of stability:</p>
+<ul>
+<li>RBAC expresses stable responsibilities, such as an editor being able to propose file updates.</li>
+<li>ABAC evaluates attributes such as tenant, resource owner, classification, and time.</li>
+<li>A capability or delegation grant expresses temporary, transferable but constrained authority over a particular action and resource.</li>
+</ul>
+<p>A practical decision might use RBAC to establish that the subject has an editing role, ABAC to check the file’s tenant and current state, and then issue a short-lived grant valid only for <code>file_12</code>, <code>file.update</code>, and the file service.</p>
+<p>This is a design composition, not a fixed sequence required by a standard. In a simple system where requests do not cross a boundary, direct RBAC/ABAC evaluation by the backend against the authenticated user may be enough. A stable delegation reference becomes necessary when execution is asynchronous or delegated.</p>
+<h2 id="the-model-proposes-arguments-the-backend-authorizes-execution">The model proposes arguments; the backend authorizes execution</h2>
+<p>The model may propose:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"tool"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"update_file"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"fileId"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"file_12"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"expectedRevision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">7</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"patch"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>The model-visible <code>fileId</code> must come from a canonical resource reference that the Runtime has resolved and is authorized to expose. If the user initially supplied a path, a trusted boundary first resolves it to a resource identity bound to a revision before it enters the proposal. The model cannot authoritatively supply <code>subject_id</code>, <code>tenant_id</code>, an authorization decision, or a credential. The Runtime injects those fields from the trusted Session and delegation. The Tool handler checks arguments, revision, and policy, and the backend that owns the resource facts authorizes again:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// Conceptual example</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> fileService.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">update</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {fileId: args.fileId, expectedRevision: args.expectedRevision, patch: args.patch},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    subject: trusted.subject,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    actor: trusted.actor,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    executionIdentity: trusted.executionIdentity,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    delegation: trusted.delegationRef,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    tenant: trusted.tenant</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p>Final enforcement must be close to the resource because only the backend knows the file’s current owner, revision, classification, and policy. A Tool description, system prompt, or model claim that an action is authorized is not a trusted authorization fact.</p>
+<h2 id="audit-the-identity-chain-not-only-the-caller">Audit the identity chain, not only the caller</h2>
+<p>A useful audit record links at least:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>subject → actor chain → execution identity</span></span>
+<span class="line"><span>        → delegation revision</span></span>
+<span class="line"><span>        → tenant + action + resource</span></span>
+<span class="line"><span>        → authorization decision + effect outcome</span></span></code></pre>
+<p>This does not mean recording every token or prompt. Credential records normally contain only issuer, audience, key/token reference, and expiry metadata; the secret itself should not enter logs. Audit also needs to separate the authorization decision from the eventual effect so that “the call was permitted” is not recorded as “the update succeeded.”</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The opening worker should not update the report using only a shared service token. After claiming the Job, it uses its workload identity to resolve a still-valid delegation and obtains a short-lived credential for the file service. The file service then authorizes against the current subject, actor, tenant, action, and state of <code>file_12</code>.</p>
+<p>The backend can now reject the action after user permission is revoked. The Child Run can use only its narrowed grant. The audit record can identify whose goal, which actor, and which workload participated in the action.</p>
+<p>Identity continuity does not mean forwarding one credential to the end of the chain. The verifiable delegation chain is continuous; authorization is evaluated again at the boundary that owns the current resource facts.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8693.html">RFC 8693: OAuth 2.0 Token Exchange</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc7662.html">RFC 7662: OAuth 2.0 Token Introspection</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-workspace-recovery/" rel="prev"> <span>Previous</span> <strong>How a Workspace Recovers Across Runtimes</strong> </a> <a href="/writing/agent-untrusted-content-tool-boundary/" rel="next"> <span>Next</span> <strong>How to Stop External Content from Producing a Tool Effect</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#five-concepts-answer-different-questions">Five concepts answer different questions</a></li><li><a href="#a-queue-stores-a-delegation-reference-not-unlimited-authority">A Queue stores a delegation reference, not unlimited authority</a></li><li><a href="#a-child-run-may-only-narrow-delegation">A Child Run may only narrow delegation</a></li><li><a href="#rbac-abac-and-capabilities-are-complementary-layers">RBAC, ABAC, and capabilities are complementary layers</a></li><li><a href="#the-model-proposes-arguments-the-backend-authorizes-execution">The model proposes arguments; the backend authorizes execution</a></li><li><a href="#audit-the-identity-chain-not-only-the-caller">Audit the identity chain, not only the caller</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-connectors-mcp-boundary/">How Connectors, MCP, and the Host Control Plane Divide Responsibility</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-memory-safety-evaluation/">How to Test Memory&#39;s Persistent-Risk Defenses</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-workspace/">Why One File Needs Both an Artifact Identity and a Workspace Reference</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

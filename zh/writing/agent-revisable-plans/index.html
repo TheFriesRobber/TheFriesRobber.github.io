@@ -1,0 +1,300 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="把 Plan 建模为带 revision、依赖、前提和 evidence lineage 的可修订 Artifact，而不是执行状态机。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Plan 怎样在前提变化后安全修订 | Xiaoyuan"><meta property="og:description" content="把 Plan 建模为带 revision、依赖、前提和 evidence lineage 的可修订 Artifact，而不是执行状态机。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-revisable-plans/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Plan 怎样在前提变化后安全修订 | Xiaoyuan"><meta name="twitter:description" content="把 Plan 建模为带 revision、依赖、前提和 evidence lineage 的可修订 Artifact，而不是执行状态机。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Core"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Planning"><meta property="article:tag" content="Artifacts"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-revisable-plans/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-revisable-plans/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-revisable-plans/#article","headline":"Plan 怎样在前提变化后安全修订","description":"把 Plan 建模为带 revision、依赖、前提和 evidence lineage 的可修订 Artifact，而不是执行状态机。","url":"https://xiaoyuan-gu.github.io/zh/writing/agent-revisable-plans/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-revisable-plans/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Agents"],"keywords":["Agent Core","Agent","Planning","Artifacts"]}</script><title>Plan 怎样在前提变化后安全修订 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-revisable-plans/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Core · 12 </p> <h1 class="page-title">Plan 怎样在前提变化后安全修订</h1> <p class="article-deck">把 Plan 建模为带 revision、依赖、前提和 evidence lineage 的可修订 Artifact，而不是执行状态机。</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">2026/07/24</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent%20Core/">Agent Core</a><a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Planning/">Planning</a><a class="pill" href="/zh/tags/Artifacts/">Artifacts</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>Agent 的计划假设目标 API 支持批量写入，于是生成三个步骤：准备批量 payload、调用批量接口、验证结果。执行中读到新文档，发现该 API 只支持单条写入，但三个步骤仍都显示 <code>ready</code>。</p>
+<p>如果只让模型“重新想一个计划”，旧计划项、已经取得的证据和正在执行的工作会失去关联；如果继续原计划，又会在失效前提上重复失败。Plan 需要被修订，但不能冒充 Runtime 的执行状态。</p>
+<h2 id="plan-描述承诺不拥有执行事实">Plan 描述承诺，不拥有执行事实</h2>
+<p>Plan item 表达“为了目标，准备完成什么”。它可以关联 Child Run、Job 或 Tool operation，但这些执行原语各自拥有 started、attempt、outcome 和 cancellation。</p>
+<p>把 Plan item 直接标成 <code>running/succeeded</code>，容易让两层事实混在一起：</p>
+<ul>
+<li>Plan revision 说明当前承诺是否仍有效；</li>
+<li>execution owner 说明某次工作实际上发生了什么。</li>
+</ul>
+<p>执行结果可以成为 Plan evidence，Plan 却不能覆盖 Tool 或 Job 的历史。这样，replan 才不会把已经发生的副作用从记录中删掉。</p>
+<h2 id="最小-plan-artifact-需要-revision">最小 Plan Artifact 需要 revision</h2>
+<p>一份可修订 Plan 至少包含：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>plan_id</span></span>
+<span class="line"><span>revision</span></span>
+<span class="line"><span>goal</span></span>
+<span class="line"><span>items</span></span>
+<span class="line"><span>dependencies</span></span>
+<span class="line"><span>assumptions</span></span>
+<span class="line"><span>evidence references</span></span>
+<span class="line"><span>supersedes</span></span></code></pre>
+<p>每个 item 还应能表达 <code>ready</code>、<code>blocked</code>、<code>stale</code> 或 <code>done</code> 这类承诺状态。这里的 <code>done</code> 表示“目标所需的证据已满足”，不是某个 handler promise 返回。</p>
+<p>Revision 让读取方明确自己看到哪一版。原地修改 item 文本会让正在执行的 Child Run 无法判断自己对应哪个 proposal，也让审计无法解释计划为什么变化。</p>
+<p>模型只能生成 revision proposal。可信 Plan owner 还要校验 evidence、policy 和 <code>expected_revision</code>，再通过 compare-and-swap（CAS）原子切换 active revision。若用户修改和后台 replan 都基于 revision 1，只有一个 proposal 能提交；另一个必须读取新的 active revision 后重新计算。执行对象与结果消费方始终绑定 <code>plan_id + revision + item_id</code>。</p>
+<h2 id="前提失效要沿依赖传播">前提失效要沿依赖传播</h2>
+<p>开场计划可以表示为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>assumption A: bulk API is supported</span></span>
+<span class="line"><span>item 1: build bulk payload      depends on A</span></span>
+<span class="line"><span>item 2: call bulk API           depends on item 1</span></span>
+<span class="line"><span>item 3: verify all writes       depends on item 2</span></span></code></pre>
+<p>新文档使 A 失效后，不是所有 evidence 都必须丢弃。已经收集的记录列表仍然有效；bulk payload 的组织形式可能失效；验证目标仍有效，但其输入依赖需要重建。</p>
+<p>Plan owner 校验 <code>expected_revision=1</code> 后提交 revision 2：</p>
+<ul>
+<li>A 标为 invalid，并引用新文档；</li>
+<li>item 1、2 标为 stale；</li>
+<li>新增“逐条写入并使用 operation key”；</li>
+<li>item 3 改为依赖所有单条写入的 terminal evidence；</li>
+<li>可复用的输入 evidence 保持原引用。</li>
+</ul>
+<p>这比完全生成一份无关新计划更安全，因为变更原因和仍有效证据都可追踪。</p>
+<h2 id="replan-要说明什么改变了">Replan 要说明什么改变了</h2>
+<p>一次可审查的 replan 至少回答：</p>
+<ol>
+<li>哪条新 evidence 推翻了哪个 assumption；</li>
+<li>哪些 item 因依赖关系变成 stale 或 blocked；</li>
+<li>哪些 evidence 仍然有效；</li>
+<li>哪些已启动执行需要取消、等待或继续；</li>
+<li>新 revision 何时成为 active plan。</li>
+</ol>
+<p>Plan revision 不能自动取消外部工作。若旧 item 已经创建 Child Run，真正的执行 owner 仍要处理 cancellation 和 effect reconciliation。Plan 只改变“这个工作是否仍服务于当前承诺”。</p>
+<h2 id="plan-可以产生-delegation-proposal">Plan 可以产生 Delegation proposal</h2>
+<p>一个 ready item 可以成为 delegation proposal，但它不决定应该使用 SubAgent、后台 Job 还是 durable Workflow。执行原语取决于完成状态 owner、生命周期、隔离和恢复要求。</p>
+<p>这也说明没有显式 Plan 的简单任务仍然可以 delegation；有 Plan 的任务也不必把每个 item 都变成 Child Run。Plan 负责依赖与承诺，Delegation 负责选择执行 owner。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>发现批量 API 不受支持后，安全修订不是清空旧计划，也不是让旧步骤继续 retry。Plan owner 应：</p>
+<ol>
+<li>用新证据使旧 assumption 失效；</li>
+<li>沿依赖标记 stale/blocked item；</li>
+<li>保留仍成立的输入和验证 evidence；</li>
+<li>生成新的 Plan revision；</li>
+<li>让各 execution owner 独立处理已启动工作的取消或收敛。</li>
+</ol>
+<p>Plan 因而是一份可版本化、可修订的 Artifact。它告诉读者和系统“当前承诺为什么是这一版”，但不篡改已经发生的执行事实。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-failure-recovery/" rel="prev"> <span>上一篇</span> <strong>谁拥有失败状态，谁决定恢复动作</strong> </a> <a href="/zh/writing/agent-delegation-ownership/" rel="next"> <span>下一篇</span> <strong>Delegation 的执行状态该由谁拥有</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#plan-描述承诺不拥有执行事实">Plan 描述承诺，不拥有执行事实</a></li><li><a href="#最小-plan-artifact-需要-revision">最小 Plan Artifact 需要 revision</a></li><li><a href="#前提失效要沿依赖传播">前提失效要沿依赖传播</a></li><li><a href="#replan-要说明什么改变了">Replan 要说明什么改变了</a></li><li><a href="#plan-可以产生-delegation-proposal">Plan 可以产生 Delegation proposal</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-artifact-workspace/">同一个文件为什么需要 Artifact identity 与 Workspace reference</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-action-confirmation/">高风险动作需要可校验的确认协议</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-connectors-mcp-boundary/">Connector、MCP 与宿主 Control Plane 如何分工</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

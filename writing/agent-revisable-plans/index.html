@@ -1,0 +1,300 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Model a Plan as a revisable Artifact with revisions, dependencies, assumptions, and evidence lineage—not as an execution state machine."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="How to Revise a Plan Safely When Its Assumptions Change | Xiaoyuan"><meta property="og:description" content="Model a Plan as a revisable Artifact with revisions, dependencies, assumptions, and evidence lineage—not as an execution state machine."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="How to Revise a Plan Safely When Its Assumptions Change | Xiaoyuan"><meta name="twitter:description" content="Model a Plan as a revisable Artifact with revisions, dependencies, assumptions, and evidence lineage—not as an execution state machine."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Core"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Planning"><meta property="article:tag" content="Artifacts"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-revisable-plans/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/#article","headline":"How to Revise a Plan Safely When Its Assumptions Change","description":"Model a Plan as a revisable Artifact with revisions, dependencies, assumptions, and evidence lineage—not as an execution state machine.","url":"https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-revisable-plans/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Core","Agent","Planning","Artifacts"]}</script><title>How to Revise a Plan Safely When Its Assumptions Change | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-revisable-plans/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Core · 12 </p> <h1 class="page-title">How to Revise a Plan Safely When Its Assumptions Change</h1> <p class="article-deck">Model a Plan as a revisable Artifact with revisions, dependencies, assumptions, and evidence lineage—not as an execution state machine.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Core/">Agent Core</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Planning/">Planning</a><a class="pill" href="/tags/Artifacts/">Artifacts</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent’s plan assumes that the target API supports batch writes, so it creates three steps: prepare a batch payload, invoke the batch endpoint, and verify the result. During execution, the Agent reads new documentation stating that the API supports only individual writes, but all three steps still show <code>ready</code>.</p>
+<p>If the model is simply asked to “make another plan,” the old plan items, evidence already collected, and work in progress lose their relationships. Continuing with the old plan causes repeated failure under an invalid assumption. The Plan needs revision, but it must not impersonate Runtime execution state.</p>
+<h2 id="a-plan-describes-commitments-it-does-not-own-execution-facts">A Plan describes commitments; it does not own execution facts</h2>
+<p>A Plan item states what the system intends to complete in service of a goal. It may refer to a Child Run, Job, or Tool operation, but each execution primitive owns its own started state, Attempts, outcomes, and cancellation.</p>
+<p>Marking a Plan item directly as <code>running/succeeded</code> easily mixes two kinds of fact:</p>
+<ul>
+<li>the Plan revision says whether the current commitment remains valid;</li>
+<li>the execution owner says what work actually occurred.</li>
+</ul>
+<p>An execution result may become Plan evidence. A Plan must not overwrite Tool or Job history. That separation keeps replanning from deleting side effects that have already occurred.</p>
+<h2 id="a-minimal-plan-artifact-needs-a-revision">A minimal Plan Artifact needs a revision</h2>
+<p>A revisable Plan contains at least:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>plan_id</span></span>
+<span class="line"><span>revision</span></span>
+<span class="line"><span>goal</span></span>
+<span class="line"><span>items</span></span>
+<span class="line"><span>dependencies</span></span>
+<span class="line"><span>assumptions</span></span>
+<span class="line"><span>evidence references</span></span>
+<span class="line"><span>supersedes</span></span></code></pre>
+<p>Each item should also express commitment states such as <code>ready</code>, <code>blocked</code>, <code>stale</code>, or <code>done</code>. Here, <code>done</code> means that the evidence required by the goal is satisfied, not that a particular handler promise returned.</p>
+<p>A revision tells every reader exactly which version it sees. Editing item text in place leaves an executing Child Run unable to determine which proposal it implements and prevents audit from explaining why the plan changed.</p>
+<p>The model can propose only a new revision. A trusted Plan owner validates evidence, policy, and <code>expected_revision</code>, then atomically switches the active revision with compare-and-swap (CAS). If a user edit and a background replan both start from revision 1, only one proposal may commit. The other must read the new active revision and recompute. Execution objects and result consumers remain bound to <code>plan_id + revision + item_id</code>.</p>
+<h2 id="invalid-assumptions-propagate-through-dependencies">Invalid assumptions propagate through dependencies</h2>
+<p>The opening plan can be represented as:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>assumption A: bulk API is supported</span></span>
+<span class="line"><span>item 1: build bulk payload      depends on A</span></span>
+<span class="line"><span>item 2: call bulk API           depends on item 1</span></span>
+<span class="line"><span>item 3: verify all writes       depends on item 2</span></span></code></pre>
+<p>When the new documentation invalidates A, not all existing evidence must be discarded. The collected record list remains valid. The organization of the batch payload may not. The verification goal remains valid, but its input dependencies must be rebuilt.</p>
+<p>After validating <code>expected_revision=1</code>, the Plan owner commits revision 2:</p>
+<ul>
+<li>mark A invalid and reference the new documentation;</li>
+<li>mark items 1 and 2 stale;</li>
+<li>add “write each record with an operation key”;</li>
+<li>make item 3 depend on terminal evidence from all individual writes;</li>
+<li>retain references to reusable input evidence.</li>
+</ul>
+<p>This is safer than generating an unrelated new plan because the reason for the change and all still-valid evidence remain traceable.</p>
+<h2 id="a-replan-must-say-what-changed">A replan must say what changed</h2>
+<p>An inspectable replan answers at least:</p>
+<ol>
+<li>Which new evidence invalidated which assumption?</li>
+<li>Which dependencies made items stale or blocked?</li>
+<li>Which evidence remains valid?</li>
+<li>Which started executions should be cancelled, awaited, or allowed to continue?</li>
+<li>When does the new revision become the active Plan?</li>
+</ol>
+<p>A Plan revision cannot cancel external work automatically. If an old item already created a Child Run, the real execution owner still handles cancellation and effect reconciliation. The Plan changes only whether that work still serves the current commitment.</p>
+<h2 id="a-plan-may-produce-a-delegation-proposal">A Plan may produce a Delegation proposal</h2>
+<p>A ready item may become a delegation proposal, but it does not decide whether execution should use a SubAgent, background Job, or durable Workflow. The execution primitive depends on who owns completion, lifecycle, isolation, and recovery.</p>
+<p>This also means that a simple task with no explicit Plan can still delegate, while a task with a Plan does not need to make every item a Child Run. The Plan owns dependencies and commitments. Delegation chooses the execution owner.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>After discovering that the batch API is unsupported, a safe revision neither erases the old plan nor keeps retrying its old steps. The Plan owner should:</p>
+<ol>
+<li>invalidate the old assumption with the new evidence;</li>
+<li>propagate stale or blocked state through dependencies;</li>
+<li>preserve input and verification evidence that remains valid;</li>
+<li>create a new Plan revision;</li>
+<li>let each execution owner independently cancel or converge work already started.</li>
+</ol>
+<p>A Plan is therefore a versioned, revisable Artifact. It tells readers and the system why the current commitment has this form without falsifying execution facts that already occurred.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-failure-recovery/" rel="prev"> <span>Previous</span> <strong>The Owner of a Failure State Chooses the Recovery Action</strong> </a> <a href="/writing/agent-delegation-ownership/" rel="next"> <span>Next</span> <strong>Who Should Own the Execution State of Delegated Work?</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#a-plan-describes-commitments-it-does-not-own-execution-facts">A Plan describes commitments; it does not own execution facts</a></li><li><a href="#a-minimal-plan-artifact-needs-a-revision">A minimal Plan Artifact needs a revision</a></li><li><a href="#invalid-assumptions-propagate-through-dependencies">Invalid assumptions propagate through dependencies</a></li><li><a href="#a-replan-must-say-what-changed">A replan must say what changed</a></li><li><a href="#a-plan-may-produce-a-delegation-proposal">A Plan may produce a Delegation proposal</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-workspace/">Why One File Needs Both an Artifact Identity and a Workspace Reference</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-connectors-mcp-boundary/">How Connectors, MCP, and the Host Control Plane Divide Responsibility</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

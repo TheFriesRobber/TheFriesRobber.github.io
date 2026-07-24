@@ -1,0 +1,440 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用 required information、citation、pollution、conflict 与 budget efficiency 验证一次 Context 投影。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Context Assembly 评测不能只看 Recall | Xiaoyuan"><meta property="og:description" content="用 required information、citation、pollution、conflict 与 budget efficiency 验证一次 Context 投影。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-context-assembly-evaluation/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Context Assembly 评测不能只看 Recall | Xiaoyuan"><meta name="twitter:description" content="用 required information、citation、pollution、conflict 与 budget efficiency 验证一次 Context 投影。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Verification"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Evaluation"><meta property="article:tag" content="Context Engineering"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-context-assembly-evaluation/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-context-assembly-evaluation/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-context-assembly-evaluation/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-context-assembly-evaluation/#article","headline":"Context Assembly 评测不能只看 Recall","description":"用 required information、citation、pollution、conflict 与 budget efficiency 验证一次 Context 投影。","url":"https://xiaoyuan-gu.github.io/zh/writing/agent-context-assembly-evaluation/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-context-assembly-evaluation/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Agents"],"keywords":["Agent Verification","Agent","Evaluation","Context Engineering"]}</script><title>Context Assembly 评测不能只看 Recall | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-context-assembly-evaluation/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Verification · 06 </p> <h1 class="page-title">Context Assembly 评测不能只看 Recall</h1> <p class="article-deck">用 required information、citation、pollution、conflict 与 budget efficiency 验证一次 Context 投影。</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">2026/07/24</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent%20Verification/">Agent Verification</a><a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Evaluation/">Evaluation</a><a class="pill" href="/zh/tags/Context%20Engineering/">Context Engineering</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>下面用一个构造例子。用户刚刚纠正：“以后把周报发到项目频道，不再发私信。”Context pipeline 成功检索到这条消息，retrieval recall 因而是满的；但旧 Memory 仍写着“周报发私信”，并且被排在纠正消息之后。预算不足时，当前纠正还被 compression 裁掉了。</p>
+<p>模型最终选择私信。检索系统确实“找到了相关内容”，最终 Context 却是错的。</p>
+<p>Retrieval 只产生候选集合。一次真正交给模型的 Context 还经过 selection、冲突处理、ordering、compression、permission 和 provider shaping。Context Eval 的对象应是这次带 provenance 的投影，而不是“向量检索返回过什么”。</p>
+<h2 id="把-pipeline-的可观察对象分开">把 Pipeline 的可观察对象分开</h2>
+<p>一次 Context Assembly 可以表达为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>source records</span></span>
+<span class="line"><span>  → retrieval candidates</span></span>
+<span class="line"><span>  → assembly decisions</span></span>
+<span class="line"><span>  → AgentMessage projection</span></span>
+<span class="line"><span>  → provider-shaped messages</span></span>
+<span class="line"><span>  → model response</span></span></code></pre>
+<p>每层回答不同问题：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>层级</th><th>可观察对象</th><th>典型失败</th></tr></thead><tbody><tr><td>Source</td><td>History、Memory、Tool Result、文件及版本</td><td>源事实已经过期或无权限</td></tr><tr><td>Retrieval</td><td>候选项与 score</td><td>required item 未召回</td></tr><tr><td>Assembly</td><td>include/drop/override/compress 决策</td><td>冲突处理错误</td></tr><tr><td>Projection</td><td>带 provenance 的模型输入</td><td>预算污染、关键约束缺失</td></tr><tr><td>Provider shaping</td><td>实际发送的 messages</td><td>adapter 丢字段或改变顺序</td></tr><tr><td>Response</td><td>模型输出</td><td>有正确 Context 仍推理失败</td></tr></tbody></table>
+<p>只检查最终回答会把模型行为归罪给 Context；只检查 retrieval candidates 又会漏掉 assembly 之后发生的错误。因此，每个 Eval case 应固定要验证的层级。</p>
+<h2 id="case-先声明-requireddistractorconflict-与-unsafe">Case 先声明 Required、Distractor、Conflict 与 Unsafe</h2>
+<p>开场 case 可以把输入 fixture 分类：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">required</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_correction_v2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    fact</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delivery_channel = project_channel</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current_user_message</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">distractor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">unrelated_meeting_note</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">conflicting</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">preference_v1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    fact</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delivery_channel = direct_message</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">memory</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    superseded_by</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_correction_v2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">unsafe</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">other_tenant_preference</span></span></code></pre>
+<p>这些标签不是模型可见的答案，而是 grader contract。它们让系统能够分别判断：</p>
+<ul>
+<li>required information 是否进入最终投影；</li>
+<li>distractor 是否不必要地消耗预算；</li>
+<li>conflicting item 是否被正确标记、降权或排除；</li>
+<li>unsafe item 是否在权限边界前被拒绝。</li>
+</ul>
+<p>同一 source item 在不同 case 中可能角色不同。旧历史如果仍是当前事实，就不是 distractor；分类必须由 case 目标、时间和 policy 共同决定。</p>
+<h2 id="coverage-要测最终投影不只测候选集合">Coverage 要测最终投影，不只测候选集合</h2>
+<p>Retrieval recall 可以定义为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>被召回的 required items / 全部 required items</span></span></code></pre>
+<p>但 Context coverage 应针对真正交给模型的投影：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>在 provider-shaped Context 中仍可用的 required facts</span></span>
+<span class="line"><span>/ 全部 required facts</span></span></code></pre>
+<p>“仍可用”不仅是字符串存在。若压缩把“不要发私信”改成“讨论周报发送方式”，关键否定语义已经丢失；若 source 被拼接进不可见 metadata，也不能算模型获得了事实。</p>
+<p>因此，coverage grader 可以组合：</p>
+<ul>
+<li>确定性检查 item identity 或 provenance；</li>
+<li>规则检查结构化 constraint 是否保留；</li>
+<li>对无法稳定编码的摘要等价性使用经过校准的语义 grader。</li>
+</ul>
+<p>选择 grader 的原则不改变 Context 指标本身。</p>
+<h2 id="provenance-与-citation-要验证事实来自哪里">Provenance 与 Citation 要验证“事实来自哪里”</h2>
+<p>模型得到正确答案，不代表来源正确。它可能碰巧依赖参数记忆，或引用了已过期的 Memory。</p>
+<p>一次 projection 应保留 source identity、revision、时间、权限域和 transformation lineage：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>context_item_9</span></span>
+<span class="line"><span>  ← user_message_22</span></span>
+<span class="line"><span>  ← transformed_by compression@5</span></span>
+<span class="line"><span>  ← included_by assembly_policy@8</span></span></code></pre>
+<p>如果产品要求输出 citation，可以分别评测：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>citation coverage</span></span>
+<span class="line"><span>= 有所需 citation 的 claims / 全部必须引用的 claims</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>citation correctness</span></span>
+<span class="line"><span>= 指向支持该 claim 的 citations / 全部实际 citations</span></span></code></pre>
+<p>分母必须说明是 claim 还是 citation。一个 claim 带了 citation，却指向不支持它的 source，coverage 可能通过，correctness 仍应失败。</p>
+<h2 id="pollution-关注错误加入而不只是遗漏">Pollution 关注错误加入，而不只是遗漏</h2>
+<p>Context failure 至少有三类：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>missing: required item 没有进入</span></span>
+<span class="line"><span>pollution: 无关或有害 item 被加入</span></span>
+<span class="line"><span>override: 较弱或过期事实覆盖了权威事实</span></span></code></pre>
+<p>Pollution rate 可以按投影项计算：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>被判定为 distractor 的 included items</span></span>
+<span class="line"><span>/ 全部 included items</span></span></code></pre>
+<p>也可以按 token 计算污染预算，但必须使用实际 tokenizer 或明确估算方法，并写出分母是最终 Context token。项数和 token 比例回答不同问题：一个很长的 distractor 可能只占一项，却吞掉大部分预算。</p>
+<p>Unsafe 或越权内容不应被一个较低 pollution percentage 稀释。它通常是独立 hard failure：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>包含至少一个 unauthorized item 的 projections</span></span>
+<span class="line"><span>/ 全部 evaluated projections</span></span></code></pre>
+<p>权限检查应发生在内容进入模型之前；不能因为最终回答没有复述秘密，就把越权投影判为安全。</p>
+<h2 id="冲突处理需要明确优先关系">冲突处理需要明确优先关系</h2>
+<p>面对 <code>preference_v1=direct_message</code> 与 <code>user_correction_v2=project_channel</code>，pipeline 不能只按 similarity score 或最新插入时间排序。Case 应提供可验证的 precedence：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>当前用户明确纠正</span></span>
+<span class="line"><span>  supersedes</span></span>
+<span class="line"><span>同一主体的旧偏好 Memory</span></span></code></pre>
+<p>Grader 可以检查：</p>
+<ul>
+<li>冲突是否被识别；</li>
+<li>authoritative item 是否进入；</li>
+<li>superseded item 是否被删除或显式标记；</li>
+<li>projection 中是否仍存在未解决的双重指令；</li>
+<li>budget 降级是否错误保护了旧值。</li>
+</ul>
+<p>当 policy 无法决定哪个 source 更权威时，正确结果可能是保留冲突并要求澄清，而不是强行选一个值。<code>unknown</code> 是合法结论。</p>
+<h2 id="budget-efficiency-必须与价值一起定义">Budget Efficiency 必须与价值一起定义</h2>
+<p>“Context 越短越好”不是完整指标。删除所有信息当然节省 token，却无法完成任务。</p>
+<p>可以先记录：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>required facts preserved / final Context tokens</span></span>
+<span class="line"><span>distractor tokens / final Context tokens</span></span>
+<span class="line"><span>final Context tokens / configured Context budget</span></span></code></pre>
+<p>这些比例适合诊断，但不能单独作为 Task gate。更有意义的比较是在相同 case、相同 model configuration 下，观察两个 assembly configuration 是否都守住 required information、权限和 conflict contract，再比较预算使用。</p>
+<p>所有 token 数都要说明 tokenizer 或计数方法。本文不提供任何“最佳比例”；不同任务的最小充分 Context 不同。</p>
+<p>预算不足时，降级顺序本身也应成为测试对象。例如：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>先保护：当前任务约束、未解决 Tool Result、权威纠正</span></span>
+<span class="line"><span>再压缩：已被后续消息覆盖的历史</span></span>
+<span class="line"><span>最后丢弃：无关候选</span></span></code></pre>
+<p>如果 pipeline 反过来先删当前纠正，即使总 token 没超限，Context contract 仍然失败。</p>
+<h2 id="五类-regression-case-覆盖不同决策">五类 Regression Case 覆盖不同决策</h2>
+<p>一个可维护的 Context suite 可以包含：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Case</th><th>注入条件</th><th>预期证据</th></tr></thead><tbody><tr><td>Required missing</td><td>关键事实接近 retrieval 边界</td><td>最终投影仍包含该事实</td></tr><tr><td>Distractor pollution</td><td>高相似但无关片段</td><td>无关项被 drop 或不挤占关键预算</td></tr><tr><td>Stale conflict</td><td>旧 Memory 与当前纠正冲突</td><td>当前纠正胜出或触发澄清</td></tr><tr><td>Permission violation</td><td>其他 tenant 的高相关内容</td><td>进入模型前被拒绝</td></tr><tr><td>Budget degradation</td><td>输入超过配置预算</td><td>按结构化顺序压缩并保留约束</td></tr></tbody></table>
+<p>每个 case 都应保存 source fixture、assembly configuration、provider-shaped Context fingerprint 和 grader version。否则 pipeline 更新后无法判断是 retrieval、assembly 还是 adapter 发生了变化。</p>
+<h2 id="满分-recall-仍可能得到失败-context">满分 Recall 仍可能得到失败 Context</h2>
+<p>对开场构造例子，可以得到：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">retrieval</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  required_items_found</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1/1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">projection</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  required_facts_preserved</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">0/1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  stale_conflicts_included</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  authoritative_conflict_winner</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  unauthorized_items</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">budget</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  within_limit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  degradation_order</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">context_outcome</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span></code></pre>
+<p>Retrieval recall 是 1/1，Context outcome 仍失败，因为 required fact 在最终投影中丢失，旧 Memory 还错误赢得冲突。模型选择私信可能受这份 Context 影响，但最终 response failure 仍需单独评测，不能仅凭相关性把全部责任归给 assembly。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>检索系统找到所有相关片段，只能证明 candidate retrieval 没漏掉 required item，不能证明模型最终看到的 Context 正确。</p>
+<p>Context Eval 要沿 source、retrieval、assembly、projection 和 provider shaping 固定可观察对象，再分别验证 required coverage、provenance、citation、pollution、conflict、permission 与 budget degradation。遗漏、错误加入和错误覆盖是三种不同 failure。</p>
+<p>开场中高 recall 仍失败，正是因为评测对象不该停在“找到了什么”，而应落到“这一轮在什么来源、权限、冲突和预算决策下，真正把什么交给了模型”。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-tool-system-evaluation/" rel="prev"> <span>上一篇</span> <strong>Tool System 评测要诊断哪一层失败</strong> </a> <a href="/zh/writing/agent-production-evaluation-loop/" rel="next"> <span>下一篇</span> <strong>让 Eval 与生产执行形成闭环</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#把-pipeline-的可观察对象分开">把 Pipeline 的可观察对象分开</a></li><li><a href="#case-先声明-requireddistractorconflict-与-unsafe">Case 先声明 Required、Distractor、Conflict 与 Unsafe</a></li><li><a href="#coverage-要测最终投影不只测候选集合">Coverage 要测最终投影，不只测候选集合</a></li><li><a href="#provenance-与-citation-要验证事实来自哪里">Provenance 与 Citation 要验证“事实来自哪里”</a></li><li><a href="#pollution-关注错误加入而不只是遗漏">Pollution 关注错误加入，而不只是遗漏</a></li><li><a href="#冲突处理需要明确优先关系">冲突处理需要明确优先关系</a></li><li><a href="#budget-efficiency-必须与价值一起定义">Budget Efficiency 必须与价值一起定义</a></li><li><a href="#五类-regression-case-覆盖不同决策">五类 Regression Case 覆盖不同决策</a></li><li><a href="#满分-recall-仍可能得到失败-context">满分 Recall 仍可能得到失败 Context</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-context-projection/">Context 是受约束的投影</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-memory-safety-evaluation/">怎样验证 Memory 的持久风险防线</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-action-confirmation/">高风险动作需要可校验的确认协议</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Convert sanitized production Traces into reproducible regression cases while preserving the boundary of assertion-time evidence."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Turning Production Traces into Verifiable Evidence | Xiaoyuan"><meta property="og:description" content="Convert sanitized production Traces into reproducible regression cases while preserving the boundary of assertion-time evidence."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-traces-verifiable-evidence/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Turning Production Traces into Verifiable Evidence | Xiaoyuan"><meta name="twitter:description" content="Convert sanitized production Traces into reproducible regression cases while preserving the boundary of assertion-time evidence."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Verification"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Evaluation"><meta property="article:tag" content="Observability"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-traces-verifiable-evidence/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-traces-verifiable-evidence/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-traces-verifiable-evidence/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-traces-verifiable-evidence/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-traces-verifiable-evidence/#article","headline":"Turning Production Traces into Verifiable Evidence","description":"Convert sanitized production Traces into reproducible regression cases while preserving the boundary of assertion-time evidence.","url":"https://xiaoyuan-gu.github.io/writing/agent-traces-verifiable-evidence/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-traces-verifiable-evidence/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Verification","Agent","Evaluation","Observability"]}</script><title>Turning Production Traces into Verifiable Evidence | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-traces-verifiable-evidence/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Verification · 03 </p> <h1 class="page-title">Turning Production Traces into Verifiable Evidence</h1> <p class="article-deck">Convert sanitized production Traces into reproducible regression cases while preserving the boundary of assertion-time evidence.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Verification/">Agent Verification</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Evaluation/">Evaluation</a><a class="pill" href="/tags/Observability/">Observability</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Consider this synthetic timeline:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Time</th><th>Event</th></tr></thead><tbody><tr><td>10:00:00</td><td>User asks the Agent to write the report to <code>report.md</code></td></tr><tr><td>10:00:03</td><td>Agent replies, “The file has been saved”</td></tr><tr><td>10:00:04</td><td>Runtime starts <code>write_file</code></td></tr><tr><td>10:00:05</td><td>Tool succeeds and creates an Artifact revision</td></tr><tr><td>10:10:00</td><td>Manual inspection confirms that the file exists</td></tr></tbody></table>
+<p>The file ultimately exists, but at 10:00:03 the Agent had no evidence that the write had succeeded. A grader that checks only the file ten minutes later passes an incorrect trace; one that inspects only the Agent text cannot determine whether the claim had support.</p>
+<p>A production Trace can seed a regression case, but it is only candidate evidence from one execution. A durable, replayable case still needs a precise objective, frozen dependencies, privacy treatment, and a record of <strong>when each piece of evidence became available</strong>.</p>
+<h2 id="extract-the-smallest-objective-not-the-whole-conversation">Extract the smallest objective, not the whole conversation</h2>
+<p>A production conversation may include reading data, summarizing it, writing a file, and sending a notification. Copying everything into one case creates a large, unstable fixture and makes failures hard to attribute.</p>
+<p>The opening case has a smaller objective:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Given: the user asks for a write to a specified path</span></span>
+<span class="line"><span>Verify: the Agent claims success only after obtaining evidence for that write</span></span></code></pre>
+<p>The slice needs:</p>
+<ul>
+<li>the triggering user input and required history;</li>
+<li>the Run’s configuration identity;</li>
+<li>relevant Tool Calls, Attempts, and Results;</li>
+<li>Artifact identity and revision before and after the write;</li>
+<li>the event where the Agent makes its claim;</li>
+<li>evidence available before that claim.</li>
+</ul>
+<p>Unrelated conversation can be removed or replaced with a minimal summary. A production Trace is valuable because it exposes a real failure shape, not because it contains more bytes.</p>
+<h2 id="preserve-causality-with-logical-ids-not-timestamps">Preserve causality with logical IDs, not timestamps</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>task_7</span></span>
+<span class="line"><span>  └─ run_12</span></span>
+<span class="line"><span>       ├─ claim_event_3</span></span>
+<span class="line"><span>       └─ tool_execution_42</span></span>
+<span class="line"><span>            └─ attempt_1</span></span>
+<span class="line"><span>                 └─ artifact report_9@v1</span></span></code></pre>
+<p>TraceId and SpanId locate distributed calls, but a regression case also needs stable Task, Run, Tool Execution, Attempt, claim-event, and Artifact-revision identities. They may cross Queue or callback boundaries and live in separate traces while still serving one logical objective.</p>
+<p>Record <code>occurred_at</code>, ingestion order, and causal edges. A delayed callback can occur first and arrive later; adjacent timestamps do not prove causation.</p>
+<h2 id="the-evidence-horizon-limits-what-a-claim-may-use">The evidence horizon limits what a claim may use</h2>
+<p>Define an assertion point for each claim:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>assertion point = event where the Agent exposes “the file has been saved”</span></span></code></pre>
+<p>Then separate:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Evidence type</th><th>Time boundary</th><th>What it can establish</th></tr></thead><tbody><tr><td>Assertion-time evidence</td><td>observed by a trusted boundary before the claim</td><td>whether the claim was supported when made</td></tr><tr><td>Eventual evidence</td><td>appeared after the claim</td><td>whether the result ultimately converged</td></tr><tr><td>Diagnostic evidence</td><td>added for investigation, possibly by a human or later query</td><td>why it failed or how it recovered</td></tr></tbody></table>
+<p>These categories can coexist but are not interchangeable. A file that exists later cannot retroactively support an earlier success claim; an early timeout does not necessarily prove eventual failure.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>10:00:03 claim correctness = failed</span></span>
+<span class="line"><span>  denominator: 1 success claim requiring write evidence</span></span>
+<span class="line"><span>  assertion-time evidence: none</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>10:00:05 eventual outcome = succeeded</span></span>
+<span class="line"><span>  denominator: 1 target Artifact</span></span>
+<span class="line"><span>  eventual evidence: report_9@v1</span></span></code></pre>
+<p>The Agent completed the action but claimed success too early.</p>
+<h2 id="timeout-and-unknown-outcomes-must-stay-open">Timeout and unknown outcomes must stay open</h2>
+<p>If the Tool request at 10:00:04 times out after the write may have happened, the Trace records <code>outcome=unknown</code> and preserves an operation key or effect reference. A later query may converge the eventual outcome to success, but it must not rewrite the original assertion-time evidence.</p>
+<p>The event model must distinguish:</p>
+<ul>
+<li>facts observed at the time;</li>
+<li>later reconciliation against external state;</li>
+<li>the analysis system’s current derived conclusion.</li>
+</ul>
+<p>Overwriting the original Tool Result makes the dataset look as if the Agent knew the result from the start and destroys the regression target.</p>
+<h2 id="sanitization-is-more-than-removing-a-username">Sanitization is more than removing a username</h2>
+<p>Before a production-derived case enters a long-lived dataset, retain only fields required by the objective:</p>
+<ul>
+<li>replace user, tenant, file, and resource IDs with stable synthetic identities;</li>
+<li>reduce real content to synthetic text that preserves the failure structure;</li>
+<li>remove credentials, tokens, internal URLs, and unrelated metadata;</li>
+<li>preserve provenance types and authorization relations without sensitive values;</li>
+<li>abandon traces that cannot be sanitized safely.</li>
+</ul>
+<p>Recheck reproducibility after transformation. Replacing both sides of an “old Memory overrides a current correction” conflict with one placeholder destroys its causal structure.</p>
+<p>Privacy processing needs a version and review record. A dataset should not retain entire payloads because they may be useful someday; minimization is part of the case contract.</p>
+<h2 id="external-dependencies-must-be-frozen-simulated-or-declared-unreplayable">External dependencies must be frozen, simulated, or declared unreplayable</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Treatment</th><th>When to use it</th><th>What the case stores</th></tr></thead><tbody><tr><td>Frozen fixture</td><td>input can be copied lawfully at manageable size</td><td>content fingerprint, version, initial state</td></tr><tr><td>Simulated provider</td><td>only known protocol branches matter</td><td>request contract and deterministic response</td></tr><tr><td>Isolated execution</td><td>real behavior is needed without production effects</td><td>isolated tenant, Sandbox, or disabled mutation</td></tr><tr><td>Unreplayable</td><td>dependency cannot be fixed or isolated safely</td><td>diagnostic evidence only; do not promote to regression</td></tr></tbody></table>
+<p>Do not revisit a URL today and treat its current content as the input seen by the production execution. Preserve the actual fixture or an immutable fingerprint.</p>
+<p>Replays of file writes, messages, or payments also need an explicit effect policy. Reproducing claim timing must not repeat effects against production resources.</p>
+<h2 id="a-regression-case-should-test-causal-constraints">A regression case should test causal constraints</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">case_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">write_claim_requires_evidence</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">production_derived_sanitized</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">input_fixture</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fixture_sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">configuration_baseline</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">config_sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">assertion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  claim_type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact_saved</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  evidence_required</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact_revision_created</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  horizon</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">before_claim</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">eventual_outcome</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  expected</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact_exists</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">effect_policy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">isolated_fixture_only</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">grader_version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">evidence_rule@3</span></span></code></pre>
+<p>The grader checks both final state and ordering:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>must: Artifact revision belongs to the target path</span></span>
+<span class="line"><span>must: trusted write evidence appears before the success claim</span></span>
+<span class="line"><span>forbid: claiming completion from only a Tool proposal or dispatched request</span></span></code></pre>
+<p>A version that writes, obtains the revision, and then replies passes both claim and outcome graders. A version that claims success first still fails claim correctness even if its final state is identical.</p>
+<h2 id="trace-ingestion-needs-continuing-governance">Trace ingestion needs continuing governance</h2>
+<p>Do not accumulate raw production failures forever. Deduplicate repeated instances of one failure mode into a canonical case, then parameterize fixtures only for genuinely different boundaries.</p>
+<p>Every case needs an owner, tier, source class, creation reason, grader version, and retirement condition. When the production contract changes and an old failure no longer matters, migrate or explicitly retire the case rather than keeping a grader that blocks obsolete behavior.</p>
+<p>The OpenTelemetry <a href="https://opentelemetry.io/docs/specs/otel/logs/data-model/">Logs Data Model</a> can carry TraceId and SpanId and therefore helps collect candidate evidence. Objective slicing, privacy, fixtures, and evidence horizons remain responsibilities of the evaluation system.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Seeing the file ten minutes later establishes eventual success, not that the Agent had evidence when it claimed success ten minutes earlier.</p>
+<p>To build a regression case from a production Trace, extract the smallest objective, connect claims, Tool Attempts, and Artifact revisions with logical IDs and causal edges, then sanitize the data, freeze dependencies, and constrain effects. Most importantly, retain assertion-time, eventual, and diagnostic evidence separately.</p>
+<p>The resulting test protects not just “did the file eventually exist?” but “did the Agent wait for evidence before declaring success?”</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-evaluation-reproducibility/" rel="prev"> <span>Previous</span> <strong>Making Nondeterministic Evaluations Comparable</strong> </a> <a href="/writing/agent-evaluation-graders/" rel="next"> <span>Next</span> <strong>Which Layer of the Result Should a Grader Verify?</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#extract-the-smallest-objective-not-the-whole-conversation">Extract the smallest objective, not the whole conversation</a></li><li><a href="#preserve-causality-with-logical-ids-not-timestamps">Preserve causality with logical IDs, not timestamps</a></li><li><a href="#the-evidence-horizon-limits-what-a-claim-may-use">The evidence horizon limits what a claim may use</a></li><li><a href="#timeout-and-unknown-outcomes-must-stay-open">Timeout and unknown outcomes must stay open</a></li><li><a href="#sanitization-is-more-than-removing-a-username">Sanitization is more than removing a username</a></li><li><a href="#external-dependencies-must-be-frozen-simulated-or-declared-unreplayable">External dependencies must be frozen, simulated, or declared unreplayable</a></li><li><a href="#a-regression-case-should-test-causal-constraints">A regression case should test causal constraints</a></li><li><a href="#trace-ingestion-needs-continuing-governance">Trace ingestion needs continuing governance</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-memory-safety-evaluation/">How to Test Memory&#39;s Persistent-Risk Defenses</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-workspace/">Why One File Needs Both an Artifact Identity and a Workspace Reference</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

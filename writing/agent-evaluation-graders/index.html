@@ -1,0 +1,376 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Place deterministic assertions, rule-based Graders, LLM Judges, and domain results for Tools and Context in one evidence hierarchy."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Which Layer of the Result Should a Grader Verify? | Xiaoyuan"><meta property="og:description" content="Place deterministic assertions, rule-based Graders, LLM Judges, and domain results for Tools and Context in one evidence hierarchy."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-evaluation-graders/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Which Layer of the Result Should a Grader Verify? | Xiaoyuan"><meta name="twitter:description" content="Place deterministic assertions, rule-based Graders, LLM Judges, and domain results for Tools and Context in one evidence hierarchy."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Verification"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Evaluation"><meta property="article:tag" content="LLM Judge"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-evaluation-graders/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-evaluation-graders/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-evaluation-graders/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-evaluation-graders/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-evaluation-graders/#article","headline":"Which Layer of the Result Should a Grader Verify?","description":"Place deterministic assertions, rule-based Graders, LLM Judges, and domain results for Tools and Context in one evidence hierarchy.","url":"https://xiaoyuan-gu.github.io/writing/agent-evaluation-graders/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-evaluation-graders/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Verification","Agent","Evaluation","LLM Judge"]}</script><title>Which Layer of the Result Should a Grader Verify? | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-evaluation-graders/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Verification · 04 </p> <h1 class="page-title">Which Layer of the Result Should a Grader Verify?</h1> <p class="article-deck">Place deterministic assertions, rule-based Graders, LLM Judges, and domain results for Tools and Context in one evidence hierarchy.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Verification/">Agent Verification</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Evaluation/">Evaluation</a><a class="pill" href="/tags/LLM%20Judge/">LLM Judge</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A constructed Eval case asks an Agent to:</p>
+<ol>
+<li>update a customer’s address to a specified revision;</li>
+<li>write an email explaining the effect of that change.</li>
+</ol>
+<p>The final prose reads naturally, so an LLM Judge awards a high score. The backend is still on the old revision, however, and the email applies the wrong delivery rule for the customer’s region.</p>
+<p>Asking one Judge to determine whether the database changed, whether domain rules hold, and whether the writing is clear collapses three questions with different evidence strengths into one score. The Judge may trust the Agent’s self-report and cannot inspect the true backend state.</p>
+<p>Grader design should begin with: <strong>how close is this proposition to a deterministic fact, and what is the strongest available evidence?</strong></p>
+<h2 id="decompose-success-into-observable-propositions">Decompose success into observable propositions</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Proposition</th><th>Strongest evidence</th><th>Character</th></tr></thead><tbody><tr><td>Address revision changed from 7 to 8</td><td>backend read or committed event</td><td>deterministic execution fact</td></tr><tr><td>Only the target customer address changed</td><td>mutation diff</td><td>deterministic execution fact</td></tr><tr><td>New address belongs to North</td><td>versioned regional rules</td><td>encodable domain decision</td></tr><tr><td>Email uses North’s delivery guidance</td><td>email structure + rule mapping</td><td>mostly encodable</td></tr><tr><td>Email is clear and appropriate</td><td>text + rubric</td><td>open semantic judgment</td></tr></tbody></table>
+<p>Each grader then proves only what it can observe. Task success combines these conditions under the product contract; it cannot replace the evidence below it.</p>
+<h2 id="prefer-deterministic-assertions-for-existing-facts">Prefer deterministic assertions for existing facts</h2>
+<p>When a proposition can be observed directly from a Trace, Artifact, database, or explicit contract, use code assertions:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>must:</span></span>
+<span class="line"><span>  customer_42.address_revision == 8</span></span>
+<span class="line"><span>  mutation_diff.changed_records == ["customer_42"]</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>forbid:</span></span>
+<span class="line"><span>  unauthorized_tool_call</span></span>
+<span class="line"><span>  mutation_to_other_customer</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>must-before:</span></span>
+<span class="line"><span>  committed_revision_event &#x3C; agent_success_claim</span></span></code></pre>
+<p><code>must</code>, <code>forbid</code>, and ordering constraints test presence, prohibition, and sequence. Their failures point to concrete facts without asking another model to reinterpret them.</p>
+<p>Deterministic does not mean string equality. JSON Schema, set differences, Artifact hashes, database revisions, Tool effect references, and state transitions are valid assertion inputs when they come from a trusted owner. The Agent’s own “updated” text cannot prove that an update happened.</p>
+<p>Code assertions still require versioning, tests, and review. Being implemented in code does not make a contract correct.</p>
+<h2 id="rule-based-graders-own-encodable-domain-constraints">Rule-based Graders own encodable domain constraints</h2>
+<p>Some conclusions are derived rather than raw, yet follow a stable rule:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>input: normalized_address + region_rule@12</span></span>
+<span class="line"><span>output: region = North</span></span></code></pre>
+<p>The evaluator can then verify that the email includes North’s required guidance and does not cite South’s. If the domain owner supplies a stable contract, an LLM Judge does not need to infer it on every run.</p>
+<p>A rule-based grader records:</p>
+<ul>
+<li>input fields and source revision;</li>
+<li>rule or policy version;</li>
+<li>the rule that matched;</li>
+<li>verdict and reason;</li>
+<li>handling of unknown values.</li>
+</ul>
+<p>An uncovered address should produce <code>unknown</code> or manual review, not a silent pass through a default branch.</p>
+<h2 id="use-an-llm-judge-only-for-semantics-that-resist-stable-encoding">Use an LLM Judge only for semantics that resist stable encoding</h2>
+<p>Clarity, completeness of explanation, and tone may be difficult to encode. An LLM Judge is useful there, but it provides a <strong>conditional semantic judgment</strong>, not a deterministic fact.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">task</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">explain_address_change</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate_email</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">grounding_facts</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  region</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">North</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  delivery_rule</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">rubric_version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">email_clarity@4</span></span></code></pre>
+<p>Separate dimensions such as factual consistency, completeness, clarity, and tone. If the regional rule can be checked deterministically, pass that verdict as grounding or make it a hard gate rather than asking the Judge to vote again.</p>
+<p><a href="https://arxiv.org/abs/2306.05685">Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena</a> compares model judges with human preferences and discusses position, verbosity, and self-enhancement biases. For engineering systems, a reasoned Judge output still requires calibration and version governance.</p>
+<h2 id="the-judge-is-itself-a-system-under-evaluation">The Judge is itself a system under evaluation</h2>
+<p>A maintainable Judge contract includes:</p>
+<ul>
+<li>a resolvable Judge model version or response metadata;</li>
+<li>rubric, system prompt, and input-normalization versions;</li>
+<li>a human-labeled calibration set;</li>
+<li>verdict distributions across repeated trials;</li>
+<li>handling for <code>pass</code>, <code>fail</code>, <code>uncertain</code>, and invocation failure;</li>
+<li>cache key, usage, latency, and cost facts;</li>
+<li>an identity distinct from the configuration under test.</li>
+</ul>
+<p>Do not store only the average:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>case_id × judge_configuration × judge_trial → verdict</span></span></code></pre>
+<p>Report agreement with human labels, false positives, false negatives, uncertain results, and denominators. No universal threshold fits every rubric, risk level, or human-review cost.</p>
+<p>When Judge model or rubric changes, old and new scores are not directly interchangeable. Run an overlap experiment on the same calibration set, inspect disagreements, and then decide whether historical results need regrading.</p>
+<h2 id="cache-and-cost-must-not-hide-judge-changes">Cache and cost must not hide Judge changes</h2>
+<p>A Judge cache key should contain:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>normalized input fingerprint</span></span>
+<span class="line"><span>+ judge model/configuration identity</span></span>
+<span class="line"><span>+ rubric version</span></span>
+<span class="line"><span>+ grading prompt version</span></span></code></pre>
+<p>Omitting one element can reuse a verdict from an old rubric. Count cache hits separately from real calls. Attribute token, latency, and billed cost only to actual calls; allocate shared infrastructure cost under an explicit method.</p>
+<p>“Average Judge cost” must say whether its denominator is scheduled items, actual Judge calls, or Judge Attempts including retries. Provider prices are intentionally absent because they change and do not determine the grader-selection principle.</p>
+<h2 id="preserve-hard-failure-soft-score-and-unknown-separately">Preserve hard failure, soft score, and unknown separately</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">deterministic</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  address_revision_updated</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  mutation_scope_exact</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">pass</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">rule_based</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  region_mapping</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">North</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  delivery_rule_consistent</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">llm_judge</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  clarity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">pass</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  tone</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">pass</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  judge_configuration</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">judge_config_sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">task_outcome</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fail</span></span></code></pre>
+<p>The missing address commit is a hard failure despite strong semantic scores. If facts and rules pass while the Judge returns <code>uncertain</code>, the system can request human review rather than silently converting uncertainty into pass or fail.</p>
+<p>Weighted scores can support ranking and trend analysis but must not dilute a hard invariant. Release gates handle prohibitions and deterministic failures first, then explain how soft scores and denominators are aggregated.</p>
+<h2 id="more-complex-domain-metrics-keep-their-own-owners">More complex domain metrics keep their own owners</h2>
+<p>Tool Eval further tests selection, arguments, repair, execution, and mutation precision. Context Eval tests required information, provenance, pollution, conflict, and permission. Those definitions belong to their domains instead of one universal Judge.</p>
+<p>The shared selection rule is:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>trusted fact directly observable</span></span>
+<span class="line"><span>  → deterministic assertion</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>explicit domain rule stably encodable</span></span>
+<span class="line"><span>  → rule-based grader</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>open semantics not stably encodable</span></span>
+<span class="line"><span>  → calibrated LLM Judge or human review</span></span></code></pre>
+<p>When an open judgment becomes a stable contract, move it down into a rule or deterministic assertion. The evidence hierarchy should become more verifiable as the system matures.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Backend revision and mutation diff prove whether the address changed. A versioned domain rule proves the region. Only the clarity and tone of the email warrant a calibrated LLM Judge.</p>
+<p>One Judge score would let persuasive prose overwrite a real side effect. Use the strongest available evidence, preserve hard failures, soft scores, and unknowns, then combine them under the product contract into a Task outcome.</p>
+<p>An LLM Judge is not the final truth layer. It is a versioned, calibrated, repeatedly evaluated, and metered component for questions that deterministic facts and encodable rules cannot answer fully.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-traces-verifiable-evidence/" rel="prev"> <span>Previous</span> <strong>Turning Production Traces into Verifiable Evidence</strong> </a> <a href="/writing/agent-tool-system-evaluation/" rel="next"> <span>Next</span> <strong>Which Failure Layer Should a Tool System Eval Diagnose?</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#decompose-success-into-observable-propositions">Decompose success into observable propositions</a></li><li><a href="#prefer-deterministic-assertions-for-existing-facts">Prefer deterministic assertions for existing facts</a></li><li><a href="#rule-based-graders-own-encodable-domain-constraints">Rule-based Graders own encodable domain constraints</a></li><li><a href="#use-an-llm-judge-only-for-semantics-that-resist-stable-encoding">Use an LLM Judge only for semantics that resist stable encoding</a></li><li><a href="#the-judge-is-itself-a-system-under-evaluation">The Judge is itself a system under evaluation</a></li><li><a href="#cache-and-cost-must-not-hide-judge-changes">Cache and cost must not hide Judge changes</a></li><li><a href="#preserve-hard-failure-soft-score-and-unknown-separately">Preserve hard failure, soft score, and unknown separately</a></li><li><a href="#more-complex-domain-metrics-keep-their-own-owners">More complex domain metrics keep their own owners</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-memory-safety-evaluation/">How to Test Memory&#39;s Persistent-Risk Defenses</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-workspace/">Why One File Needs Both an Artifact Identity and a Workspace Reference</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

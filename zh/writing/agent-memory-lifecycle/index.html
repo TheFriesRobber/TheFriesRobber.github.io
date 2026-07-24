@@ -1,0 +1,381 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="把 write gate、Writer 信任域、版本链和 current view 串成长期 Memory 的完整生命周期。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Memory 的写入、版本与当前视图 | Xiaoyuan"><meta property="og:description" content="把 write gate、Writer 信任域、版本链和 current view 串成长期 Memory 的完整生命周期。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-lifecycle/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Memory 的写入、版本与当前视图 | Xiaoyuan"><meta name="twitter:description" content="把 write gate、Writer 信任域、版本链和 current view 串成长期 Memory 的完整生命周期。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent State"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Memory"><meta property="article:tag" content="Data Modeling"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-lifecycle/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-memory-lifecycle/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-memory-lifecycle/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-memory-lifecycle/#article","headline":"Memory 的写入、版本与当前视图","description":"把 write gate、Writer 信任域、版本链和 current view 串成长期 Memory 的完整生命周期。","url":"https://xiaoyuan-gu.github.io/zh/writing/agent-memory-lifecycle/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-memory-lifecycle/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Agents"],"keywords":["Agent State","Agent","Memory","Data Modeling"]}</script><title>Memory 的写入、版本与当前视图 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-memory-lifecycle/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent State · 01 </p> <h1 class="page-title">Memory 的写入、版本与当前视图</h1> <p class="article-deck">把 write gate、Writer 信任域、版本链和 current view 串成长期 Memory 的完整生命周期。</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">2026/07/24</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent%20State/">Agent State</a><a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Memory/">Memory</a><a class="pill" href="/zh/tags/Data%20Modeling/">Data Modeling</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>用户第一次告诉 Agent：“以后尽量在上午联系我。”系统把它保存成长期偏好。几周后，用户明确更正：“以后改成下午。”后台归纳任务却根据旧记录再次生成“上午”，下一次 Session 仍在错误时间联系用户。</p>
+<p>历史消息没有丢，检索也确实找到了相关内容。问题发生在更早的位置：系统把每次提取结果都当成新的长期事实，却没有定义谁能写、哪一版当前有效，以及更正、撤销和删除分别意味着什么。</p>
+<p>长期 Memory 需要一条完整生命周期：<strong>候选信息先经过 write gate，由受限 Writer 提交带来源的版本；读取方默认只消费 current view，更正、撤销、删除和 undo 则按不同语义改变后续可见性。</strong></p>
+<h2 id="被提取出来不等于值得长期保存">被提取出来不等于值得长期保存</h2>
+<p>模型或规则从对话中提取出的内容只能成为 <code>memory_candidate</code>。可信 Runtime 负责附加 subject、source reference 和 actor，模型不能自行声明这些身份：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">candidate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  claim</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">preferred_contact_time = morning</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  observed_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">future</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">trusted_envelope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  subject</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">user_42</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_61</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  actor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">in_loop_agent</span></span></code></pre>
+<p>Write gate 再判断：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Gate</th><th>要回答的问题</th></tr></thead><tbody><tr><td>Durable</td><td>当前 Task 结束后是否仍可能成立</td></tr><tr><td>User-specific</td><td>是否描述当前 subject，而不是第三方</td></tr><tr><td>Future-useful</td><td>后续是否有明确用途</td></tr><tr><td>Source-grounded</td><td>来源是否支持 claim 及其适用范围</td></tr><tr><td>Permission-safe</td><td>当前 actor 是否允许保存这种数据</td></tr></tbody></table>
+<p>这些不是加权分。信息再有用，也不能抵消来源不足或没有保存权限。临时地点、一次性格式要求和实时变化的外部状态通常应停在当前 Task，或带明确 expiry，而不是被升级成永久用户属性。</p>
+<h2 id="writer-权限要落实到每次-mutation">Writer 权限要落实到每次 Mutation</h2>
+<p>对话内 Agent、后台归纳、批量导入和用户编辑拥有不同的证据与权限：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Writer</th><th>合理动作</th><th>不应拥有的权限</th></tr></thead><tbody><tr><td>In-loop Agent</td><td>提交当前授权 Context 支持的 candidate</td><td>修改其他 subject</td></tr><tr><td>Background consolidation</td><td>追加 observation、提出 change proposal</td><td>覆盖用户显式声明</td></tr><tr><td>Import job</td><td>写入映射过的 namespace</td><td>越过映射写入其他目录</td></tr><tr><td>User edit</td><td>更正、撤销或删除可管理记录</td><td>绕过 retention 与第三方数据规则</td></tr></tbody></table>
+<p>Memory service 应从可信执行环境获得 actor，而不是接受 Tool arguments 中的 <code>writer: user</code>。每次 mutation 至少校验 subject、namespace、action、evidence class、source refs 和 expected revision。</p>
+<p>因此，后台任务可以记录“最近三次联系发生在上午”，却不能据此覆盖用户明确声明的“下午偏好”。发生的事件与用户意愿可以同时为真，不应先压成同一字符串再比较相似度。</p>
+<h2 id="version-chain-让更正改变-current-view">Version Chain 让更正改变 Current View</h2>
+<p>首次写入形成版本 1：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">morning</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_61</span></span></code></pre>
+<p>用户更正时，合法 Writer 以 <code>expected_current_version: 1</code> 提交版本 2：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">memory_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">contact_time</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">afternoon</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">current</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">source_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">message_82</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">supersedes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span></code></pre>
+<p>同一提交边界把 v1 标成 <code>superseded</code>，并推进 current pointer。若另一个 Writer 仍基于 v1 并发写入，expected revision 不匹配，应返回 conflict，让上层重新读取和判断，而不是 last-write-wins。</p>
+<p>重复投递同一逻辑 mutation 时，应复用稳定 operation ID，返回已经形成的版本；不同意图不能因为内容相似而共享幂等键。</p>
+<h2 id="supersederevokedelete-与-undo-不是同义词">Supersede、Revoke、Delete 与 Undo 不是同义词</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>操作</th><th>后续读取</th><th>历史内容</th></tr></thead><tbody><tr><td>Supersede</td><td>使用新版本</td><td>依 retention policy 保留旧版本</td></tr><tr><td>Revoke</td><td>当前值不再生效</td><td>可保留撤销事实与获准历史</td></tr><tr><td>Delete/erasure</td><td>内容退出普通读取与派生路径</td><td>无强制 retention 时仅保留不含原值的 tombstone</td></tr><tr><td>Undo</td><td>创建新版本恢复先前业务值</td><td>版本链继续向前</td></tr></tbody></table>
+<p>Undo 不能把 current pointer 静默倒回 v1，否则审计会看不见“曾改成下午、后来又恢复上午”的事实。它应创建 v3，并把恢复原因指向 v1。</p>
+<p>删除也不能实现成 <code>hidden=true</code> 后继续把原文留在 index、cache、summary 和普通备份读取路径中。原内容应退出业务读取和派生路径；若适用 policy 强制法定或安全 retention，保留副本必须隔离、限制用途与访问，并记录删除已经覆盖的范围、例外期限和最终清除时间。若 policy 禁止保留历史，superseded value 也应被清除，只留下不含内容的版本元数据。</p>
+<h2 id="current-view-是读取-contract">Current View 是读取 Contract</h2>
+<p>Current view 不是另一份独立事实，而是 Memory service 根据版本、expiry 和 revoke/delete 状态产生的 canonical projection。普通 retrieval 从它开始，再由读取路径根据当前 subject/actor 执行独立 authorization filter；不能从全部历史中搜索后让相似度决定哪版有效。</p>
+<p>审计或修复方只有在 retention 与授权允许时才读取历史；它们看到历史，不代表历史可以重新进入新的 Model Turn。Index、cache 和摘要都应携带 Memory revision，current view 推进后使旧派生结果失效。</p>
+<h2 id="把开场偏好走完">把开场偏好走完</h2>
+<p>开场生命周期可以表示为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>message_61 “上午” → write gate pass → v1 current</span></span>
+<span class="line"><span>message_82 “下午” → authorized supersede(v1) → v2 current</span></span>
+<span class="line"><span>background observation “最近上午联系” → append observation</span></span>
+<span class="line"><span>                                      → cannot supersede v2</span></span></code></pre>
+<p>若用户随后撤销联系时间偏好，系统创建 revoke event，current view 不再返回该项；若用户要求删除，内容从允许的读取与派生路径中清除。以后用户又选择上午，则这是新的 v3，而不是让被删除或 superseded 的旧值自行复活。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>旧“上午”偏好覆盖“下午”，不是 retrieval 排序问题，而是 Memory 缺少受控 mutation 和 current view。</p>
+<p>让候选先通过 write gate，按 Writer 的 subject、namespace、action 与 evidence 授权，再用 expected revision 提交 version chain，读取方就只会得到 v2。后台归纳仍可保存有来源的 observation，却不能改变用户明确偏好。</p>
+<p>Memory 的长期价值不在于保存更多文本，而在于每条当前状态都能回答：谁依据什么写入、它是否仍有效，以及怎样被更正、撤销和删除。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <span></span> <a href="/zh/writing/agent-memory-retrieval-context/" rel="next"> <span>下一篇</span> <strong>Memory 怎样检索并进入 Context</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#被提取出来不等于值得长期保存">被提取出来不等于值得长期保存</a></li><li><a href="#writer-权限要落实到每次-mutation">Writer 权限要落实到每次 Mutation</a></li><li><a href="#version-chain-让更正改变-current-view">Version Chain 让更正改变 Current View</a></li><li><a href="#supersederevokedelete-与-undo-不是同义词">Supersede、Revoke、Delete 与 Undo 不是同义词</a></li><li><a href="#current-view-是读取-contract">Current View 是读取 Contract</a></li><li><a href="#把开场偏好走完">把开场偏好走完</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-action-confirmation/">高风险动作需要可校验的确认协议</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-capability-surface/">Agent 每轮应该暴露哪些能力</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-concurrency-cancellation/">并发 Tool 的顺序、一致性与取消</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

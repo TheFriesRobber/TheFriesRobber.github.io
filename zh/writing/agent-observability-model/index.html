@@ -1,0 +1,449 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="先固定 grain、logical ID、Attempt 和 outcome taxonomy，再关联 Agent 的 Log、Metric、Trace 与成本事实。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Agent 的 Log、Metric 与 Trace 怎样共用语义 | Xiaoyuan"><meta property="og:description" content="先固定 grain、logical ID、Attempt 和 outcome taxonomy，再关联 Agent 的 Log、Metric、Trace 与成本事实。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-observability-model/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Agent 的 Log、Metric 与 Trace 怎样共用语义 | Xiaoyuan"><meta name="twitter:description" content="先固定 grain、logical ID、Attempt 和 outcome taxonomy，再关联 Agent 的 Log、Metric、Trace 与成本事实。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Verification"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Observability"><meta property="article:tag" content="Tracing"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-observability-model/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-observability-model/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-observability-model/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-observability-model/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-observability-model/#article","headline":"Agent 的 Log、Metric 与 Trace 怎样共用语义","description":"先固定 grain、logical ID、Attempt 和 outcome taxonomy，再关联 Agent 的 Log、Metric、Trace 与成本事实。","url":"https://xiaoyuan-gu.github.io/zh/writing/agent-observability-model/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-observability-model/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Agents"],"keywords":["Agent Verification","Agent","Observability","Tracing"]}</script><title>Agent 的 Log、Metric 与 Trace 怎样共用语义 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-observability-model/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Verification · 01 </p> <h1 class="page-title">Agent 的 Log、Metric 与 Trace 怎样共用语义</h1> <p class="article-deck">先固定 grain、logical ID、Attempt 和 outcome taxonomy，再关联 Agent 的 Log、Metric、Trace 与成本事实。</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">2026/07/24</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent%20Verification/">Agent Verification</a><a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Observability/">Observability</a><a class="pill" href="/zh/tags/Tracing/">Tracing</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>下面用一个构造例子。一次 Agent Run 调用 <code>write_report</code>。两次请求复用同一个稳定 operation key：第一次请求在 deadline 前没有返回；Runtime 查询 backend 后仍无法确认，随后才发起第二次 Attempt。第二次返回成功，backend reconciliation 最终确认该 operation 只对应一个 Artifact revision，Task 因而完成。</p>
+<p>这段执行可以同时产生几种看似矛盾的描述：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Attempt 指标：一次 timeout，一次成功</span></span>
+<span class="line"><span>Trace：第一个 span 为 ERROR，第二个 span 为 OK</span></span>
+<span class="line"><span>Tool Execution：经 backend reconciliation 确认最终成功</span></span>
+<span class="line"><span>Task：最终完成</span></span>
+<span class="line"><span>成本：两次请求都可能产生消耗</span></span></code></pre>
+<p>如果面板只写“Tool 成功率 50%”，值班工程师会以为一半用户操作失败；如果只写“Task 成功率 100%”，第一次 timeout 带来的延迟与成本又消失了。</p>
+<p>矛盾不在数据本身，而在问题省略了两个条件：<strong>记录对应哪个执行粒度，分母又包含哪些对象。</strong></p>
+<h2 id="先固定-grain再讨论成功率">先固定 Grain，再讨论成功率</h2>
+<p>同一次 Agent 活动包含多个不能互换的对象：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Task task_7</span></span>
+<span class="line"><span>  └─ Run run_12</span></span>
+<span class="line"><span>       ├─ Model Turn turn_3</span></span>
+<span class="line"><span>       ├─ Tool Execution tool_exec_42，proposal_from=turn_3，operation_id=op_17</span></span>
+<span class="line"><span>       │    ├─ Attempt attempt_1 → timeout，本地结果未知</span></span>
+<span class="line"><span>       │    └─ Attempt attempt_2 → succeeded</span></span>
+<span class="line"><span>       └─ Artifact report_9@v1 → delivered</span></span></code></pre>
+<p>它们回答的是不同问题：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Grain</th><th>一条记录代表什么</th><th>适合回答的问题</th></tr></thead><tbody><tr><td>Task</td><td>一个用户目标</td><td>用户目标是否最终完成</td></tr><tr><td>Run</td><td>一次 Agent Loop</td><td>这次运行怎样终止</td></tr><tr><td>Model Turn</td><td>一次模型响应</td><td>模型调用的延迟与 usage</td></tr><tr><td>logical operation</td><td>跨 Turn/Tool Execution 的稳定业务意图</td><td>同一业务动作最终产生了什么 effect</td></tr><tr><td>Tool Execution</td><td>一个获准执行的逻辑动作</td><td>逻辑 Tool 动作最终是否完成</td></tr><tr><td>Attempt</td><td>一次物理调用</td><td>下游请求是否稳定</td></tr><tr><td>Artifact</td><td>一个有版本的产物</td><td>结果是否存在、交付并可追溯</td></tr></tbody></table>
+<p>因此，“Tool 成功率”不是完整定义。至少要写成下面两种形式之一：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>确认成功的 terminal Attempts / 全部 terminal Attempts</span></span>
+<span class="line"><span>最终成功的 Tool Executions / 全部 terminal Tool Executions</span></span></code></pre>
+<p>timeout 只能证明调用方没有及时得到确定结果。对于有外部副作用的调用，它不能自动证明外部写入失败。因此开场中的第一次 Attempt 保持 <code>unknown</code>；第二次成功也不能单独排除重复 effect。只有稳定 operation key 与 backend reconciliation 确认目标 Artifact 状态后，Tool Execution 和 logical operation 的 current verdict 才能记为 succeeded。若无法确认，两者都应保持 <code>unknown</code>。</p>
+<h2 id="logical-id-连接业务对象trace-context-连接传播路径">Logical ID 连接业务对象，Trace Context 连接传播路径</h2>
+<p>一次 retry 需要同时保留稳定的逻辑身份和变化的物理尝试身份：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "task_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"task_7"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_12"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "turn_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"turn_3"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "operation_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"op_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_execution_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_exec_42"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "attempt_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"attempt_2"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "artifact_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"report_9"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "trace_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"91aa..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "span_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"18c2..."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p><code>operation_id</code> 关联稳定业务意图，可能跨越多个 Turn 或 Tool Execution；<code>tool_execution_id</code> 在自身 retry 中保持不变，<code>attempt_id</code> 每次物理调用都不同。开场例子里 operation 与 Tool Execution 恰好 1:1，但这不是普遍等式。Task、Run、Turn 和 Artifact 也各自拥有身份，而不是从时间接近或日志文本中猜测关系。</p>
+<p>Trace ID 则描述一条观测传播链。跨 Queue、异步 callback 或新的 worker 时，retry 可能开启新 trace；即使两次 Attempt 仍在同一 trace 中，也不能用 trace ID 充当 Tool Execution ID。更稳妥的模型是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>业务关系：tool_exec_42 → attempt_1 / attempt_2</span></span>
+<span class="line"><span>观测关系：attempt_1 → trace_4bf9，attempt_2 → trace_91aa</span></span></code></pre>
+<p><a href="https://www.w3.org/TR/trace-context/">W3C Trace Context</a> 定义了跨系统传播 trace context 的格式；<a href="https://opentelemetry.io/docs/specs/otel/trace/api/">OpenTelemetry Trace API</a> 的 <code>SpanContext</code> 也使用 TraceId 和 SpanId。它们解决的是观测传播，不替 Agent Runtime 决定 Task、Tool Execution 或 Artifact 的业务身份。</p>
+<h2 id="三类-signal-共享语义不复制同一份数据">三类 Signal 共享语义，不复制同一份数据</h2>
+<p>共享语义不等于让 Log、Metric 和 Trace 携带完全相同的字段。</p>
+<p>Log 和 Trace 适合保存单次执行的高基数 identity。OpenTelemetry 的 <a href="https://opentelemetry.io/docs/specs/otel/logs/data-model/">Logs Data Model</a> 允许 LogRecord 携带 TraceId 和 SpanId，因此结构化日志可以从业务 identity 跳到对应 span：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "event"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool.attempt.finished"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_execution_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"tool_exec_42"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "attempt_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"attempt_1"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "trace_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"4bf9..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "effect.outcome"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"unknown"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "error.type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deadline_exceeded"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>Metric 用于聚合，不应把每个 <code>run_id</code> 或 <code>tool_execution_id</code> 都变成 label。它更适合携带有界维度：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>agent.tool.attempts{</span></span>
+<span class="line"><span>  tool="write_report",</span></span>
+<span class="line"><span>  effect.outcome="unknown",</span></span>
+<span class="line"><span>  error.type="deadline_exceeded"</span></span>
+<span class="line"><span>} +1</span></span></code></pre>
+<p>Trace 保存调用路径、时间与相关 attributes；Log 保存离散事件和诊断上下文；Metric 保存按明确 grain 聚合的计数或分布。需要从聚合下钻到具体执行时，可以使用 exemplar、时间窗与 taxonomy 查询，或者由分析系统连接到高基数事实表。</p>
+<p>这里可以复用 OpenTelemetry 对 <code>error.type</code> 的约定，但仍要注意它的边界。<a href="https://opentelemetry.io/docs/specs/semconv/general/recording-errors/">OpenTelemetry 的错误记录约定</a> 建议错误 span 和相关 metric 使用 <code>error.type</code>，同时指出已经被处理、使逻辑操作正常完成的内部错误不应写在描述整个逻辑操作的 signal 上。换言之：</p>
+<ul>
+<li>Attempt 1 可以是 <code>error.type=deadline_exceeded</code>。</li>
+<li>整个 Tool Execution 最终成功时，不应把 Attempt 1 的错误复制成它的终态。</li>
+<li>Agent 领域的 <code>outcome</code>、<code>failure_owner</code> 和 <code>retry_disposition</code> 仍是应用自己的 contract，不是 OpenTelemetry 已经定义好的 Agent 标准。</li>
+</ul>
+<h2 id="outcome-taxonomy-要把未知与责任边界留下来">Outcome Taxonomy 要把未知与责任边界留下来</h2>
+<p>只记录 <code>error=true</code>，无法驱动恢复。一个最小的应用层结果记录可以包含：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>字段</th><th>示例</th><th>回答的问题</th></tr></thead><tbody><tr><td><code>effect_outcome</code></td><td><code>succeeded</code>、<code>failed</code>、<code>unknown</code></td><td>当前 effect evidence 能确认什么</td></tr><tr><td><code>control_status</code></td><td><code>active</code>、<code>cancellation_requested</code>、<code>cancelled_before_dispatch</code></td><td>Tool Execution 的控制意图与结算边界是什么</td></tr><tr><td><code>error.type</code></td><td><code>deadline_exceeded</code></td><td>观察到了哪类错误</td></tr><tr><td><code>failure_owner</code></td><td><code>tool_provider</code></td><td>哪个边界最先拥有修复动作</td></tr><tr><td><code>retry_disposition</code></td><td><code>query_before_retry</code></td><td>下一步允许怎样恢复</td></tr></tbody></table>
+<p><code>cancelled_before_dispatch</code> 只适用于尚未创建 Attempt 的 Tool Execution；dispatch 后的取消请求不能覆盖 succeeded、failed 或 unknown。<code>failure_owner</code> 不是异常在哪个进程抛出，而是哪个边界最接近决定性事实。例如 gateway 抛出 timeout，但外部存储拥有写入事实，那么 Runtime 应先凭 operation key 查询存储，而不是把 gateway 当成结果 owner。</p>
+<p>Taxonomy 还需要保持低基数和版本化。原始 status、异常文本与 provider response 可以作为诊断证据保留，但不应直接成为无限增长的 metric label。</p>
+<h2 id="成本事实也必须沿同一条-lineage-归因">成本事实也必须沿同一条 Lineage 归因</h2>
+<p>开场中的两次 Attempt 都可能消耗模型、Tool API、Sandbox 或网络资源。只保留“当天 provider 总额”，无法解释一次成功 Task 为何昂贵；只把最终成功的 Attempt 计费，又会漏掉失败和 retry 的真实消耗。</p>
+<p>建议先区分三类值：</p>
+<ul>
+<li><code>observed usage</code>：provider response、资源计量或 usage event 中直接观察到的数量；</li>
+<li><code>billed cost</code>：可与账单或明确价格版本核对的费用；</li>
+<li><code>allocated cost</code>：共享 cache、batch、Sandbox 或存储按某条版本化规则分摊后的费用。</li>
+</ul>
+<p>“如果没有 cache 本来会花多少钱”属于带 baseline 的反事实估计，不是已经发生的成本事实，应单独保存 method 和假设。</p>
+<p>构造例子如下，单位只表示合成 usage 关系，不代表任何 provider 的价格或账单：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>attempt_1 constructed usage unit = 3</span></span>
+<span class="line"><span>attempt_2 constructed usage unit = 2</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>tool_exec_42 constructed usage total = 3 + 2 = 5</span></span>
+<span class="line"><span>task_7 constructed usage total       = 5 + 其他关联执行的 usage</span></span></code></pre>
+<p>Attempt usage 的分母是一条物理尝试；Tool Execution usage 是其全部相关 Attempt 的合计；logical operation usage 再聚合关联的一个或多个 Tool Execution。开场例子里 operation 与 Tool Execution 是 1:1，所以两者数值相同。若要换算 cost，还要提供明确的 price version 或 allocation method；cost per successful Task 则必须写明时间窗和成功 Task 的定义。它们不能使用同一个标签互相替代。</p>
+<h2 id="用同一段执行重新计算">用同一段执行重新计算</h2>
+<p>对开场这个构造例子，假设只观察一个 Task、一个 Tool Execution 和两个 terminal Attempts：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>指标</th><th>分子 / 分母</th><th>结果表达</th></tr></thead><tbody><tr><td>Attempt confirmed-success rate</td><td>1 个确认成功 Attempt / 2 个 terminal Attempts</td><td>1/2</td></tr><tr><td>Attempt unknown-outcome rate</td><td>1 个未知结果 Attempt / 2 个 terminal Attempts</td><td>1/2</td></tr><tr><td>Tool Execution success rate</td><td>1 个最终成功 Tool Execution / 1 个 terminal Tool Execution</td><td>1/1</td></tr><tr><td>Task completion rate</td><td>1 个已交付 Task / 1 个 terminal Task</td><td>1/1</td></tr><tr><td>Tool Execution constructed usage</td><td>两个 Attempt 的 constructed usage 之和</td><td>5 个构造 usage unit</td></tr></tbody></table>
+<p>这些答案不再互相冲突。它们分别描述底层调用稳定性、逻辑动作恢复能力、用户结果和实际资源消耗。</p>
+<p>一个小系统如果没有 retry、异步任务或外部副作用，可以暂时少建几个对象；但只要需要解释“结果未知后重试”“跨进程恢复”或“失败尝试也产生费用”，就必须把逻辑身份与物理尝试分开。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>第一次 Tool Attempt timeout、第二次成功，并且 backend reconciliation 确认同一 operation 只产生一个目标 Artifact 后，50% 和 100% 才可能同时成为合法答案，前提是它们明确写出 grain 与 denominator。</p>
+<p>稳定的 Task、Run、Turn、logical operation、Tool Execution、Attempt 和 Artifact identity 负责表达业务因果；trace context 负责连接观测传播路径。Log 与 Trace 保存高基数执行证据，Metric 保存有界聚合维度，成本事实沿同一 lineage 从 Attempt 向 Tool Execution、logical operation 和 Task 汇总。</p>
+<p>真正统一三类 signal 的，不是把所有字段复制三遍，而是让它们对“观察的是哪个对象、当前能确认什么结果、谁拥有下一步动作”给出一致答案。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <span></span> <a href="/zh/writing/agent-evaluation-reproducibility/" rel="next"> <span>下一篇</span> <strong>非确定性 Eval 怎样保持可比</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先固定-grain再讨论成功率">先固定 Grain，再讨论成功率</a></li><li><a href="#logical-id-连接业务对象trace-context-连接传播路径">Logical ID 连接业务对象，Trace Context 连接传播路径</a></li><li><a href="#三类-signal-共享语义不复制同一份数据">三类 Signal 共享语义，不复制同一份数据</a></li><li><a href="#outcome-taxonomy-要把未知与责任边界留下来">Outcome Taxonomy 要把未知与责任边界留下来</a></li><li><a href="#成本事实也必须沿同一条-lineage-归因">成本事实也必须沿同一条 Lineage 归因</a></li><li><a href="#用同一段执行重新计算">用同一段执行重新计算</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-action-confirmation/">高风险动作需要可校验的确认协议</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-artifact-workspace/">同一个文件为什么需要 Artifact identity 与 Workspace reference</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-capability-surface/">Agent 每轮应该暴露哪些能力</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

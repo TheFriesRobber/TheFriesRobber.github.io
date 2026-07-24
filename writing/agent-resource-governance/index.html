@@ -1,0 +1,348 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Separate per-Run budgets, subject quotas, burst limits, and hotspot backpressure, then propagate admission decisions through the execution chain."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="How Budgets, Quotas, and Backpressure Work Together | Xiaoyuan"><meta property="og:description" content="Separate per-Run budgets, subject quotas, burst limits, and hotspot backpressure, then propagate admission decisions through the execution chain."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-resource-governance/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="How Budgets, Quotas, and Backpressure Work Together | Xiaoyuan"><meta name="twitter:description" content="Separate per-Run budgets, subject quotas, burst limits, and hotspot backpressure, then propagate admission decisions through the execution chain."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Production"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Reliability"><meta property="article:tag" content="Cost"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-resource-governance/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-resource-governance/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-resource-governance/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-resource-governance/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-resource-governance/#article","headline":"How Budgets, Quotas, and Backpressure Work Together","description":"Separate per-Run budgets, subject quotas, burst limits, and hotspot backpressure, then propagate admission decisions through the execution chain.","url":"https://xiaoyuan-gu.github.io/writing/agent-resource-governance/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-resource-governance/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Production","Agent","Reliability","Cost"]}</script><title>How Budgets, Quotas, and Backpressure Work Together | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-resource-governance/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Production · 08 </p> <h1 class="page-title">How Budgets, Quotas, and Backpressure Work Together</h1> <p class="article-deck">Separate per-Run budgets, subject quotas, burst limits, and hotspot backpressure, then propagate admission decisions through the execution chain.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Production/">Agent Production</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Reliability/">Reliability</a><a class="pill" href="/tags/Cost/">Cost</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>An Agent Run stays within its model-token limit but creates ten Child Runs in succession. Every child requests a Sandbox, calls an external Tool, and writes an Artifact. Average global CPU and Queue lag still look healthy, but this tenant has exhausted one Sandbox class and other requests are beginning to wait.</p>
+<p>Setting <code>max_tokens</code> on the parent Run did not prevent the failure. Tokens are only one kind of cumulative consumption. They are not Sandbox concurrency, a tenant’s total allowance within a time window, or evidence of a hotspot on one queue partition.</p>
+<p>Resource governance needs four kinds of limits to work together: <strong>a Budget constrains one execution, a Quota constrains a subject’s total use within a window, Rate Limits and concurrency limits protect burst capacity, and Backpressure carries downstream saturation back to the admission boundary that can act on it.</strong></p>
+<h2 id="give-each-limit-the-correct-owner">Give each limit the correct owner</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Mechanism</th><th>Typical question</th><th>Owner</th><th>Example unit</th></tr></thead><tbody><tr><td>Run budget</td><td>How much may this execution consume?</td><td>Runtime / delegation owner</td><td>model tokens, Tool Calls, wall time</td></tr><tr><td>Subject/Tenant quota</td><td>How much may a subject use within a window?</td><td>Policy/admission service</td><td>Sandbox-seconds/hour, requests/min</td></tr><tr><td>Rate limit</td><td>Are requests arriving too quickly?</td><td>API/Tool admission</td><td>requests/second</td></tr><tr><td>Concurrency limit</td><td>How many scarce slots are occupied at once?</td><td>Resource scheduler</td><td>active Sandboxes, in-flight Tools</td></tr><tr><td>Backpressure</td><td>Can the downstream system still accept work safely?</td><td>Produced downstream, consumed by admission</td><td>queue lag, oldest age, saturation</td></tr></tbody></table>
+<p>These units are not interchangeable. A Context token budget controls how much input one model turn can see. A financial budget may use currency or billing units. Sandbox capacity is measured in concurrency and duration. Calling all of them <code>budget</code> makes policy impossible to explain.</p>
+<h2 id="delegation-cannot-create-new-allowance-from-nothing">Delegation cannot create new allowance from nothing</h2>
+<p>The most dangerous default when a parent Run creates a Child Run is to give the child a fresh set of global limits. The parent can then evade its own constraints by spawning indefinitely.</p>
+<p>A conceptual resource envelope could look like this:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "run_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"run_19"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "remaining"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "model_tokens"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">40000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "tool_calls"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">30</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "sandbox_seconds"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">600</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "concurrency"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "child_runs"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "sandboxes"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "deadline"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"..."</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>When creating a child, the Runtime can:</p>
+<ul>
+<li><strong>reserve</strong> a portion of the parent’s remaining allowance and return the unused portion later;</li>
+<li><strong>share</strong> the same counter between parent and child, with atomic consumption;</li>
+<li><strong>reject</strong> delegation when it cannot construct a safe envelope.</li>
+</ul>
+<p>Different resources need different strategies. Tokens and Sandbox-seconds are cumulative. A concurrency slot is a lease held at one point in time. A deadline normally takes the earlier of the parent’s deadline and the child’s requested deadline. One generic add-and-subtract rule cannot cover all of them.</p>
+<h2 id="admission-must-happen-before-resource-consumption">Admission must happen before resource consumption</h2>
+<p>Checking quota after creating a Sandbox is already too late. An admission decision should be consumed before the system occupies scarce resources:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request</span></span>
+<span class="line"><span>→ validate identity and tenant</span></span>
+<span class="line"><span>→ check Run budget</span></span>
+<span class="line"><span>→ check subject/tenant quota</span></span>
+<span class="line"><span>→ check rate and concurrency</span></span>
+<span class="line"><span>→ consume downstream backpressure</span></span>
+<span class="line"><span>→ reserve capacity</span></span>
+<span class="line"><span>→ admit / delay / reject / degrade</span></span></code></pre>
+<p>The decision should return a machine-readable reason such as <code>run_budget_exhausted</code>, <code>tenant_concurrency_limit</code>, or <code>sandbox_pool_saturated</code>. The parent Run can then stop, wait, reduce the task, or explain the limitation instead of inferring it from a timeout.</p>
+<p>Reservations also need a lifecycle. If resource creation fails, the request is cancelled, or the worker crashes, an expiring lease or reconciler must release the reservation. Otherwise, capacity that was reserved but never used will gradually consume the system.</p>
+<h2 id="averages-hide-hotspots">Averages hide hotspots</h2>
+<p>Suppose nine of ten queue partitions have no backlog while one partition accumulates long-running work from a single tenant. Average global lag may still be low even as that partition’s oldest message age and worker utilization deteriorate.</p>
+<p>Backpressure therefore needs to be observed at the real contention key, such as:</p>
+<ul>
+<li>tenant;</li>
+<li>queue partition or message group;</li>
+<li>Tool or provider;</li>
+<li>Sandbox profile;</li>
+<li>destination service.</li>
+</ul>
+<p>The signal must reach an admission point that can change traffic. An alert on a dashboard is not backpressure. Allowing an already saturated worker to extend the Queue without bound merely turns overload into a longer durable backlog.</p>
+<p>Admission may delay or reject work, reduce fan-out, choose a cheaper execution mode, or reserve a fair share. The fairness policy is a product decision. The requirement here is narrower: downstream pressure must reach upstream admission and act on hotspot dimensions, not only global averages.</p>
+<h2 id="a-runtime-limit-can-stop-growth-not-reverse-an-effect">A runtime limit can stop growth, not reverse an effect</h2>
+<p>When a Budget is exhausted during execution, the Runtime can stop admitting new Model Turns, Tools, or Child Runs, request cancellation of existing work, and wait for the agreed convergence boundary.</p>
+<p>That does not reverse an external effect that has already been dispatched. After a Tool timeout or forced Sandbox termination, the effect outcome may still be <code>unknown</code> and require a query or reconciliation against its backend. Resource governance prevents further consumption; it does not fabricate a business rollback.</p>
+<h2 id="separate-cost-facts-from-policy-decisions">Separate cost facts from policy decisions</h2>
+<p>Observability can record the model, Tool, Sandbox, storage, and retry usage of every Attempt, then aggregate those facts by logical operation. It answers “what was consumed,” not “how much should the next execution be allowed to consume.”</p>
+<p>A policy owner can consume these facts offline or nearline to adjust quotas, reservations, or degradation thresholds. Making the current bill itself the runtime authorization source would pull observation delay, recomputation, and price changes into the admission Source of Truth.</p>
+<p>This article gives no fixed threshold or price because those values must come from concrete capacity, SLO, and cost data.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Before creating children, the parent Run in the opening example should face a resource envelope: at most three concurrent Child Runs and two Sandbox slots, with Sandbox-seconds for each child reserved from the parent’s remaining allowance.</p>
+<p>When that tenant has exhausted concurrency for the relevant Sandbox profile and the corresponding queue partition’s oldest age keeps rising, the backpressure signal reaches admission. Later spawn requests are delayed or rejected with <code>tenant_sandbox_saturated</code>. Existing children converge within the remaining budget and cannot continue producing unbounded fan-out.</p>
+<p><code>max_tokens</code> therefore solves only one local problem. Complete governance models Budget, Quota, Rate Limit, Concurrency, and Backpressure separately by resource type and responsible subject, then combines them before the resource is consumed.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://kubernetes.io/docs/concepts/policy/resource-quotas/">Kubernetes Resource Quotas</a></li>
+<li><a href="https://kubernetes.io/docs/concepts/cluster-administration/flow-control/">Kubernetes API Priority and Fairness</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-action-confirmation/" rel="prev"> <span>Previous</span> <strong>A Verifiable Confirmation Protocol for High-Risk Actions</strong> </a> <a href="/writing/agent-durable-jobs-recovery/" rel="next"> <span>Next</span> <strong>Recovering Durable Jobs Across Queues and Workflows</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#give-each-limit-the-correct-owner">Give each limit the correct owner</a></li><li><a href="#delegation-cannot-create-new-allowance-from-nothing">Delegation cannot create new allowance from nothing</a></li><li><a href="#admission-must-happen-before-resource-consumption">Admission must happen before resource consumption</a></li><li><a href="#averages-hide-hotspots">Averages hide hotspots</a></li><li><a href="#a-runtime-limit-can-stop-growth-not-reverse-an-effect">A runtime limit can stop growth, not reverse an effect</a></li><li><a href="#separate-cost-facts-from-policy-decisions">Separate cost facts from policy decisions</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-failure-recovery/">The Owner of a Failure State Chooses the Recovery Action</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-workspace/">Why One File Needs Both an Artifact Identity and a Workspace Reference</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-capability-surface/">Which Capabilities Should an Agent Expose on Each Turn?</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

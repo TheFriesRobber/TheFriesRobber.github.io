@@ -1,0 +1,397 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Decide whether an Agent capability should become a platform service using Sources of Truth, failure domains, resource curves, adoption cost, and reversal conditions."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Platform Boundaries Follow State Ownership and Reversal Conditions | Xiaoyuan"><meta property="og:description" content="Decide whether an Agent capability should become a platform service using Sources of Truth, failure domains, resource curves, adoption cost, and reversal conditions."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-platform-boundaries/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Platform Boundaries Follow State Ownership and Reversal Conditions | Xiaoyuan"><meta name="twitter:description" content="Decide whether an Agent capability should become a platform service using Sources of Truth, failure domains, resource curves, adoption cost, and reversal conditions."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-24T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-24T00:00:00.000Z"><meta property="article:tag" content="Agent Architecture"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Platform Engineering"><meta property="article:tag" content="Architecture"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-platform-boundaries/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-platform-boundaries/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-platform-boundaries/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-platform-boundaries/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-platform-boundaries/#article","headline":"Platform Boundaries Follow State Ownership and Reversal Conditions","description":"Decide whether an Agent capability should become a platform service using Sources of Truth, failure domains, resource curves, adoption cost, and reversal conditions.","url":"https://xiaoyuan-gu.github.io/writing/agent-platform-boundaries/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-platform-boundaries/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-24T00:00:00.000Z","dateModified":"2026-07-24T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Architecture","Agent","Platform Engineering","Architecture"]}</script><title>Platform Boundaries Follow State Ownership and Reversal Conditions | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-platform-boundaries/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Architecture · 01 </p> <h1 class="page-title">Platform Boundaries Follow State Ownership and Reversal Conditions</h1> <p class="article-deck">Decide whether an Agent capability should become a platform service using Sources of Truth, failure domains, resource curves, adoption cost, and reversal conditions.</p> <div class="meta"> <time datetime="2026-07-24T00:00:00.000Z">07/24/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Architecture/">Agent Architecture</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Platform%20Engineering/">Platform Engineering</a><a class="pill" href="/tags/Architecture/">Architecture</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A system splits Loop, Context, and Tool into three services by noun. A Tool write succeeds and Tool Service emits a result, but Loop Service crashes before updating Run state. Context Service recovers from an old projection and gives the same Tool Call to the model again.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Loop Service: Run still executing</span></span>
+<span class="line"><span>Tool Service: Tool Execution succeeded</span></span>
+<span class="line"><span>Context Service: latest Context lacks Tool Result</span></span></code></pre>
+<p>More services did not clarify responsibility. Platform boundaries should follow fact ownership and invariants, then independent deployment should be justified by failure, resource, or evolution benefits.</p>
+<h2 id="source-of-truth-means-semantic-authority">Source of Truth means semantic authority</h2>
+<p>Several copies may coexist. What must be unique is the authority to commit one business decision. Ask who may transition state, which contemporaneous facts and policy support it, which copies are projections, and what can rebuild them.</p>
+<p>The opening permits two designs.</p>
+<p><strong>A: Core atomically commits observed effect evidence and next state.</strong></p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>external backend:</span></span>
+<span class="line"><span>  owns actual effect</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>core transaction:</span></span>
+<span class="line"><span>  commit(effect reference/evidence,</span></span>
+<span class="line"><span>         Tool Execution state,</span></span>
+<span class="line"><span>         next Run state,</span></span>
+<span class="line"><span>         Context revision)</span></span></code></pre>
+<p>The backend still owns the real effect. If the process crashes between external commit and the local transaction, recovery queries by stable operation ID and must not repeat the Tool Call before reconciliation.</p>
+<p><strong>B: an Event Log owns Core’s observed facts.</strong></p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>atomic append:</span></span>
+<span class="line"><span>  tool_effect_observed {</span></span>
+<span class="line"><span>    operation_id,</span></span>
+<span class="line"><span>    tool_execution_id,</span></span>
+<span class="line"><span>    source_attempt_id,</span></span>
+<span class="line"><span>    effect_ref,</span></span>
+<span class="line"><span>    observed_outcome</span></span>
+<span class="line"><span>  }</span></span>
+<span class="line"><span>derived:</span></span>
+<span class="line"><span>  Run state projection</span></span>
+<span class="line"><span>  Context projection</span></span></code></pre>
+<p>Projections rebuild by cursor, version, and idempotent processing. <code>tool_execution_id</code> identifies the execution to converge; <code>source_attempt_id</code> preserves the physical observation when applicable. Unknown remains unknown. Reconciliation appends another event instead of overwriting history or treating a local append as the external effect.</p>
+<h2 id="repair-a-derived-view-at-the-right-location">Repair a derived view at the right location</h2>
+<p>If an authoritative effect event exists but Context missed it, replay the projection and repair its cursor. If the event normalized unknown as succeeded, fix the Tool-result boundary rather than teaching Context a second timeout rule.</p>
+<p>Every independent boundary declares authoritative state, accepted commands, emitted facts, derived views, idempotency/version, and recovery/rebuild/reconciliation. Network topology without these contracts is not a platform boundary.</p>
+<h2 id="separate-code-boundaries-from-deployment-boundaries">Separate code boundaries from deployment boundaries</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Boundary</th><th>Primary benefit</th><th>Added cost</th></tr></thead><tbody><tr><td>Module/package</td><td>semantic encapsulation and dependency tests</td><td>shared process failure and release</td></tr><tr><td>Library/shared process</td><td>implementation reuse and local calls</td><td>compatibility and host upgrades</td></tr><tr><td>Independent service</td><td>independent capacity, failure, release, ownership</td><td>network failure, latency, schemas, operations, recovery</td></tr></tbody></table>
+<p>Start with the smallest useful boundary while contracts stabilize. A rapidly changing Context policy should not become a remote API prematurely. A stable owner with an independent resource curve may eventually deserve centralized governance.</p>
+<h2 id="an-independent-service-needs-a-real-separation-signal">An independent service needs a real separation signal</h2>
+<h3 id="failure-needs-isolation">Failure needs isolation</h3>
+<p>Sandbox execution of untrusted code may need a different security and failure domain from Agent Core. “This module can fail” is insufficient; name the blast radius and handle the new partial failures introduced by the network.</p>
+<h3 id="resource-curves-diverge">Resource curves diverge</h3>
+<p>Sandbox scheduling may follow CPU, memory, and startup queues; Evaluation may consume batch model capacity; Core may hold low-latency Run state. Without measured profiles, this remains a hypothesis.</p>
+<h3 id="change-cadence-and-compatibility-diverge">Change cadence and compatibility diverge</h3>
+<p>A service supporting several host versions needs schema evolution, compatibility windows, and deprecation. Separate teams do not automatically imply separate runtime topology.</p>
+<h3 id="multiple-adopters-share-a-stable-contract">Multiple adopters share a stable contract</h3>
+<p>Repeated stable semantics across products may justify a shared Runtime. A second caller alone does not: a module or library may suffice, and migration, support, compatibility, and exit cost still matter.</p>
+<h2 id="platform-benefits-need-observable-denominators">Platform benefits need observable denominators</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Dimension</th><th>Required grain and denominator</th></tr></thead><tbody><tr><td>Adoption</td><td>eligible workloads using the contract / all eligible workloads in a window</td></tr><tr><td>Reliability</td><td>success and failure by logical operation or request</td></tr><tr><td>Latency</td><td>distribution for the same workload class</td></tr><tr><td>Cost</td><td>observed/allocated cost per Task, operation, or resource unit</td></tr><tr><td>Migration burden</td><td>migrated callers, remaining callers, actual work</td></tr></tbody></table>
+<p>Use a baseline, window, and configuration identity. Include retries and timeouts introduced by remote calls. A central API also needs support and incident ownership; centralizing an endpoint while leaving recovery to every caller does not centralize semantics.</p>
+<h2 id="choose-the-smallest-necessary-boundary-for-the-opening-system">Choose the smallest necessary boundary for the opening system</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Agent Core deployment</span></span>
+<span class="line"><span>  owns:</span></span>
+<span class="line"><span>    Run transition</span></span>
+<span class="line"><span>    per-turn Context projection</span></span>
+<span class="line"><span>    Tool Execution logical state</span></span>
+<span class="line"><span>    observed effect evidence</span></span>
+<span class="line"><span>  modules:</span></span>
+<span class="line"><span>    loop</span></span>
+<span class="line"><span>    context</span></span>
+<span class="line"><span>    tool contract</span></span>
+<span class="line"><span>    memory read/write policy</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>Sandbox control plane (candidate independent service)</span></span>
+<span class="line"><span>  owns:</span></span>
+<span class="line"><span>    sandbox admission</span></span>
+<span class="line"><span>    lease</span></span>
+<span class="line"><span>    runtime provider reconciliation</span></span></code></pre>
+<p>Keeping tightly related Run, Context, Tool state, and observed evidence under one owner reduces cross-service recovery. The external backend still owns effects. Sandbox is a candidate remote boundary because of untrusted execution, independent capacity, and reconciliation.</p>
+<p>This is conditional. A stable authoritative Event Log may permit Context to rebuild independently. An external Tool provider does not remove Core’s responsibility for Tool Execution and unknown outcomes. Evaluation may deploy separately for batch capacity while still reusing the production Spec compiler and execution contract.</p>
+<h2 id="an-adr-records-the-decision-and-reversal-conditions">An ADR records the decision and reversal conditions</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">keep Context projection in Agent Core</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">accepted</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">context</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  invariant</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">observed effect evidence, Run transition and visible Tool Result must share one revision</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">assumptions</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">Context workload does not require independent capacity</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">all current consumers release with Agent Core</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">alternatives</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">independent Context Service</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">evidence_needed</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">latency profile</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">failure ownership</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">eligible adopters</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">consequences</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">shared deployment</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">simpler local atomicity</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">reversal_conditions</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">measured workload requires independent capacity</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">stable event contract permits deterministic rebuild</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">multiple consumers require an independently versioned API</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">review_owner</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">review_date</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">...</span></span></code></pre>
+<p>This is a decision structure, not evidence from a real system. <a href="https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions">Michael Nygard’s original ADR description</a> emphasizes the forces behind a decision and preserving a superseded record when it is reversed.</p>
+<p>“Scale grows” is not a reversal condition. Tie it to evidence and an action:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>if Context computation becomes a sustained independent capacity bottleneck</span></span>
+<span class="line"><span>for the same workload class,</span></span>
+<span class="line"><span>and the event contract can rebuild the projection deterministically,</span></span>
+<span class="line"><span>then reevaluate independent deployment.</span></span></code></pre>
+<p>A triggered condition reopens the decision; it does not automate the split. The new decision must still recalculate migration, partial-failure, and compatibility costs.</p>
+<h2 id="a-simple-design-still-has-a-scope">A simple design still has a scope</h2>
+<p>One deployment unit can remain modular when contracts, owners, event identity, and recovery are explicit. With one host, similar workload curves, synchronized changes, and invariants needing local atomicity or low latency, local boundaries may be enough. Separate only when durable failure, resource, evolution, or adoption benefits exceed remote-call and governance costs.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Splitting Loop, Context, and Tool by noun made the Run harder to keep consistent because deployment preceded state ownership and invariants.</p>
+<p>Keep the external backend as effect owner. Let Core use either an atomic current state for effect evidence, logical state, and Context, or an append-only event model; recover by operation/effect reference. Separate Sources of Truth from rebuildable projections, and promote modules to services only when failure isolation, resource curves, change cadence, or adoption provide evidence.</p>
+<p>Record assumptions, denominators, migration cost, and reversal conditions in an ADR so boundaries can contract or split when evidence changes.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#source-of-truth-means-semantic-authority">Source of Truth means semantic authority</a></li><li><a href="#repair-a-derived-view-at-the-right-location">Repair a derived view at the right location</a></li><li><a href="#separate-code-boundaries-from-deployment-boundaries">Separate code boundaries from deployment boundaries</a></li><li><a href="#an-independent-service-needs-a-real-separation-signal">An independent service needs a real separation signal</a></li><li><a href="#platform-benefits-need-observable-denominators">Platform benefits need observable denominators</a></li><li><a href="#choose-the-smallest-necessary-boundary-for-the-opening-system">Choose the smallest necessary boundary for the opening system</a></li><li><a href="#an-adr-records-the-decision-and-reversal-conditions">An ADR records the decision and reversal conditions</a></li><li><a href="#a-simple-design-still-has-a-scope">A simple design still has a scope</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-action-confirmation/">A Verifiable Confirmation Protocol for High-Risk Actions</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-workspace/">Why One File Needs Both an Artifact Identity and a Workspace Reference</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-capability-surface/">Which Capabilities Should an Agent Expose on Each Turn?</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
