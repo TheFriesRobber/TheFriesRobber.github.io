@@ -1,0 +1,395 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Follow one PDF through upload, derivation, editing, and download to separate Blob, Artifact, Workspace Path, and Message Reference."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Capability Integration 5: A File Is More Than a Message Attachment | Xiaoyuan"><meta property="og:description" content="Follow one PDF through upload, derivation, editing, and download to separate Blob, Artifact, Workspace Path, and Message Reference."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-file-artifact-lifecycle/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Capability Integration 5: A File Is More Than a Message Attachment | Xiaoyuan"><meta name="twitter:description" content="Follow one PDF through upload, derivation, editing, and download to separate Blob, Artifact, Workspace Path, and Message Reference."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-15T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-15T00:00:00.000Z"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Files"><meta property="article:tag" content="Infrastructure"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-file-artifact-lifecycle/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-file-artifact-lifecycle/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-file-artifact-lifecycle/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-file-artifact-lifecycle/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-file-artifact-lifecycle/#article","headline":"Capability Integration 5: A File Is More Than a Message Attachment","description":"Follow one PDF through upload, derivation, editing, and download to separate Blob, Artifact, Workspace Path, and Message Reference.","url":"https://xiaoyuan-gu.github.io/writing/agent-file-artifact-lifecycle/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-file-artifact-lifecycle/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-15T00:00:00.000Z","dateModified":"2026-07-15T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent","Files","Infrastructure"]}</script><title>Capability Integration 5: A File Is More Than a Message Attachment | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.Bk391mG-.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-file-artifact-lifecycle/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Capability Integration · 05 </p> <h1 class="page-title">Capability Integration 5: A File Is More Than a Message Attachment</h1> <p class="article-deck">Follow one PDF through upload, derivation, editing, and download to separate Blob, Artifact, Workspace Path, and Message Reference.</p> <div class="meta"> <time datetime="2026-07-15T00:00:00.000Z">07/15/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Files/">Files</a><a class="pill" href="/tags/Infrastructure/">Infrastructure</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>A user uploads <code>requirements.pdf</code> on a phone and asks an Agent to turn it into a project plan. The Agent extracts text, edits <code>plan.md</code> several times in a Workspace, and generates <code>plan.pdf</code>. The next day, the user continues on a computer. A week later, the original upload message is deleted.</p>
+<p>If the system stores only a Message Attachment record and download URL, message deletion raises questions that the Attachment cannot answer:</p>
+<ul>
+<li>Who retains the original PDF, extracted text, working draft, and final report?</li>
+<li>Should the computer open the latest Workspace draft or a version once shown in a Message?</li>
+<li>When a download link expires or the user deletes the source, which content is actually deleted?</li>
+</ul>
+<p>Longer URL expiry does not solve this. A Message Attachment can say how the current Message points to a file. If it also carries content, business identity, working path, and access entry, the other objects lose their owners when the Message lifecycle ends.</p>
+<h2 id="one-file-lineage-contains-five-objects">One file lineage contains five objects</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Upload upload_17</span></span>
+<span class="line"><span>  └─ Blob sha256:ab...                 original PDF bytes</span></span>
+<span class="line"><span>       └─ Artifact artifact_source_17  requirements.pdf v1</span></span>
+<span class="line"><span>            ├─ Artifact artifact_text_18  extracted.txt v1</span></span>
+<span class="line"><span>            └─ Workspace Path /project/plan.md</span></span>
+<span class="line"><span>                 └─ Artifact artifact_report_25  plan.pdf v3</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>Message message_8 ──references──> artifact_source_17</span></span>
+<span class="line"><span>Message message_21 ─references──> artifact_report_25</span></span></code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Object</th><th>What its stable identity means</th><th>Typical owner</th><th>Lifecycle basis</th></tr></thead><tbody><tr><td>Upload</td><td>one attempt to receive bytes</td><td>Upload service</td><td>completed, failed, or expired reception</td></tr><tr><td>Blob</td><td>immutable bytes</td><td>object storage / Blob service</td><td>references, retention, compliance</td></tr><tr><td>Artifact</td><td>an explainable input or output</td><td>Artifact service</td><td>business owner, version, provenance, retention</td></tr><tr><td>Workspace Path</td><td>a mutable name in the current work area</td><td>Workspace owner</td><td>Session or Task working lifecycle</td></tr><tr><td>Message Reference</td><td>how one Message presents an Artifact</td><td>Conversation owner</td><td>Message lifecycle</td></tr></tbody></table>
+<p>Several may share one table, but not one meaning. Deleting <code>message_8</code> directly removes only its reference to <code>artifact_source_17</code>. Artifact, Blob, and derived-output deletion still follow their own owners and retention.</p>
+<h2 id="a-blob-stores-bytes-an-artifact-stores-business-identity">A Blob stores bytes; an Artifact stores business identity</h2>
+<p>A Blob is a good immutable-content object. A content digest supports deduplication and integrity checks:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "blob_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sha256:ab12..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "size"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">284193</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "media_type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"application/pdf"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>Equal bytes are not necessarily the same business object. Alice and Bob may upload the same template for different purposes. Their Artifacts may share physical bytes but require separate identity, authorization, and retention.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "artifact_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"artifact_source_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "owner"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"user"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"user_7"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "kind"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"source_document"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "blob_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sha256:ab12..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "created_from"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"upload_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"upload_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>Content-addressed identity proves whether bytes match. It cannot prove who owns them, why they exist, or who may read them. Policy and business lifecycle bind to the Artifact.</p>
+<h2 id="a-workspace-path-is-a-mutable-working-name-not-a-version-identity">A Workspace Path is a mutable working name, not a version identity</h2>
+<p><code>/project/plan.md</code> gives Tools a stable path for repeated reads and writes. It means “what this name points to now,” not an immutable history.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>/project/plan.md → workspace_file_9 revision 1 → blob sha256:c1...</span></span></code></pre>
+<p>After editing:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>/project/plan.md → workspace_file_9 revision 2 → blob sha256:d8...</span></span></code></pre>
+<p>If the user asks to export yesterday’s version, a path alone cannot identify those bytes. The Workspace owner needs revisions, content references, and concurrency conditions. When a revision becomes an input, checkpoint, approval object, or deliverable, it should be promoted to a stable Artifact.</p>
+<p>Not every keystroke needs an Artifact. Workspace revisions support frequent internal saves; important boundaries receive Artifact identity. This avoids both an uncontrolled version archive and a deliverable that exists only at a mutable path.</p>
+<h2 id="derivation-records-input-versions-and-the-generator">Derivation records input versions and the generator</h2>
+<p><code>extracted.txt</code> and <code>plan.pdf</code> did not appear spontaneously:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "artifact_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"artifact_report_25"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "kind"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"report"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "blob_ref"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"sha256:f4..."</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "derived_from"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"artifact_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"artifact_source_17"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"version"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    {</span><span style="color:#005CC5;--shiki-dark:#79B8FF">"workspace_file_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"workspace_file_9"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"revision"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">7</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "generated_by"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"program"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"pdf_renderer"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    "execution_id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"job_pdf_25"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p><code>generated_by</code> must identify the producer. A model may generate the prose, while a deterministic renderer produces the PDF bytes. Labeling both merely “AI-generated” leaves readers and the system unable to tell whether to rerun the model, rerun the renderer, or reuse a Blob.</p>
+<p>Provenance need not copy the entire execution log, but must at least identify input identity and version, transformation type, producer, and execution. W3C PROV similarly models derivation through activities between entities rather than inferring it from filenames.</p>
+<h2 id="a-download-link-is-an-access-capability-not-artifact-identity">A download link is an access capability, not Artifact identity</h2>
+<p>Cross-device download often uses a short-lived URL:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>download capability</span></span>
+<span class="line"><span>  subject=user_7</span></span>
+<span class="line"><span>  artifact=artifact_report_25@v3</span></span>
+<span class="line"><span>  expires_at=2026-07-22T10:00:00Z</span></span>
+<span class="line"><span>  disposition=attachment</span></span></code></pre>
+<p>Link expiry invalidates access, not the Artifact or Blob. Conversely, revocation or authorization loss should deny access even before URL expiry. Amazon S3 presigned URLs likewise constrain access through expiration and signing credentials; they are not long-term business identities.</p>
+<p>A Message should store an Artifact reference and ask the authorization service for a fresh URL when read, instead of treating one signed URL as a permanent attachment field. Device changes, expiry, and permission changes can then be evaluated against the same Artifact.</p>
+<h2 id="retention-and-deletion-converge-along-references">Retention and deletion converge along references</h2>
+<p>Deletion has at least three decisions:</p>
+<ol>
+<li>The Conversation owner deletes the Message Reference.</li>
+<li>The Artifact owner checks whether Tasks, Workspaces, delivery records, or retention policy still preserve the Artifact.</li>
+<li>The Blob owner reclaims physical content only after valid references and retention end.</li>
+</ol>
+<p>Derivation does not imply cascading deletion. A delivered report may remain after source deletion while its provenance records that the source was deleted or is unavailable. A policy requiring deletion of a source and reversible derivatives should let the Artifact service produce an auditable deletion plan, not let object storage guess from path prefixes.</p>
+<p>Versioned object storage adds another boundary: deleting a current key may create only a delete marker while older versions remain. <code>artifact.deleted</code>, download revocation, and completed physical erasure are distinct states.</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Artifact marked deleted</span></span>
+<span class="line"><span>  → revoke capabilities</span></span>
+<span class="line"><span>  → detach references</span></span>
+<span class="line"><span>  → evaluate descendants and retention</span></span>
+<span class="line"><span>  → delete eligible blob versions</span></span>
+<span class="line"><span>  → record erasure outcome</span></span></code></pre>
+<p>Only the final successful step proves erasure of the physical version. An intermediate failure should remain retryable rather than letting <code>deleted=true</code> claim complete deletion.</p>
+<h2 id="the-minimum-artifact-contract">The minimum Artifact Contract</h2>
+<p>A file that crosses Messages, Sessions, or devices needs:</p>
+<ul>
+<li>stable <code>artifact_id</code>, owner, and kind;</li>
+<li>immutable <code>blob_ref</code>, media type, size, and integrity digest;</li>
+<li>Artifact version or referenced Workspace revision;</li>
+<li>provenance: input versions, transformation, generator, and execution;</li>
+<li>authorization and revocable access;</li>
+<li>retention, deletion state, and physical-erasure result;</li>
+<li>references from Messages, Tasks, Workspaces, or delivery records.</li>
+</ul>
+<p>This does not require preserving every file forever. It requires a clear owner for retention and deletion, while URL, path, and Message stop impersonating the file itself.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Deleting the original upload message first removes only <code>message_8 → artifact_source_17</code>. The Artifact owner decides whether to retain the PDF based on the Task, retention requirements, and the user’s deletion intent. The Workspace owns <code>plan.md</code>. The delivered <code>plan.pdf@v3</code> can remain an Artifact and receive a new authorized download on the computer.</p>
+<p>Once a file enters a long-running Agent task, it is more than a Message Attachment. The Blob stores bytes, the Artifact stores business identity and provenance, the Workspace Path supplies a mutable name, the Message Reference handles presentation, and the download URL grants time-limited access. Separating them gives versioning, cross-device access, deletion, and audit consistent owners.</p>
+<h2 id="follow-up-questions">Follow-up questions</h2>
+<ul>
+<li>How does a Workspace Path keep pointing to the same persistent file after Runtime replacement?</li>
+<li>How should Workspace and Artifact import, export, and freeze versions?</li>
+<li>How should large files enter Model Context through parsing, chunks, and references without copying all content?</li>
+</ul>
+<p>References:</p>
+<ul>
+<li><a href="https://www.w3.org/TR/prov-n/">W3C PROV-N: Derivation</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html">Amazon S3: Using presigned URLs</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjects.html">Amazon S3: Deleting objects</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html">Amazon S3: Lifecycle rules</a></li>
+</ul>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-capability-abstraction-layers/" rel="prev"> <span>Previous</span> <strong>Capability Integration 1: How Tools, Skills, Connectors, and MCP Divide Responsibilities</strong> </a>  </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#one-file-lineage-contains-five-objects">One file lineage contains five objects</a></li><li><a href="#a-blob-stores-bytes-an-artifact-stores-business-identity">A Blob stores bytes; an Artifact stores business identity</a></li><li><a href="#a-workspace-path-is-a-mutable-working-name-not-a-version-identity">A Workspace Path is a mutable working name, not a version identity</a></li><li><a href="#derivation-records-input-versions-and-the-generator">Derivation records input versions and the generator</a></li><li><a href="#a-download-link-is-an-access-capability-not-artifact-identity">A download link is an access capability, not Artifact identity</a></li><li><a href="#retention-and-deletion-converge-along-references">Retention and deletion converge along references</a></li><li><a href="#the-minimum-artifact-contract">The minimum Artifact Contract</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li><li><a href="#follow-up-questions">Follow-up questions</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-delegation-primitives/">Agent Runtime 10: Who Should Execute a Subtask?</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-memory-retrieval-ranking/">Agent Memory 5: Retrieval Cannot Rank by Similarity Alone</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-session-event-log-projections/">Agent Runtime 4: Make the Event Log the Source of Truth</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
