@@ -1,0 +1,338 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用权威执行 Journal、幂等 Projection 和带 cursor 的 Checkpoint 恢复 Agent 状态，而不重复未知副作用。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Agent 10：执行 Journal 与 Checkpoint 如何共同支撑恢复 | Xiaoyuan"><meta property="og:description" content="用权威执行 Journal、幂等 Projection 和带 cursor 的 Checkpoint 恢复 Agent 状态，而不重复未知副作用。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/agent-execution-journal-checkpoint/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Agent 10：执行 Journal 与 Checkpoint 如何共同支撑恢复 | Xiaoyuan"><meta name="twitter:description" content="用权威执行 Journal、幂等 Projection 和带 cursor 的 Checkpoint 恢复 Agent 状态，而不重复未知副作用。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-27T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-27T00:00:00.000Z"><meta property="article:tag" content="Agent Core"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Recovery"><meta property="article:tag" content="Event Log"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/agent-execution-journal-checkpoint/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-execution-journal-checkpoint/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-execution-journal-checkpoint/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-execution-journal-checkpoint/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-execution-journal-checkpoint/#article","headline":"Agent 10：执行 Journal 与 Checkpoint 如何共同支撑恢复","description":"用权威执行 Journal、幂等 Projection 和带 cursor 的 Checkpoint 恢复 Agent 状态，而不重复未知副作用。","url":"https://xiaoyuan-gu.github.io/zh/writing/agent-execution-journal-checkpoint/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/agent-execution-journal-checkpoint/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-27T00:00:00.000Z","dateModified":"2026-07-27T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Agents"],"keywords":["Agent Core","Agent","Recovery","Event Log"]}</script><title>Agent 10：执行 Journal 与 Checkpoint 如何共同支撑恢复 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/agent-execution-journal-checkpoint/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Core · 10/40 </p> <h1 class="page-title">Agent 10：执行 Journal 与 Checkpoint 如何共同支撑恢复</h1> <p class="article-deck">用权威执行 Journal、幂等 Projection 和带 cursor 的 Checkpoint 恢复 Agent 状态，而不重复未知副作用。</p> <div class="meta"> <time datetime="2026-07-27T00:00:00.000Z">2026/07/27</time> <span>更新于 2026/07/27</span> <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/Agent%20Core/">Agent Core</a><a class="pill" href="/zh/tags/Agent/">Agent</a><a class="pill" href="/zh/tags/Recovery/">Recovery</a><a class="pill" href="/zh/tags/Event%20Log/">Event Log</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>Agent 创建报告文件后准备生成摘要。文件服务已经返回 <code>report-42</code>，但 worker 在保存 Tool Result 前退出。此时 Run 表仍是 <code>running</code>，Session message 中没有文件结果，在线客户端却可能已经看见过一条 <code>tool_execution_end</code> signal。</p>
+<p>如果恢复器只相信 Run 表，它会认为工作仍在进行；只相信 messages，它会再次创建文件；只相信客户端 signal，它又无法证明 signal 对应的事实已经持久化。</p>
+<p>恢复需要一份权威执行 Journal 记录已经提交的事实，再用 Projection 生成 Run、message 和客户端读取视图。Checkpoint 不是另一份事实源，而是指向 Journal 中稳定位置、并声明恢复前必须核对哪些外部条件的协议。</p>
+<h2 id="journal-先提交事实projection-再服务读取">Journal 先提交事实，Projection 再服务读取</h2>
+<p>一次执行结果常同时更新 Run 状态、message view、实时通知和 metric。如果它们各自直接写入结果，任何中途故障都会留下多个互相矛盾的 Source of Truth。</p>
+<p>更清楚的边界是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>authoritative execution journal</span></span>
+<span class="line"><span>├─ Run-state projection</span></span>
+<span class="line"><span>├─ Message projection</span></span>
+<span class="line"><span>├─ Durable client feed</span></span>
+<span class="line"><span>└─ Metric/Audit projection</span></span></code></pre>
+<p>Journal 保存“已经提交了什么”；Projection 根据读取需求解释同一组事实。客户端 feed 可以持久化，但它仍是 Journal 的读取投影，不与 Journal 竞争 Tool outcome 的所有权。SSE/WebSocket 则只发送 feed 中新事件的低延迟 signal。</p>
+<p>Session Tree 继续保存分支化的对话历史和 Context-visible path。它可以消费已确认的 message projection，却不替代 operation、Attempt 和 effect evidence 的 Journal。</p>
+<h2 id="effect-intent-必须先提交再允许外部调用">Effect Intent 必须先提交，再允许外部调用</h2>
+<p>Journal 不只记录完成结果。任何可能产生外部副作用的路径都必须先分配 operation、Attempt 与稳定 effect key，把 intent durable append 并确认提交，然后才允许 dispatch：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>allocate operation / Attempt / effect key</span></span>
+<span class="line"><span>→ append tool.effect.intent</span></span>
+<span class="line"><span>→ commit Journal event</span></span>
+<span class="line"><span>→ dispatch external call with the same effect key</span></span>
+<span class="line"><span>→ append terminal outcome or unknown evidence</span></span></code></pre>
+<p>如果 intent commit 失败，Runtime 不得发送调用。只有所有 effect path 都执行这道 gate 时，“Journal 中没有 intent”才能证明该 Runtime 不应该已经 dispatch；绕过 gate 的 handler 或基础设施副作用会破坏这个证明边界。</p>
+<p>恢复中的 replay 是重新应用已经记录的事实，不是重新调用模型或 Tool。Intent 没有 terminal outcome 时进入 reconciliation；它本身不是一次 retry 指令。</p>
+<h2 id="sequence-与-event-identity-解决不同问题">Sequence 与 Event Identity 解决不同问题</h2>
+<p>一条概念性 Journal event 可以是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">stream_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">session:17</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">sequence</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">74</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">event_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">event_9a2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">tool.effect.succeeded</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">run_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">run_8</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">tool_execution_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">tool_exec_12</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">attempt_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">attempt_1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">payload</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  effect_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">report-42</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">schema_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">execution-event.v3</span></span></code></pre>
+<p><code>sequence</code> 表示某个 stream 内已经提交的顺序；<code>event_id</code> 表示逻辑事件身份。全局 UUID 可以去重，却不能告诉 projector 下一条该读什么；裸 sequence 也不能跨 stream 使用。</p>
+<p>同一逻辑 append 因 timeout 重试时必须复用 <code>event_id</code>。若该 ID 已存在，Journal 比较不可变 envelope 的 digest：内容相同就返回原 sequence，内容不同就报 conflict。不能生成新 ID 再追加一遍。</p>
+<p>分配 sequence、校验合法 transition 和写入 event 应位于同一个权威提交边界。取消请求可以记录为 <code>run.cancel.requested</code>；只有当前 transition owner 完成竞态裁决后，才能写入 <code>run.cancelled</code> 或 <code>run.completed</code>。Event Log 不能先接受互相冲突的终态，再把决定推给 projector。</p>
+<h2 id="projection-必须允许重复消费">Projection 必须允许重复消费</h2>
+<p>Projector 保存自己的 scoped cursor。假设 Journal 已到 sequence 74，而 message projector 只处理到 72：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Journal cursor: 74</span></span>
+<span class="line"><span>Message projection cursor: 72</span></span></code></pre>
+<p>Projector 从 73 继续，并按稳定业务 ID 幂等更新 view。若 projection row 与 cursor 在同一数据库，二者应在同一 transaction 中提交；若跨存储，就先幂等写 view，再推进 cursor。写入结果未知时不跳过该 event，重启后重复消费。</p>
+<p>这提供的是 at-least-once projection，不是端到端 exactly-once。幂等 key、单调 cursor、CAS 或 fenced projector owner 共同保证慢 worker 不能把新视图倒退。</p>
+<p>因此 message projection 落后只需要 replay Journal，不需要重新调用模型或 Tool。</p>
+<h2 id="checkpoint-记录恢复起点与核对条件">Checkpoint 记录恢复起点与核对条件</h2>
+<p>Journal 可以从头重建状态，但长 Run 通常需要 Snapshot 加速。Checkpoint 把 Snapshot、Journal cursor 和恢复条件绑定起来：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">checkpoint_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">run_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">run_8</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">run_contract_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">runspec-8@3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resume_contract_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">report-agent.v3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">snapshot_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">snapshot_73</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">event_cursor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  stream_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">session:17</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  sequence</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">73</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resume_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">reconcile_create_report</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">pending_effects</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">operation_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">op-17</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    attempt_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">attempt_1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">dispatched</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    provider</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">file-service</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    effect_key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">run_8:create_report:v1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    idempotency_scope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">create-report</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    idempotency_expires_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-28T09:00:00Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    effect_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">waiting</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">budget</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  model_turns_used</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">6</span></span></code></pre>
+<p>Checkpoint 回答“从哪里、按什么条件恢复”，不是“外部世界现在是什么”。<code>snapshot_ref</code> 必须明确覆盖到同一 stream 的 cursor；若没有 Snapshot，就从 Journal 起点重放，不能既缺少基础状态又从中间开始。</p>
+<p><code>run_contract_ref</code> 与 <code>resume_contract_revision</code> 分别固定原执行上限和恢复语义。Schema 能被读取，不代表新代码仍理解同一个 <code>resume_at</code>；存储格式和恢复状态机都需要版本兼容判断。</p>
+<h2 id="pending-effect-先-reconcile再决定-retry">Pending Effect 先 Reconcile，再决定 Retry</h2>
+<p>恢复 <code>run_8</code> 时，步骤是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>load Checkpoint and referenced Run contract</span></span>
+<span class="line"><span>→ validate Snapshot covers cursor 73</span></span>
+<span class="line"><span>→ replay Journal events after 73</span></span>
+<span class="line"><span>→ reconcile every non-terminal pending effect</span></span>
+<span class="line"><span>→ revalidate authorization, Artifact, waiting condition, and budget</span></span>
+<span class="line"><span>→ construct new Runtime state at the next legal boundary</span></span></code></pre>
+<p>如果文件服务成功后，Runtime 已经把 sequence 74 的 <code>tool.effect.succeeded(report-42)</code> 写入 Journal，只是没来得及更新 Checkpoint，replay 会吸收该事实，不再创建文件。</p>
+<p>如果外部文件已创建，但 terminal event 也没有提交，Checkpoint 只看到 <code>dispatched</code>。恢复器先按 provider、稳定 effect key、idempotency scope 或外部业务引用查询。只有外部系统明确未执行，或 <code>idempotency_expires_at</code> 尚未到期且同一 key 仍由下游保证收敛时，才允许创建新 Attempt；无法查询、scope 不匹配或窗口已过期时，保持 <code>unknown</code>。</p>
+<p>Checkpoint 因而不能代替外部幂等或 reconciliation。它只确保恢复器知道哪一个 operation 尚未得到结论。</p>
+<h2 id="waiting-condition-与-crash-使用同一恢复入口">Waiting Condition 与 Crash 使用同一恢复入口</h2>
+<p>主动 pause 也可以写入 waiting condition：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">waiting</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  kind</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">confirmation</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  request_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">confirm_9</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  action_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">delete:file-7@revision-3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  expires_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-28T09:00:00Z</span></span></code></pre>
+<p>Runtime 先提交 waiting event 和 Checkpoint，再释放 worker。Resume 时重新校验 action、resource revision、identity、expiry 和 current authorization，不能只检查“有人点击过确认”。</p>
+<p>Crash 与 pause 的触发方式不同，恢复契约相同：都从最后一个已提交的 cursor 重建，再验证当前外部条件。Provider stream、socket、数据库连接和进程内 task 不进入 Checkpoint；它们在恢复时重新创建。</p>
+<h2 id="回到问题">回到问题</h2>
+<p>开场中的 Run 表、Session messages 和客户端 signal 互相矛盾，是因为三种读取形式都在尝试声明执行事实。正确恢复路径是：</p>
+<ol>
+<li>Tool intent 先 durable commit，才允许 dispatch；Attempt 和 terminal/unknown outcome 继续进入同一权威 Journal；</li>
+<li>Run、message、client feed 与 metric 由幂等 projector 生成；</li>
+<li>Checkpoint 绑定 Snapshot、scoped event cursor、原 Run contract、pending effect、waiting condition 和恢复 revision；</li>
+<li>恢复先 replay cursor 之后的事实，再 reconcile 未终结 effect；</li>
+<li>只有证据允许时才产生新 Attempt；</li>
+<li>最后生成新的 turn snapshot，客户端再从 durable feed cursor 补展示事件。</li>
+</ol>
+<p>Journal 证明发生过什么，Checkpoint 说明从哪里继续，Session Tree 组织模型可见历史，客户端 feed 负责重建界面。让四者各守住自己的 owner，恢复才不会重新执行一个已经发生、却尚未被当前 view 看见的副作用。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>  <nav class="series-navigation" aria-label="系列导航" data-series-navigation> <a href="/zh/writing/agent-concurrency-cancellation/" rel="prev"> <span>上一篇</span> <strong>Agent 09：并发 Tool 的顺序、一致性与取消</strong> </a> <a href="/zh/writing/agent-session-recovery/" rel="next"> <span>下一篇</span> <strong>Agent 11：Session Tree 如何支撑恢复</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#journal-先提交事实projection-再服务读取">Journal 先提交事实，Projection 再服务读取</a></li><li><a href="#effect-intent-必须先提交再允许外部调用">Effect Intent 必须先提交，再允许外部调用</a></li><li><a href="#sequence-与-event-identity-解决不同问题">Sequence 与 Event Identity 解决不同问题</a></li><li><a href="#projection-必须允许重复消费">Projection 必须允许重复消费</a></li><li><a href="#checkpoint-记录恢复起点与核对条件">Checkpoint 记录恢复起点与核对条件</a></li><li><a href="#pending-effect-先-reconcile再决定-retry">Pending Effect 先 Reconcile，再决定 Retry</a></li><li><a href="#waiting-condition-与-crash-使用同一恢复入口">Waiting Condition 与 Crash 使用同一恢复入口</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-workspace-recovery/">Agent 25：Workspace 如何跨 Runtime 恢复</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-artifact-retention-deletion/">Agent 23：Artifact 的引用、保留与删除必须分层</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/zh/writing/agent-durable-job-lifecycle/">Agent 31：耐久 Job 的取消、结果与交付怎样收敛</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
