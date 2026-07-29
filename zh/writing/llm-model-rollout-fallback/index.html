@@ -1,0 +1,350 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="将 Model、Tokenizer、Template、Adapter、Engine image、Runtime 配置与 capability claims 固定为 release manifest，并以同一 workload 推进灰度和回滚。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 15：模型升级、灰度与 Fallback 怎样保持部署契约一致 | Xiaoyuan"><meta property="og:description" content="将 Model、Tokenizer、Template、Adapter、Engine image、Runtime 配置与 capability claims 固定为 release manifest，并以同一 workload 推进灰度和回滚。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/llm-model-rollout-fallback/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 15：模型升级、灰度与 Fallback 怎样保持部署契约一致 | Xiaoyuan"><meta name="twitter:description" content="将 Model、Tokenizer、Template、Adapter、Engine image、Runtime 配置与 capability claims 固定为 release manifest，并以同一 workload 推进灰度和回滚。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Release Engineering"><meta property="article:tag" content="Fallback"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/llm-model-rollout-fallback/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-model-rollout-fallback/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-model-rollout-fallback/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-model-rollout-fallback/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-model-rollout-fallback/#article","headline":"LLM Infra 15：模型升级、灰度与 Fallback 怎样保持部署契约一致","description":"将 Model、Tokenizer、Template、Adapter、Engine image、Runtime 配置与 capability claims 固定为 release manifest，并以同一 workload 推进灰度和回滚。","url":"https://xiaoyuan-gu.github.io/zh/writing/llm-model-rollout-fallback/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-model-rollout-fallback/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Release Engineering","Fallback"]}</script><title>LLM Infra 15：模型升级、灰度与 Fallback 怎样保持部署契约一致 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/llm-model-rollout-fallback/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 15：模型升级、灰度与 Fallback 怎样保持部署契约一致</h1> <p class="article-deck">将 Model、Tokenizer、Template、Adapter、Engine image、Runtime 配置与 capability claims 固定为 release manifest，并以同一 workload 推进灰度和回滚。</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">2026/07/29</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/zh/tags/Inference/">Inference</a><a class="pill" href="/zh/tags/Release%20Engineering/">Release Engineering</a><a class="pill" href="/zh/tags/Fallback/">Fallback</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>一次“模型小版本升级”只替换了 model name，沿用旧 tokenizer、template 与 generation defaults。接口仍返回 200，但实际 Token 序列、结构化输出、latency distribution 和显存行为都改变了。只回滚权重，也没有恢复旧行为。</p>
+<p>推理部署的可发布对象不是裸模型权重。它是一组共同决定输入、执行与输出契约的 artifact 和配置。</p>
+<h2 id="model-name-不是-release-identity">Model name 不是 Release identity</h2>
+<p>Hugging Face Hub 允许用 commit revision 固定 snapshot；Transformers 的 tokenizer revision 和 chat template 决定消息如何变成模型实际看到的 Token。vLLM 也分别暴露 model revision、code revision、tokenizer revision、quantization 和 generation config。</p>
+<p>一份 release manifest 可以是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">inference_release</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  release_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">chat-v3-20260729.1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  base_model</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    repository</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example/chat-model</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    commit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">8f3...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  tokenizer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    repository</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example/chat-model</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    commit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">8f3...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  chat_template_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  adapter</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    repository</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example/tool-adapter</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    commit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">91a...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  generation_config_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  weight_dtype</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">bf16</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  quantization_method</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  engine_image_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  engine_args_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  parallelism</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#22863A;--shiki-dark:#85E89D">tp</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">pp</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  hardware_class</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gpu-pool-a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  protocol_schema_version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">response-v4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  capability_claims</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">streaming</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">structured-output-v2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  benchmark_evidence_refs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">curve_aa12</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">quality_87c</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<p>这是本文的设计建议。重点是所有可变项都被解析为不可变引用，而不是依赖 <code>main</code>、latest image 或隐式 defaults。</p>
+<h2 id="compatibility-至少有四个维度">Compatibility 至少有四个维度</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>维度</th><th>要回答的问题</th></tr></thead><tbody><tr><td>Protocol</td><td>request/response schema、streaming 与 finish reason 是否兼容</td></tr><tr><td>Capability</td><td>Context、structured output、adapter、reasoning 等是否支持</td></tr><tr><td>Quality</td><td>同一 evaluation suite 是否通过</td></tr><tr><td>Resource</td><td>memory、TTFT/TPOT、service curve 是否仍在 envelope 内</td></tr></tbody></table>
+<p>Fallback 只能进入预先审核的 allowlist，并满足完整 compatibility contract：protocol、当前请求必要 capabilities、quality/safety gate、数据政策，以及该 workload 所需的 SLO envelope。实际 routing 时还要确认资源可用，但“有空闲容量”不能绕过质量、语义或数据约束。Infra 不负责把不兼容 provider response 塑形成业务想要的语义；那属于 Agent/provider boundary。Infra 要么选择满足完整合同的 deployment，要么返回显式 unsupported/rejected outcome。</p>
+<p>“语义等价”也不能只写在配置里。它需要 evaluation、contract tests 和 workload-specific Benchmark 支持。</p>
+<h2 id="shadowcanary-与-staged-rollout-证明的事情不同">Shadow、Canary 与 Staged rollout 证明的事情不同</h2>
+<p><strong>Shadow</strong> 可以把生产输入复制到候选 release，观察离线输出、latency 和资源，但不能证明真实 client delivery，也可能因额外流量影响容量。涉及 Prompt 内容时还要满足数据政策。</p>
+<p><strong>Canary</strong> 让少量真实请求由候选处理，可以观察端到端结果；流量必须按 workload segment 分层，否则只覆盖短请求会掩盖长 Context 风险。</p>
+<p><strong>Staged rollout</strong> 逐步扩大兼容流量，同时设置 promote、hold 与 rollback 条件。</p>
+<p>每个阶段都要同时记录：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>requested model/capability</span></span>
+<span class="line"><span>resolved release digest</span></span>
+<span class="line"><span>workload fingerprint</span></span>
+<span class="line"><span>quality result</span></span>
+<span class="line"><span>TTFT/TPOT/goodput</span></span>
+<span class="line"><span>failure and fallback outcome</span></span></code></pre>
+<p>只比较 5xx 不够。返回 200 的协议漂移、输出缩短或质量回归同样可能违反契约。</p>
+<h2 id="rollback-unit-必须是完整-manifest">Rollback unit 必须是完整 Manifest</h2>
+<p>如果新 release 同时改变：</p>
+<ul>
+<li>model weights；</li>
+<li>tokenizer / template；</li>
+<li>Runtime image；</li>
+<li>scheduler defaults；</li>
+<li>quantization / parallelism；</li>
+</ul>
+<p>只回滚其中一个对象会产生未验证组合。Rollback 应把 routing 重新指向一个已经验证、仍可加载的完整 manifest。</p>
+<p>这也不能保证逐 Token 重现旧输出。Sampling、driver/hardware、外部 policy 和 Cache state 都可能影响行为。Rollback 的合理承诺是恢复到经过验证的 deployment contract 与证据范围，而不是 bitwise determinism。</p>
+<p>平台还要保留：</p>
+<ul>
+<li>旧 artifact 与 image 的可用性；</li>
+<li>对应 hardware class；</li>
+<li>migration 前后的 Cache namespace；</li>
+<li>in-flight requests 的 draining policy；</li>
+<li>何时禁止从新 release fallback 到旧 capability。</li>
+</ul>
+<h2 id="用开篇升级走一遍">用开篇升级走一遍</h2>
+<p>原升级把新 weights 与旧 tokenizer/template 混在一起。按 release manifest 流程：</p>
+<ol>
+<li>构建候选 manifest，固定所有 artifact 和 defaults。</li>
+<li>运行 protocol/quality contract tests。</li>
+<li>用第 03 篇的相同 workload 测新 service curve。</li>
+<li>Shadow 只收集允许的数据与差异。</li>
+<li>Canary 按 workload segment 接收真实流量。</li>
+<li>任一硬约束失败，Router 将新请求切回旧完整 manifest；候选进入 draining。</li>
+</ol>
+<p>这样，rollback 恢复的是已知组合，而不是临时拼出的“旧权重 + 新 Runtime”。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://huggingface.co/docs/huggingface_hub/main/package_reference/file_download">Hugging Face Hub Download Files at a Revision</a></li>
+<li><a href="https://huggingface.co/docs/transformers/chat_templating">Hugging Face Transformers Chat Templates</a></li>
+<li><a href="https://docs.vllm.ai/en/latest/configuration/engine_args/">vLLM Engine Arguments</a></li>
+<li><a href="https://docs.vllm.ai/en/latest/usage/security/">vLLM Security</a></li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>开篇升级仍返回 200，却改变 Token、协议、延迟和显存，因为 model name 没有固定完整 deployment identity。只回滚权重，自然不能恢复经过验证的组合。</p>
+<p>模型发布应以完整 release manifest 为原子单位，用同一 workload 与完整 compatibility contract 推进 Shadow、Canary 和 staged rollout。Fallback 只能选择同时通过 protocol、capability、quality/safety、数据政策与 SLO envelope 的 allowlisted release；Rollback 回到完整 manifest，但不夸大为逐 Token 确定性重现。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#model-name-不是-release-identity">Model name 不是 Release identity</a></li><li><a href="#compatibility-至少有四个维度">Compatibility 至少有四个维度</a></li><li><a href="#shadowcanary-与-staged-rollout-证明的事情不同">Shadow、Canary 与 Staged rollout 证明的事情不同</a></li><li><a href="#rollback-unit-必须是完整-manifest">Rollback unit 必须是完整 Manifest</a></li><li><a href="#用开篇升级走一遍">用开篇升级走一遍</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-continuous-batching-scheduler/">LLM Infra 06：Continuous Batching 怎样改变请求调度</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-benchmark/">LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-capacity-control/">LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

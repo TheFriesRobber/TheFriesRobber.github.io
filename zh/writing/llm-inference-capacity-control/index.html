@@ -1,0 +1,361 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="把 immediate admission、bounded queue、slow provisioning 与 scale-in draining 放进同一个多时间尺度容量控制回路。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作 | Xiaoyuan"><meta property="og:description" content="把 immediate admission、bounded queue、slow provisioning 与 scale-in draining 放进同一个多时间尺度容量控制回路。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-control/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作 | Xiaoyuan"><meta name="twitter:description" content="把 immediate admission、bounded queue、slow provisioning 与 scale-in draining 放进同一个多时间尺度容量控制回路。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Admission Control"><meta property="article:tag" content="Autoscaling"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-control/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-capacity-control/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-control/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-capacity-control/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-control/#article","headline":"LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作","description":"把 immediate admission、bounded queue、slow provisioning 与 scale-in draining 放进同一个多时间尺度容量控制回路。","url":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-control/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-control/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Admission Control","Autoscaling"]}</script><title>LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/llm-inference-capacity-control/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作</h1> <p class="article-deck">把 immediate admission、bounded queue、slow provisioning 与 scale-in draining 放进同一个多时间尺度容量控制回路。</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">2026/07/29</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/zh/tags/Inference/">Inference</a><a class="pill" href="/zh/tags/Admission%20Control/">Admission Control</a><a class="pill" href="/zh/tags/Autoscaling/">Autoscaling</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>突发流量进入无界队列，Autoscaler 开始拉起新 Replica。模型加载完成前，早期请求已经失去 deadline，排队中的无效工作却没有及时清理。扩容最终成功，满足 SLO 的 goodput 仍然下降。</p>
+<p>问题不是扩容太慢或拒绝太早，而是系统把 admission、queue 与 provisioning 当成三套互不相干的机制。它们处理的是同一次容量不足，只是时间尺度不同。</p>
+<h2 id="四个时标构成一个控制回路">四个时标构成一个控制回路</h2>
+<h3 id="immediate-admission">Immediate admission</h3>
+<p>请求到达时，判断当前兼容 deployment 是否可能接纳。结果可以是 accept、defer、route、degrade 或 reject。</p>
+<h3 id="queue-horizon">Queue horizon</h3>
+<p>在 deadline 允许的短窗口内，bounded queue 吸收 burst。队列必须按 pending Token work 和 oldest age 解释，不能只看 request count。</p>
+<h3 id="provisioning-lead-time">Provisioning lead time</h3>
+<p>创建节点、拉取镜像、加载模型、形成并行组、warmup 到 Ready 需要时间。扩容只对晚于这个时间窗口的需求有效。</p>
+<h3 id="scale-in-draining">Scale-in draining</h3>
+<p>缩容时，停止接收新请求，等待或迁移已接纳工作，再移除 Replica。直接删除可能破坏 streaming 和 KV state。</p>
+<p>四者必须消费同一 workload identity、deployment revision 和 capacity evidence，否则 Admission 认为“马上有容量”，Autoscaler 却只创建了不兼容的新 Replica。</p>
+<h2 id="deadline-决定扩容能不能救当前请求">Deadline 决定扩容能不能救当前请求</h2>
+<p>设：</p>
+<ul>
+<li><code>D</code>：请求距离 deadline 的剩余时间；</li>
+<li><code>L_ready</code>：该 deployment 实测的 Replica-ready lead time。</li>
+</ul>
+<p>如果 <code>D ≤ L_ready</code>，新 Replica 即使立即启动，也无法服务当前请求。这是由时序得到的推论，不是某个 Autoscaler 的内置保证。</p>
+<p>当前请求只能在以下结果中选择：</p>
+<ul>
+<li>现有 capacity 仍能接纳，并按请求契约在 deadline 内交付；</li>
+<li>queue 一小段时间；</li>
+<li>route 到已经 Ready 且兼容的 deployment；</li>
+<li>在调用方明确允许的契约内 degrade；</li>
+<li>reject，并返回稳定 reason 与可用的 retry guidance。</li>
+</ul>
+<p>扩容仍然有用，但它服务的是随后到达或 deadline 更远的请求。</p>
+<h2 id="admission-需要可解释-outcome">Admission 需要可解释 Outcome</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">admission_outcome</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  request_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">req_123</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">reject</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  reason_code</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">deadline_before_capacity_ready</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  queue_deadline</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:02Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  retry_after_seconds</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  compatible_release</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span></code></pre>
+<p>这是本文的概念 schema。<code>Retry-After</code> 在 HTTP 中有标准语义，但是否返回以及数值怎样计算，需要结合 overload state，不能让所有客户端在同一秒重试形成新 burst。</p>
+<p><code>degrade</code> 也不能等于“换一个更小模型”。只有 release capability contract 明确兼容，且调用方允许时，Infra 才能选择替代 deployment；否则应显式拒绝。</p>
+<p>Queue 必须 bounded。无界队列会让失去 deadline 的请求继续占用内存和调度开销，并把过载变成越来越长的失败延迟。</p>
+<h2 id="autoscaling-要比较-demand-与-ready-capacity">Autoscaling 要比较 Demand 与 Ready capacity</h2>
+<p>KServe 的 generative inference autoscaling 示例会使用 vLLM running、waiting 或 KV usage 等指标；Ray Serve 默认比较每 Replica ongoing requests 与目标值，并说明 startup delay、max ongoing requests 与 queue 对尾延迟的影响；Kubernetes HPA 则基于周期观测和稳定窗口调整副本。</p>
+<p>这些实现证明了可用信号，但没有一个通用最优公式。推理平台可以把证据分为：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>类型</th><th>例子</th></tr></thead><tbody><tr><td>Demand</td><td>known prompt Token、generated Token、remaining output estimate/upper bound、oldest queue age、arrival forecast</td></tr><tr><td>Ready capacity</td><td>兼容 Ready Replicas、service curve、KV/Token budget</td></tr><tr><td>Provisioning</td><td>实测 startup/load/warmup lead time、pending Replicas</td></tr><tr><td>Symptom</td><td>GPU utilization、preemption、deadline miss</td></tr></tbody></table>
+<p>一份 capacity decision 可以是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">capacity_decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  deployment_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">release_91a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  observed_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:00Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  known_prompt_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">520000</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  generated_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">80000</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  remaining_output_estimate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">240000</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  max_remaining_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">610000</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  output_estimator_version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">output-length-v3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  demand_policy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">expected_remaining_output</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  oldest_queue_age_ms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">620</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  ready_capacity_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fleet_curve_22</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  measured_lead_time_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">startup_dist_08</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  desired_replicas</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">10</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  scale_reason</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sustained_pressure_beyond_ready_capacity</span></span></code></pre>
+<p>字段组合是 workload-specific 的设计建议。未来输出 Token 在执行前并不知道，控制器必须说明使用有版本的期望估计还是请求上限，不能把预测值写成事实。这个例子也不是行业公式，startup 常数必须来自测量。</p>
+<h2 id="scale-out-尚未-ready-时admission-仍要工作">Scale-out 尚未 Ready 时，Admission 仍要工作</h2>
+<p>合成时间线：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>t0      burst arrives</span></span>
+<span class="line"><span>t0+Δ1   admission fills bounded queue, rejects requests without slack</span></span>
+<span class="line"><span>t0+Δ2   scale-out requested</span></span>
+<span class="line"><span>t0+Δ3   new Replica loading model; not counted as capacity</span></span>
+<span class="line"><span>t0+Δ4   platform readiness passes; health probes only</span></span>
+<span class="line"><span>t0+Δ5   release compatibility passes; controlled warmup/probes</span></span>
+<span class="line"><span>t0+Δ6   capacity gate for the measured curve passes</span></span>
+<span class="line"><span>t0+Δ7   Router sends production work; Autoscaler counts ready capacity</span></span></code></pre>
+<p>Kubernetes readiness 只说明 Pod 当前可以接收相应流量，不证明 model revision、并行组、warm state 与性能已经兑现容量规划使用的 service curve。因此这里拆成 <code>platform_ready → release_compatible → capacity_ready_for_curve</code> 三个 gate；只有 <code>t0+Δ6</code> 后，新 Replica 才能进入 Autoscaler 的 ready capacity。Pod Running、进程启动、model download 完成或单独的 readiness probe 都不够。</p>
+<p>在 <code>Δ2–Δ6</code> 期间，Admission 不能停止。它需要持续更新 queue deadline、清理尚未执行且已经失效的排队请求，并防止 retry 把流量再次放大。已开始执行的 cancellation acknowledgement 与 unknown outcome 属于第 14 篇的流式失败协议，不在本文声称已经解决。</p>
+<h2 id="scale-in-必须保护已接纳工作">Scale-in 必须保护已接纳工作</h2>
+<p>GPU utilization 下降不代表 Replica 可以立即删除。它可能仍持有：</p>
+<ul>
+<li>正在 streaming 的 Decode sequence；</li>
+<li>尚未完成的 Prefill；</li>
+<li>本地 Prefix KV 或 Adapter residency；</li>
+<li>已被 placement 选择、尚未 arrival 的请求。</li>
+</ul>
+<p>Draining 可以按以下状态执行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>ready</span></span>
+<span class="line"><span>→ stop_new_admission</span></span>
+<span class="line"><span>→ wait_or_cancel_by_policy</span></span>
+<span class="line"><span>→ release_residency</span></span>
+<span class="line"><span>→ removed</span></span></code></pre>
+<p>Scale-in delay、minimum warm capacity 和 stabilization window 都应根据 workload 与 measured lead time 选择。反复扩缩会重复模型加载，并让 cold state 进入每个性能窗口。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://kserve.github.io/website/docs/model-serving/generative-inference/autoscaling">KServe Generative Inference Autoscaling</a></li>
+<li><a href="https://docs.ray.io/en/latest/serve/advanced-guides/advanced-autoscaling.html">Ray Serve Advanced Autoscaling</a></li>
+<li><a href="https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/">Kubernetes Horizontal Pod Autoscaling</a></li>
+<li><a href="https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/">Kubernetes Probes</a></li>
+<li><a href="https://httpwg.org/specs/rfc9110.html#field.retry-after">HTTP Semantics: Retry-After</a></li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>开篇的扩容最终成功，却救不了已经失去 deadline 的请求；无界队列还让尚未执行的失效请求继续制造无效工作。</p>
+<p>正确的控制回路按四个时标协作：Admission 处理此刻，bounded queue 处理短 burst，provisioning 处理持续压力，draining 保护已经接纳的工作。新 Replica 只有依次通过 platform、release 与 capacity gate，并能兑现对应 service curve 后，才算容量。</p>
+<p>扩容不是拒绝的替代品，拒绝也不是失败的副作用。两者共同决定系统在容量不足时还能交付多少 goodput。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#四个时标构成一个控制回路">四个时标构成一个控制回路</a></li><li><a href="#deadline-决定扩容能不能救当前请求">Deadline 决定扩容能不能救当前请求</a></li><li><a href="#admission-需要可解释-outcome">Admission 需要可解释 Outcome</a></li><li><a href="#autoscaling-要比较-demand-与-ready-capacity">Autoscaling 要比较 Demand 与 Ready capacity</a></li><li><a href="#scale-out-尚未-ready-时admission-仍要工作">Scale-out 尚未 Ready 时，Admission 仍要工作</a></li><li><a href="#scale-in-必须保护已接纳工作">Scale-in 必须保护已接纳工作</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-continuous-batching-scheduler/">LLM Infra 06：Continuous Batching 怎样改变请求调度</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-benchmark/">LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-capacity-planning/">LLM Infra 04：怎样从 Token 负载推导推理容量</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

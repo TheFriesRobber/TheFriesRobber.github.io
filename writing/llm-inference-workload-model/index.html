@@ -1,0 +1,378 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Build a workload envelope from input and output Tokens, Prefill/Decode, arrival shape, concurrency, and deadlines so that SLOs, Benchmarks, capacity planning, and scheduling consume the same model."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 01: Start by Describing the Inference Workload | Xiaoyuan"><meta property="og:description" content="Build a workload envelope from input and output Tokens, Prefill/Decode, arrival shape, concurrency, and deadlines so that SLOs, Benchmarks, capacity planning, and scheduling consume the same model."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/llm-inference-workload-model/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 01: Start by Describing the Inference Workload | Xiaoyuan"><meta name="twitter:description" content="Build a workload envelope from input and output Tokens, Prefill/Decode, arrival shape, concurrency, and deadlines so that SLOs, Benchmarks, capacity planning, and scheduling consume the same model."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Workload"><meta property="article:tag" content="Capacity Planning"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/llm-inference-workload-model/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-workload-model/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-workload-model/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-workload-model/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-workload-model/#article","headline":"LLM Infra 01: Start by Describing the Inference Workload","description":"Build a workload envelope from input and output Tokens, Prefill/Decode, arrival shape, concurrency, and deadlines so that SLOs, Benchmarks, capacity planning, and scheduling consume the same model.","url":"https://xiaoyuan-gu.github.io/writing/llm-inference-workload-model/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-workload-model/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"en","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Workload","Capacity Planning"]}</script><title>LLM Infra 01: Start by Describing the Inference Workload | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/llm-inference-workload-model/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 01: Start by Describing the Inference Workload</h1> <p class="article-deck">Build a workload envelope from input and output Tokens, Prefill/Decode, arrival shape, concurrency, and deadlines so that SLOs, Benchmarks, capacity planning, and scheduling consume the same model.</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">07/29/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/tags/Inference/">Inference</a><a class="pill" href="/tags/Workload/">Workload</a><a class="pill" href="/tags/Capacity%20Planning/">Capacity Planning</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Two model endpoints both sustain <code>100 requests/s</code>. Endpoint A mostly receives short Prompts and produces short outputs. Endpoint B has the same average request rate but includes long Contexts and long generations. A QPS-only dashboard makes the two endpoints look equally loaded, yet B starts queueing earlier and its Time to First Token (TTFT) keeps rising.</p>
+<p>The QPS calculation is not wrong. It simply counts requests without describing how much work each request asks the model to perform, how long it holds state, or when completion is still useful.</p>
+<p>This article does not build a larger list of metrics. It builds a <strong>workload envelope</strong> that SLO design, Benchmarking, capacity planning, and scheduling can all consume.</p>
+<h2 id="request-count-hides-token-work">Request count hides Token work</h2>
+<p>Start with two synthetic workloads. They illustrate the description method; they are not measurements from any model or GPU.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Endpoint</th><th align="right">Request rate</th><th>Input Token distribution</th><th>Output Token distribution</th><th>Traffic shape</th></tr></thead><tbody><tr><td>A</td><td align="right">100 req/s</td><td>P50 120, P95 240</td><td>P50 32, P95 64</td><td>Uniform arrivals</td></tr><tr><td>B</td><td align="right">100 req/s</td><td>P50 120, P95 8,000</td><td>P50 32, P95 1,000</td><td>One burst per minute</td></tr></tbody></table>
+<p>The same request count does not imply the same number of input Tokens, output Tokens, or concurrently resident sequences. More importantly, input and output Tokens cannot simply be combined into one total because they enter different execution phases.</p>
+<p>Mainstream inference tools preserve these distinctions as well. vLLM’s per-request metrics separately record <code>prompt_tokens</code>, <code>completion_tokens</code>, queue time, generation time, and inter-token latency. NVIDIA AIPerf separately defines Input Sequence Length, Output Sequence Length, TTFT, and Inter Token Latency. These fields are not a matter of statistical preference. They follow from differences in the execution model.</p>
+<p><code>requests/s</code> is therefore only one projection of arrival rate. It cannot serve as a capacity unit on its own.</p>
+<h2 id="prefill-and-decode-exert-different-pressure">Prefill and Decode exert different pressure</h2>
+<p>Generative inference can usually be divided into two phases:</p>
+<ul>
+<li><strong>Prefill</strong> processes the existing Prompt, computes representations at each layer, and establishes the KV state required for generation.</li>
+<li><strong>Decode</strong> produces new Tokens autoregressively. Each step reads the existing state and appends the state for the new Token.</li>
+</ul>
+<p>A long Prompt directly increases Prefill work. A long output keeps a sequence resident in the Decode scheduler and KV Cache for longer. Even two requests with similar total Token counts can produce very different TTFT, inter-token intervals, and memory residency because their input/output ratios differ.</p>
+<p>The DistServe paper models TTFT with Prefill and Time Per Output Token (TPOT) with Decode, and it notes that the two phases have different compute and resource characteristics. This conclusion does not depend on adopting any particular deployment architecture: <strong>a workload model must preserve execution phases rather than only total Token count.</strong></p>
+<p>Endpoint B is no longer mysterious. Long Contexts extend Prefill for some requests, while long generations increase active-sequence residency. Together they change queue and memory pressure, and QPS is blind to both changes.</p>
+<h2 id="average-length-still-hides-tail-risk">Average length still hides tail risk</h2>
+<p>Replacing QPS with “an average input of 400 Tokens and an average output of 100 Tokens” is still insufficient.</p>
+<p>Suppose 99 requests contain 100 input Tokens and one contains 30,000. The average reflects total volume, but it does not tell the scheduler whether the long request will block short ones or tell capacity planning whether it will reach a Context or KV limit.</p>
+<p>A usable workload description must preserve at least the following distributions instead of only their means:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Dimension</th><th>Why preserve it</th></tr></thead><tbody><tr><td>Input Token distribution</td><td>Determines Prefill work and the initial KV footprint</td></tr><tr><td>Output Token distribution or limit</td><td>Determines Decode residency and the final KV footprint</td></tr><tr><td>Input/output correlation</td><td>Shows whether long inputs usually accompany long outputs</td></tr><tr><td>Arrival shape</td><td>Uniform, Poisson, periodic bursts, and concentrated submissions produce different queues</td></tr><tr><td>Observed concurrency and connection lifecycle</td><td>Under open-loop load, concurrency emerges jointly from arrivals and service time; clients may also cancel streaming requests early</td></tr><tr><td>Deadline / priority</td><td>The same amount of work with a different completion deadline is a different service</td></tr><tr><td>Model / adapter / feature</td><td>Determines which compatible deployment can execute the request</td></tr></tbody></table>
+<p>These fields do not require the platform to retain raw Prompts indefinitely. Token counts, buckets, time windows, and approved workload labels support most capacity analysis while reducing unnecessary content retention.</p>
+<h2 id="the-workload-envelope-separates-observation-from-forecast">The workload envelope separates observation from forecast</h2>
+<p>The following is a conceptual schema, not a Runtime API. Its purpose is to separate observed facts from assumptions about the future:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">workload_envelope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  identity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    model_requirement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">chat-compatible-v3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    workload_class</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">interactive</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  observed_window</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    start</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-28T10:00:00Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    duration</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">15m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    request_count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">90000</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    input_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#22863A;--shiki-dark:#85E89D">p50</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">180</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">p95</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2200</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">p99</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">7800</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    output_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#22863A;--shiki-dark:#85E89D">p50</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">64</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">p95</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">420</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">p99</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">900</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    requested_max_output_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#22863A;--shiki-dark:#85E89D">p50</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">256</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">p95</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1024</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    input_output_joint_buckets_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact://wl_7fd2/joint-token-buckets</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    replayable_arrival_trace_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact://wl_7fd2/arrival-trace</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    arrival</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      mean_rps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">100</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      peak_10s_rps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">175</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    observed</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      active_requests</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#22863A;--shiki-dark:#85E89D">p50</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">38</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">p95</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">92</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      streaming_connections</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span><span style="color:#22863A;--shiki-dark:#85E89D">p50</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">35</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#22863A;--shiki-dark:#85E89D">p95</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">86</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cancellations</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      before_first_token</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.012</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      after_first_token</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.006</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  forecast</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    horizon</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">30m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    arrival_multiplier</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.8</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1.0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1.4</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  contract</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ttft_deadline_ms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1500</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    tpot_deadline_ms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">80</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    priority</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">normal</span></span></code></pre>
+<p>Token distributions, correlations, arrival windows, observed concurrency, and cancellation outcomes are observations. <code>arrival_multiplier</code> is a forecast. Deadlines belong to the service contract. If all three are mixed together, downstream analysis cannot distinguish “traffic changed,” “the forecast was wrong,” and “the SLO changed.” The marginal percentiles above make the envelope readable; reconstructing the actual workload still requires the joint buckets or arrival trace.</p>
+<p>In the synthetic example, Endpoint B should not be reduced to “100 req/s.” It should describe the input and output length distributions in a specific window, the burst pattern, the concurrency, and the deadlines by which requests must receive their first and subsequent Tokens.</p>
+<h2 id="the-same-envelope-must-flow-through-downstream-decisions">The same envelope must flow through downstream decisions</h2>
+<p>A workload model is valuable only if downstream decisions actually consume it:</p>
+<ul>
+<li>SLO design uses it to separate interactive, asynchronous, and Batch requests instead of assigning them one shared P95.</li>
+<li>Benchmarks use it to generate length, arrival, concurrency, and deadline distributions instead of testing only fixed lengths.</li>
+<li>Capacity planning uses it to choose a service curve measured against the same production workload.</li>
+<li>A single-Replica scheduler uses it to estimate Prefill, Decode, and KV demand.</li>
+<li>Autoscaling and admission use it to compare pending work with deadline slack.</li>
+</ul>
+<p>If every layer redefines “one request,” metric semantics drift. A Benchmark may prove throughput for short Prompts while capacity planning uses it to promise long-Context service. The gateway may count logical requests while the Runtime counts retry attempts as new demand.</p>
+<p>The workload envelope is not the only Source of Truth, but it needs a stable version and fingerprint so every performance claim can answer: <strong>which workload does this claim describe?</strong></p>
+<p>References:</p>
+<ul>
+<li><a href="https://docs.vllm.ai/en/latest/features/per_request_metrics/">vLLM Per-Request Metrics</a></li>
+<li><a href="https://docs.nvidia.com/aiperf/reference/ai-perf-metrics-reference">NVIDIA AIPerf Metrics Reference</a></li>
+<li><a href="https://arxiv.org/abs/2401.09670">DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving</a></li>
+</ul>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Endpoints A and B both receive <code>100 requests/s</code>, but they do not carry the same workload. B’s long Contexts increase Prefill pressure, long outputs extend Decode and KV residency, and bursty arrivals create queues within short windows.</p>
+<p>The right fix is not to add one average Token count to QPS. It is to build a workload envelope that preserves distributions, execution phases, arrival shape, concurrency, and deadlines. The next article can then define what successful delivery means for the same body of work when discussing TTFT, TPOT, throughput, and cost.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#request-count-hides-token-work">Request count hides Token work</a></li><li><a href="#prefill-and-decode-exert-different-pressure">Prefill and Decode exert different pressure</a></li><li><a href="#average-length-still-hides-tail-risk">Average length still hides tail risk</a></li><li><a href="#the-workload-envelope-separates-observation-from-forecast">The workload envelope separates observation from forecast</a></li><li><a href="#the-same-envelope-must-flow-through-downstream-decisions">The same envelope must flow through downstream decisions</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-capacity-planning/">LLM Infra 04: How to Derive Inference Capacity from Token Workload</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-quantization-capacity/">LLM Infra 08: Why Quantization&#39;s Memory Savings Do Not Equal Deliverable Capacity</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-continuous-batching-scheduler/">LLM Infra 06: How Continuous Batching Changes Request Scheduling</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

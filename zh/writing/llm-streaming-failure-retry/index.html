@@ -1,0 +1,367 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="区分 logical request、attempt、execution、partial delivery 与 cancellation，建立流式推理的 retry、restart 和 fail-explicitly 边界。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 14：一次流式推理失败后，什么时候可以重试 | Xiaoyuan"><meta property="og:description" content="区分 logical request、attempt、execution、partial delivery 与 cancellation，建立流式推理的 retry、restart 和 fail-explicitly 边界。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/llm-streaming-failure-retry/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 14：一次流式推理失败后，什么时候可以重试 | Xiaoyuan"><meta name="twitter:description" content="区分 logical request、attempt、execution、partial delivery 与 cancellation，建立流式推理的 retry、restart 和 fail-explicitly 边界。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Streaming"><meta property="article:tag" content="Reliability"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/llm-streaming-failure-retry/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-streaming-failure-retry/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-streaming-failure-retry/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-streaming-failure-retry/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-streaming-failure-retry/#article","headline":"LLM Infra 14：一次流式推理失败后，什么时候可以重试","description":"区分 logical request、attempt、execution、partial delivery 与 cancellation，建立流式推理的 retry、restart 和 fail-explicitly 边界。","url":"https://xiaoyuan-gu.github.io/zh/writing/llm-streaming-failure-retry/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-streaming-failure-retry/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Streaming","Reliability"]}</script><title>LLM Infra 14：一次流式推理失败后，什么时候可以重试 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/llm-streaming-failure-retry/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 14：一次流式推理失败后，什么时候可以重试</h1> <p class="article-deck">区分 logical request、attempt、execution、partial delivery 与 cancellation，建立流式推理的 retry、restart 和 fail-explicitly 边界。</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">2026/07/29</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/zh/tags/Inference/">Inference</a><a class="pill" href="/zh/tags/Streaming/">Streaming</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>一个请求已经向客户端流出一段文本，连接随后断开。Gateway 自动把同一 Prompt 发到另一个 Replica；新输出从头生成并发生分叉，客户端收到重复或互相矛盾的内容，两个 Replica 还都产生了 usage。</p>
+<p>普通 HTTP retry 常把“没有拿到完整响应”理解成“再发一次”。对自回归 streaming，这个模型不成立：请求可能已经执行，部分 Token 也可能已经成为用户可见结果。</p>
+<h2 id="timeout-只描述观察方">Timeout 只描述观察方</h2>
+<p>gRPC 的 deadline 文档明确指出，client 超时后会停止等待，但 server application 仍需要停止它已经启动的工作。Client 与 server 还可能对同一次调用得到不同本地结论：server 已完成，client 却观察到 deadline exceeded。</p>
+<p>因此：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>gateway timeout</span></span>
+<span class="line"><span>≠ placement 未到达</span></span>
+<span class="line"><span>≠ execution 未开始</span></span>
+<span class="line"><span>≠ cancellation 已生效</span></span>
+<span class="line"><span>≠ 没有产生 usage</span></span></code></pre>
+<p>同样，client disconnect 只说明 transport 断开。取消请求从 gateway 传播到 scheduler、Replica 和并行 ranks，需要时间，也可能失败。</p>
+<h2 id="四个对象决定恢复边界">四个对象决定恢复边界</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">attempt_state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  logical_request_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">req_123</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  attempt_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">att_2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  release_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">release_91a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  execution</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    started</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    stopped</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">unknown</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  cancel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    requested_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    engine_observed_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  delivery</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    chunks_emitted</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">6</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    emitted_token_cursor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">47</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ack_protocol</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">none</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    acknowledged_cursor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    terminal_transport_status</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">unavailable</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  usage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    generated_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">91</span></span></code></pre>
+<ul>
+<li>Logical request 表示调用方想完成的一次工作。</li>
+<li>Attempt 表示一次物理发送，retry 必须产生新 <code>attempt_id</code>。</li>
+<li>Execution 表示 Runtime 是否接纳并实际计算。</li>
+<li>Gateway emitted cursor 表示 Gateway 已尝试发出多少输出。</li>
+<li>Acknowledged cursor 只有在 API 定义显式 application ACK 时，才表示调用方确认到哪里。</li>
+</ul>
+<p>普通 SSE/HTTP stream 通常没有通用的 application-consumption ACK，也没有可移植的 Token resume protocol。一次成功 write 最多形成 Gateway 本地的 emitted evidence，不能证明 Client 已收到、解析或提交给应用。没有 ACK 时，Client-visible outcome 保持 <code>unknown</code>；除非 API 和 Runtime 明确支持，任何 cursor 都不是“从第 48 个 Token 继续”的能力。</p>
+<h2 id="首输出前重试也不是零成本安全">首输出前重试也不是零成本安全</h2>
+<p>如果 client 没收到任何 chunk，新 attempt 不会制造重复可见 Token，但旧 attempt 仍可能：</p>
+<ul>
+<li>已经完成 Prefill；</li>
+<li>正在 Decode；</li>
+<li>产生计费或 GPU usage；</li>
+<li>在取消传播前继续执行；</li>
+<li>最终与新 attempt 同时完成。</li>
+</ul>
+<p>所以更准确的说法是：<strong>首 chunk 前可以在调用方协议允许时启动新的 attempt，但仍要接受重复计算与 unknown execution outcome。</strong></p>
+<p>平台可以先请求取消旧 attempt，并等待 <code>execution_stopped</code> evidence，再决定是否重试。若只能得到 <code>cancel_observed_by_engine</code>，旧 execution 是否停止仍是 <code>unknown</code>，必须按可能并行执行处理；如果 deadline 不允许等待，就把这项风险记录到 outcome 和 usage，而不是称为 exactly-once。</p>
+<h2 id="部分交付后默认不能拼接">部分交付后，默认不能拼接</h2>
+<p>自回归输出取决于前缀、sampling、model/runtime revision 和执行路径。即使 seed 相同，版本、Batching 和数值差异也可能改变输出。新 Replica 从同一 Prompt 重新生成，不保证前 47 个 Token 后的 continuation 与旧 attempt 一致。</p>
+<p>部分交付后的选择应明确：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>已知状态</th><th>默认动作</th><th>原因</th></tr></thead><tbody><tr><td>Gateway 确认未发出 chunk，旧执行确认停止</td><td>启动新 attempt</td><td>无重复可见输出，仍是新计算</td></tr><tr><td>Gateway 确认未发出 chunk，旧执行未知</td><td>可按策略启动新 attempt</td><td>接受重复执行与 usage 风险</td></tr><tr><td>Gateway 已发出 chunk，Client ACK 缺失或只确认部分</td><td>fail explicitly 或经调用方同意从头重启</td><td>按可能已部分可见保守处理，默认不能拼接</td></tr><tr><td>Runtime 有显式 resume contract</td><td>按该协议恢复</td><td>必须绑定 state、release 与 cursor</td></tr><tr><td>已完成但 acknowledgement 未知</td><td>返回 unknown / 查询结果（若支持）</td><td>自动重试可能重复完整结果</td></tr></tbody></table>
+<p>Fallback 到另一个 deployment 还必须通过第 15 篇的完整 compatibility contract，包括 protocol、capability、quality/safety、数据政策和 SLO envelope；资源不足不是静默更换模型的授权。</p>
+<h2 id="cancellation-需要三个不同事实">Cancellation 需要三个不同事实</h2>
+<p>不要用一个布尔值 <code>cancelled=true</code>。至少要记录：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>cancel_requested</span></span>
+<span class="line"><span>→ cancel_observed_by_engine</span></span>
+<span class="line"><span>→ execution_stopped</span></span></code></pre>
+<p>第一步是调用方意图，第二步证明 Runtime 看到了请求，第三步才说明 GPU 不再继续该 execution。多 rank 或 P/D 分离拓扑中，还要确认哪些阶段已经停止。</p>
+<p>Usage 也要按 attempt 记录：</p>
+<ul>
+<li>input tokens accepted；</li>
+<li>Runtime 生成的 Token；</li>
+<li>Gateway 发出的 chunk/Token cursor；</li>
+<li>显式 Client ACK（若协议存在）；</li>
+<li>cancellation 后仍计算的 Token；</li>
+<li>terminal outcome。</li>
+</ul>
+<p>这些事实必须保留 producer/provenance，不能由 Runtime 签出 client-delivered Token。Logical request 的账单或配额如何合并 attempts 是上层 policy；Infra 只提供不丢失且不越过 owner 的 usage evidence。</p>
+<h2 id="处理开篇断流">处理开篇断流</h2>
+<p>原流程是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>gateway emitted through token cursor 47</span></span>
+<span class="line"><span>→ disconnect</span></span>
+<span class="line"><span>→ gateway retries from prompt</span></span>
+<span class="line"><span>→ second output diverges</span></span></code></pre>
+<p>修正后：</p>
+<ol>
+<li>Gateway 记录 attempt <code>att_1</code> 已发出至 cursor 47；没有 ACK 时，把 Client 是否已消费标为 unknown，并按可能 partial delivery 保守处理。</li>
+<li>向 Runtime 发 cancel，并分别记录 requested、observed 与 stopped。</li>
+<li>默认返回明确失败，不自动拼接。</li>
+<li>如果调用方选择“从头重新生成”，创建 <code>att_2</code>，并明确它是新输出。</li>
+<li>两个 attempts 的 usage 都关联同一个 logical request，但各自保留 outcome。</li>
+</ol>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://grpc.io/docs/guides/deadlines/">gRPC Deadlines</a></li>
+<li><a href="https://grpc.io/blog/deadlines/">gRPC and Deadlines</a></li>
+<li><a href="https://grpc.io/docs/guides/status-codes/">gRPC Status Codes</a></li>
+<li><a href="https://opentelemetry.io/docs/specs/semconv/general/recording-errors/">OpenTelemetry Recording Errors</a></li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>开篇的 Gateway 已经发出部分 Token；即使无法证明 Client 消费到哪里，也无权把“连接失败”解释成“模型没有执行”，更不能把第二次完整生成拼到第一次输出后面。</p>
+<p>流式恢复必须由 attempt、execution、Gateway emitted evidence、显式 Client ACK（若有）和 cancellation facts 共同决定。首 chunk 前的新 attempt 仍可能重复计算；可能部分可见时默认显式失败；只有 API 与 Runtime 提供明确 resume contract 时，才可以从已确认 state 恢复。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#timeout-只描述观察方">Timeout 只描述观察方</a></li><li><a href="#四个对象决定恢复边界">四个对象决定恢复边界</a></li><li><a href="#首输出前重试也不是零成本安全">首输出前重试也不是零成本安全</a></li><li><a href="#部分交付后默认不能拼接">部分交付后，默认不能拼接</a></li><li><a href="#cancellation-需要三个不同事实">Cancellation 需要三个不同事实</a></li><li><a href="#处理开篇断流">处理开篇断流</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-capacity-planning/">LLM Infra 04：怎样从 Token 负载推导推理容量</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-continuous-batching-scheduler/">LLM Infra 06：Continuous Batching 怎样改变请求调度</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-benchmark/">LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

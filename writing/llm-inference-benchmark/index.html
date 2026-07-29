@@ -1,0 +1,385 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Fix the workload distribution, arrival control, warm state, deployment manifest, and quality constraints to measure a service curve that capacity planning can consume."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 03: How an Inference Benchmark Produces a Comparable Service Curve | Xiaoyuan"><meta property="og:description" content="Fix the workload distribution, arrival control, warm state, deployment manifest, and quality constraints to measure a service curve that capacity planning can consume."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 03: How an Inference Benchmark Produces a Comparable Service Curve | Xiaoyuan"><meta name="twitter:description" content="Fix the workload distribution, arrival control, warm state, deployment manifest, and quality constraints to measure a service curve that capacity planning can consume."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Benchmark"><meta property="article:tag" content="Reproducibility"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-benchmark/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/#article","headline":"LLM Infra 03: How an Inference Benchmark Produces a Comparable Service Curve","description":"Fix the workload distribution, arrival control, warm state, deployment manifest, and quality constraints to measure a service curve that capacity planning can consume.","url":"https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"en","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Benchmark","Reproducibility"]}</script><title>LLM Infra 03: How an Inference Benchmark Produces a Comparable Service Curve | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/llm-inference-benchmark/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 03: How an Inference Benchmark Produces a Comparable Service Curve</h1> <p class="article-deck">Fix the workload distribution, arrival control, warm state, deployment manifest, and quality constraints to measure a service curve that capacity planning can consume.</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">07/29/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/tags/Inference/">Inference</a><a class="pill" href="/tags/Benchmark/">Benchmark</a><a class="pill" href="/tags/Reproducibility/">Reproducibility</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Configuration B reports higher tokens/s than Configuration A. A closer look reveals that B uses shorter outputs and an already warm Prefix Cache, and counts only successful requests. Timed-out requests disappear from its latency distribution.</p>
+<p>Both results are called a “100 QPS Benchmark,” but they are not measuring the same thing. QPS does not specify the arrival pattern, concurrency limit, input/output lengths, warm state, or quality requirements. Averaging only successful requests also removes the slowest group entirely.</p>
+<p>The purpose of a Benchmark is not to produce a larger number. It is to answer a specific decision: under fixed constraints, how much workload can each deployment configuration deliver?</p>
+<h2 id="write-the-decision-before-starting-the-load-test">Write the decision before starting the load test</h2>
+<p>Different questions require different experiments:</p>
+<ul>
+<li>To compare Runtimes, fix the model, quantization, parallelism, and workload.</li>
+<li>To compare parallel strategies, fix total hardware, model, Runtime, and SLO.</li>
+<li>To validate capacity, vary arrival rate and observe where SLO attainment declines.</li>
+<li>To validate cold start, state whether every trial reloads the model and Cache.</li>
+</ul>
+<p>If the experiment asks only “which one is faster,” a researcher can easily change the interpretation after seeing the result. A more robust approach records this before the run:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">choose_serving_configuration</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">hypothesis</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  candidate_b_increases_goodput_without_changing_quality</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">fixed</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  workload_fingerprint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">wl_7fd2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  model_release</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model-manifest-sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  hardware_pool</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gpu-topology-a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  quality_gate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">chat-contract-v3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">changed</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  serving_engine_config</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">candidate_a</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">candidate_b</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">primary_metric</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">application_goodput_rps</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">feasibility_gate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  good_request_fraction_gte</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.95</span></span></code></pre>
+<p>This is a conceptual experiment contract. Before execution, it forces the experiment to state what is fixed, what changes, and what result would falsify the hypothesis.</p>
+<h2 id="workload-identity-cannot-be-only-qps">Workload identity cannot be only QPS</h2>
+<p>The workload envelope from the previous article should enter the Benchmark directly rather than being replaced by a convenient set of generated requests. At minimum, fix:</p>
+<ul>
+<li>input and output Token distributions and their correlation;</li>
+<li>model, adapter, template, and feature distributions;</li>
+<li>arrival process, burstiness, and concurrency limit;</li>
+<li>streaming, deadlines, priority, and cancellation behavior;</li>
+<li>warm/cold Cache state;</li>
+<li>request count, duration, and random seeds.</li>
+</ul>
+<p>The vLLM Benchmark CLI exposes <code>request-rate</code>, <code>burstiness</code>, and <code>max-concurrency</code> as separate parameters. NVIDIA AIPerf can likewise combine a Poisson request rate with a maximum concurrency. Request rate and concurrency are not the same control.</p>
+<p>Two common load patterns answer different questions:</p>
+<ul>
+<li><strong>Open-loop</strong> load sends requests according to an external arrival process. New requests continue to arrive when service slows, exposing queues and overload.</li>
+<li><strong>Closed-loop</strong> load keeps concurrency fixed and sends another request only after one completes. Its sending rate falls as service slows, making it more suitable for observing response under a given concurrency.</li>
+</ul>
+<p>Using closed-loop results to promise open-loop capacity lets the load generator perform backpressure on behalf of the service. Maximum throughput measured with an unlimited request rate also does not directly represent tail latency under production arrivals.</p>
+<h2 id="the-deployment-manifest-determines-what-the-result-belongs-to">The deployment manifest determines what the result belongs to</h2>
+<p>Inference performance is not a property of bare model weights. A reproducible trial needs to record at least:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">deployment_manifest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  model</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    repository</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example/model</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">immutable-commit</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    tokenizer_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">immutable-commit</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    chat_template_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  runtime</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    engine</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example-engine</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">x.y.z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    quantization</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">bf16</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    scheduler_config_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  placement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    replicas</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    tensor_parallel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    pipeline_parallel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  hardware</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    gpu_model</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example-gpu</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    gpu_count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    interconnect</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">local-high-bandwidth</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    model_warm</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    prefix_cache</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">cold</span></span></code></pre>
+<p>The same model name may resolve to different revisions. The Tokenizer, chat template, and generation defaults can also change the actual Token sequence. Runtime version, Kernel, driver, parallel topology, and scheduler configuration change the execution path.</p>
+<p>Without a complete manifest, a result can be labeled only as one observation. It cannot be a stable input to the next capacity-planning cycle.</p>
+<h2 id="a-service-curve-is-not-one-peak-value">A Service Curve is not one peak value</h2>
+<p>Capacity planning does not need “maximum tokens/s.” It needs a <strong>service curve</strong>: under a fixed workload and deployment manifest, what latency, goodput, and failure outcomes does the system deliver as offered load or concurrency changes?</p>
+<p>The following is a synthetic result structure, not measured data:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="right">Offered load</th><th align="right">Application goodput</th><th align="right">Good-request fraction</th><th align="right">TTFT P95</th><th align="right">TPOT P95</th><th align="right">Non-good outcomes</th></tr></thead><tbody><tr><td align="right">0.5 req/s</td><td align="right">0.50 req/s</td><td align="right">100%</td><td align="right">420 ms</td><td align="right">42 ms</td><td align="right">0%</td></tr><tr><td align="right">1.0 req/s</td><td align="right">0.98 req/s</td><td align="right">98%</td><td align="right">690 ms</td><td align="right">51 ms</td><td align="right">2%</td></tr><tr><td align="right">1.5 req/s</td><td align="right">1.43 req/s</td><td align="right">95.3%</td><td align="right">1,420 ms</td><td align="right">76 ms</td><td align="right">4.7%</td></tr><tr><td align="right">2.0 req/s</td><td align="right">1.28 req/s</td><td align="right">64%</td><td align="right">2,800 ms</td><td align="right">110 ms</td><td align="right">36%</td></tr></tbody></table>
+<p>Each request is jointly checked for TTFT ≤ 1,500 ms, TPOT ≤ 80 ms, completion, and quality before application goodput and good-request fraction are calculated. If the contract requires a good-request fraction of at least 95%, this synthetic curve supports only the conclusion that the feasible region extends to roughly 1.5 req/s. P95 values in the table help diagnose distributions; they cannot independently prove joint attainment. The example also does not establish that any real hardware has this capacity.</p>
+<p>A Service Curve must retain full distributions and every attempted outcome. If it preserves only averages for successful requests, the overload region may look faster because its slowest requests already timed out, were rejected, or were cancelled.</p>
+<h2 id="warm-state-output-length-and-quality-cannot-become-hidden-variables">Warm state, output length, and quality cannot become hidden variables</h2>
+<p>Three common biases create false improvements.</p>
+<p>First, Cache state differs. Prefix Cache warmup can reduce repeated Prefill, but only for matching prefixes. Testing A warm and B cold, or the reverse, is not a fair comparison. Report cold, steady-state warm, and Cache-hit distributions separately.</p>
+<p>Second, output lengths differ. If one candidate generates shorter text because of EOS, truncation, or changed generation defaults, both E2E latency and tokens/s change. The experiment must record requested and actual output lengths and explain why the output still satisfies the same quality constraint.</p>
+<p>Third, failed samples are filtered out. Every request should retain arrival, first Token, completion or cancellation, Token count, and reason code. Aggregate tables must be derived from complete raw results rather than serving as the only evidence.</p>
+<p>Stochastic decoding also requires fixed or recorded sampling configuration, random seeds, and trial repetition. The quality gate comes before the performance conclusion: if the output protocol or capability changed, the faster result cannot be called an equivalent optimization.</p>
+<h2 id="deliver-evidence-that-capacity-planning-can-consume">Deliver evidence that capacity planning can consume</h2>
+<p>A Benchmark suitable for capacity planning delivers at least four kinds of artifact:</p>
+<ol>
+<li><code>experiment-contract.yaml</code>: the question, hypothesis, fixed factors, and changed factors.</li>
+<li><code>workload-envelope.yaml</code>: lengths, arrivals, deadlines, and random seeds.</li>
+<li><code>deployment-manifest.yaml</code>: model, Runtime, configuration, hardware, and warm state.</li>
+<li><code>raw-results.*</code> plus derivation scripts: per-request timestamps, Tokens, outcomes, and trial identity.</li>
+</ol>
+<p>Record warmup, number of trials, and environmental noise as well. Without repeated experiments and uncertainty estimates, one observation may be reported, but a small difference should not be interpreted as a stable improvement.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://docs.vllm.ai/en/latest/benchmarking/cli/">vLLM Benchmark CLI</a></li>
+<li><a href="https://docs.nvidia.com/aiperf/tutorials/load-patterns-scheduling/request-rate-with-max-concurrency">NVIDIA AIPerf Request Rate with Max Concurrency</a></li>
+<li><a href="https://docs.nvidia.com/aiperf/reference/ai-perf-metrics-reference">NVIDIA AIPerf Metrics Reference</a></li>
+<li><a href="https://arxiv.org/abs/2401.09670">DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving</a></li>
+</ul>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>Configuration B’s higher tokens/s still does not support the claim that “B is better.” It changed output length and Cache state and removed timed-out requests, changing the workload, state, and result denominator at the same time.</p>
+<p>A valid rerun fixes the experiment contract, workload envelope, deployment manifest, and quality gate; uses the same arrival control; and preserves every raw outcome. Its final deliverable is not one peak value but a service curve showing how goodput, TTFT, TPOT, and failures change with offered load.</p>
+<p>The next article can consume this curve for capacity planning. If the workload or manifest changes, the curve must be invalidated and measured again.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#write-the-decision-before-starting-the-load-test">Write the decision before starting the load test</a></li><li><a href="#workload-identity-cannot-be-only-qps">Workload identity cannot be only QPS</a></li><li><a href="#the-deployment-manifest-determines-what-the-result-belongs-to">The deployment manifest determines what the result belongs to</a></li><li><a href="#a-service-curve-is-not-one-peak-value">A Service Curve is not one peak value</a></li><li><a href="#warm-state-output-length-and-quality-cannot-become-hidden-variables">Warm state, output length, and quality cannot become hidden variables</a></li><li><a href="#deliver-evidence-that-capacity-planning-can-consume">Deliver evidence that capacity planning can consume</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-continuous-batching-scheduler/">LLM Infra 06: How Continuous Batching Changes Request Scheduling</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-capacity-control/">LLM Infra 12: Coordinating Queuing, Rejection, and Scaling Across Time Scales</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-capacity-planning/">LLM Infra 04: How to Derive Inference Capacity from Token Workload</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

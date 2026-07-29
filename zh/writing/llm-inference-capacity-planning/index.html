@@ -1,0 +1,392 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="将 workload envelope、每 Replica service curve、故障余量与 provisioning lead time 组合成容量区间，而不是用平均 GPU 利用率猜 Replica 数。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 04：怎样从 Token 负载推导推理容量 | Xiaoyuan"><meta property="og:description" content="将 workload envelope、每 Replica service curve、故障余量与 provisioning lead time 组合成容量区间，而不是用平均 GPU 利用率猜 Replica 数。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-planning/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 04：怎样从 Token 负载推导推理容量 | Xiaoyuan"><meta name="twitter:description" content="将 workload envelope、每 Replica service curve、故障余量与 provisioning lead time 组合成容量区间，而不是用平均 GPU 利用率猜 Replica 数。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Capacity Planning"><meta property="article:tag" content="Reliability"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-planning/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-capacity-planning/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-planning/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-capacity-planning/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-planning/#article","headline":"LLM Infra 04：怎样从 Token 负载推导推理容量","description":"将 workload envelope、每 Replica service curve、故障余量与 provisioning lead time 组合成容量区间，而不是用平均 GPU 利用率猜 Replica 数。","url":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-planning/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-capacity-planning/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Capacity Planning","Reliability"]}</script><title>LLM Infra 04：怎样从 Token 负载推导推理容量 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/llm-inference-capacity-planning/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 04：怎样从 Token 负载推导推理容量</h1> <p class="article-deck">将 workload envelope、每 Replica service curve、故障余量与 provisioning lead time 组合成容量区间，而不是用平均 GPU 利用率猜 Replica 数。</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">2026/07/29</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/zh/tags/Inference/">Inference</a><a class="pill" href="/zh/tags/Capacity%20Planning/">Capacity Planning</a><a class="pill" href="/zh/tags/Reliability/">Reliability</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>一个推理集群日常 GPU utilization 不高，却在长 Prompt 突发时迅速积压。增加一个 Replica 后短时恢复；下一次模型升级沿用同样 Replica 数，容量又不够了。</p>
+<p>这种问题常被解释成“GPU 数算少了”，于是容量规划退化成按平均利用率补卡。但利用率既没有说明等待中的 Token work，也没有绑定模型、Runtime 和 SLO，无法回答需要多少可交付容量。</p>
+<p>容量规划要连接两份已经建立的证据：生产侧的 workload envelope，以及 Benchmark 产生的 service curve。</p>
+<h2 id="容量的分子是待交付-workload">容量的分子是待交付 workload</h2>
+<p>上一篇的 workload envelope 提供了 arrival、输入/输出 Token 分布、deadline 和 workload class。容量计算不能把这些字段再次压成一个平均 QPS。</p>
+<p>先按执行兼容性和服务契约划分 workload segment，例如：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Segment</th><th>Model requirement</th><th>输入/输出特征</th><th>SLO</th></tr></thead><tbody><tr><td>interactive-short</td><td>chat-v3</td><td>短输入、短输出</td><td>严格 TTFT/TPOT</td></tr><tr><td>interactive-long</td><td>chat-v3-long</td><td>长 Context、中等输出</td><td>放宽 TTFT</td></tr><tr><td>async-generation</td><td>generate-v2</td><td>中等输入、长输出</td><td>completion deadline</td></tr></tbody></table>
+<p>这不是为了给每类请求独占集群，而是为了避免把不可互换的工作相加。一个只支持短 Context 的 Replica 不能计入 long segment 的容量；一个满足 Batch deadline 的配置也不一定满足交互 TTFT。</p>
+<p>Forecast 还要表达区间，而不是一个精确点：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>low / base / high arrival</span></span>
+<span class="line"><span>× input-output distribution</span></span>
+<span class="line"><span>× burst window</span></span>
+<span class="line"><span>× deadline and priority</span></span></code></pre>
+<p>预测的不确定性应该留在模型里。用“下季度一定是 8.5 req/s”伪装精确，后续只会把误差藏进一个任意 headroom 百分比。</p>
+<h2 id="容量的分母是满足-slo-的-service-curve">容量的分母是满足 SLO 的 Service Curve</h2>
+<p>单 Replica capacity 不是理论 FLOPs，也不是某个产品页面上的 peak tokens/s。它来自固定 deployment manifest 下的实测 service curve。</p>
+<p>假设 Batch 1 的合成 Benchmark 在 <code>1.0–1.5 req/s</code> 之间继续做了更细的 sweep，给出：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>workload fingerprint: wl_7fd2</span></span>
+<span class="line"><span>deployment manifest: dep_a91c</span></span>
+<span class="line"><span>maximum offered load meeting contract: 1.1 req/s per Replica</span></span></code></pre>
+<p>这里的 <code>1.1 req/s</code> 是在 good-request fraction ≥ 95% 的可行性约束下，单 Replica 能承受的最大 offered load。它只是演算输入，不代表真实 GPU。该数值来自包含输入/输出分布、Batching、TTFT/TPOT 与全部失败结果的实验，但它不是 application goodput：如果恰有 95% 的请求达标，对应 application goodput 约为 <code>1.045 req/s</code>。</p>
+<p>如果 Replica 同构、Router 能均衡分配该 workload、没有共享 gateway/网络瓶颈，且 Cache/Adapter affinity 不会把流量固定在少数副本，最简单的 steady-state 初始估算是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>N_steady = ceil(forecast_offered_rps / max_supported_offered_rps_per_replica_at_target_fraction)</span></span></code></pre>
+<p>若 base forecast 为 <code>8.5 req/s</code>，则：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>ceil(8.5 / 1.1) = 8 Replicas</span></span></code></pre>
+<p>这个除法的分子和分母都是 offered load，且共享同一个 good-request fraction 门槛。它只是候选规模，不是 fleet capacity 的证明。真实部署还要测多 Replica service curve，确认 routing、affinity 与共享组件没有破坏组合关系。结果也只在 workload fingerprint 与 deployment manifest 没有变化时有效；模型 revision、quantization、parallelism、scheduler policy、driver 或硬件变化，都可能使原 service curve 失效。</p>
+<h2 id="headroom-不是固定百分比">Headroom 不是固定百分比</h2>
+<p>在估算结果上机械加 30% 看似安全，实际混合了多种不同风险：</p>
+<ul>
+<li>workload forecast 误差；</li>
+<li>短时 burst；</li>
+<li>单 Replica 性能波动；</li>
+<li>一个 Replica 或一个 failure domain 不可用；</li>
+<li>新容量启动前的 provisioning lead time。</li>
+</ul>
+<p>这些风险的时间尺度和恢复方式不同，应该分别处理。</p>
+<h3 id="steady-state-headroom">Steady-state headroom</h3>
+<p>不要把 Replica 长期运行在 service curve 刚好失去 SLO 的边界。应选择曲线上仍能容纳观测噪声与 workload 漂移的稳定区间。</p>
+<h3 id="burst-buffer">Burst buffer</h3>
+<p>如果 burst 持续时间短于新 Replica 的启动时间，Autoscaling 无法及时解决。系统只能依赖已有 idle capacity、deadline 允许的 bounded queue，或者显式 admission。</p>
+<h3 id="failure-capacity">Failure capacity</h3>
+<p>如果要求失去一个 Replica 后仍满足 base workload，则前述合成结果至少需要：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>N_failure = N_steady + 1 = 9 Replicas</span></span></code></pre>
+<p>这条 <code>N+1</code> 只适用于“单个同构 Replica 是故障单位”的合成条件。若 Replica 跨多张 GPU，或多个 Replica 共享节点、交换机、电源域，故障单位就不能简单按单进程计算。真正的要求应写成：失去目标 failure domain 后，剩余 fleet 的实测 goodput 仍覆盖 target workload。</p>
+<h3 id="provisioning-reserve">Provisioning reserve</h3>
+<p>新节点创建、镜像拉取、模型加载、并行组形成和 warmup 都需要时间。扩容请求发出不等于 capacity ready；只有通过 readiness 与 service curve 验证的 Replica 才能计入可交付容量。</p>
+<p>因此，最终输出更适合写成容量区间和条件：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>场景</th><th align="right">合成结果</th><th>假设</th></tr></thead><tbody><tr><td>Low steady state</td><td align="right">6 Replicas</td><td>low forecast，全部 healthy</td></tr><tr><td>Base + one Replica failure</td><td align="right">9 Replicas</td><td>base forecast，N+1</td></tr><tr><td>High + one Replica failure</td><td align="right">12 Replicas</td><td>high envelope 的 steady state 为 11，另加一个同构故障 reserve</td></tr></tbody></table>
+<p>表中数字仍然只是演算例子。它展示的是结构，而不是推荐配置。</p>
+<h2 id="gpu-utilization-只能解释部分设备活动">GPU utilization 只能解释部分设备活动</h2>
+<p>GPU utilization 高，可能意味着设备计算繁忙；也可能是大 Batch 正在健康地兑现离线 workload。Utilization 低，也可能是：</p>
+<ul>
+<li>请求还在 gateway 或 scheduler queue；</li>
+<li>Replica 因 KV/memory 限制无法 admission；</li>
+<li>多卡执行正在等待通信或同步；</li>
+<li>目标 model/adapter 尚未加载；</li>
+<li>arrival 本身不足。</li>
+</ul>
+<p>因此它适合做诊断证据，不适合作为容量公式。真正需要比较的是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>未来窗口内待交付的兼容 workload</span></span>
+<span class="line"><span>vs.</span></span>
+<span class="line"><span>当前 ready Replicas 在同一契约下的 service capacity</span></span></code></pre>
+<p>Utilization、queue age、pending Token、KV pressure 和 active sequences 可以解释这个差距，却不能替代 workload 与 service curve。</p>
+<h2 id="容量结果必须带失效条件">容量结果必须带失效条件</h2>
+<p>一份可执行的 capacity record 可以是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">capacity_plan</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  workload_fingerprint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">wl_7fd2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  forecast_window</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">2026-Q3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  scenarios</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    low_rps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">6.0</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    base_rps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">8.5</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    high_rps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">12.1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  service_curve</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    deployment_manifest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">dep_a91c</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    max_supported_offered_rps_per_replica</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1.1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    good_request_fraction_gte</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.95</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  failure_requirement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    unavailable_replicas</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  provisioning</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ready_lead_time_p95</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">measured-separately</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  invalidate_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">workload_distribution_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model_or_tokenizer_revision_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">runtime_or_scheduler_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">hardware_or_parallelism_changed</span></span></code></pre>
+<p>其中 lead time 必须由真实部署过程测量，不能用经验值填空。计划还应定期对照生产观测：实际 workload 是否落在 envelope 内，ready Replica 是否仍交付原 service curve。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://docs.vllm.ai/en/latest/benchmarking/cli/">vLLM Benchmark CLI</a></li>
+<li><a href="https://docs.nvidia.com/aiperf/reference/ai-perf-metrics-reference">NVIDIA AIPerf Metrics Reference</a></li>
+<li><a href="https://arxiv.org/abs/2401.09670">DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving</a></li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>原集群的 GPU utilization 不高，不能证明容量充足。长 Prompt burst 可能在 GPU 取走请求前就形成队列；模型升级则会让旧 service curve 失效，所以同样 Replica 数不再代表同样的 goodput。</p>
+<p>正确的容量结论必须写成：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>指定 workload envelope</span></span>
+<span class="line"><span>× 指定 SLO 与质量约束</span></span>
+<span class="line"><span>÷ 指定 deployment manifest 的 service curve</span></span>
+<span class="line"><span>+ burst / failure / provisioning 的独立约束</span></span></code></pre>
+<p>Batch 1 到这里形成闭环：01 定义工作，02 定义什么叫有效交付，03 测量 service curve，04 把二者转换为容量区间。下一批将进入单 Replica 内部，解释这条容量曲线为什么首先受显存、调度、Cache 与量化约束。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#容量的分子是待交付-workload">容量的分子是待交付 workload</a></li><li><a href="#容量的分母是满足-slo-的-service-curve">容量的分母是满足 SLO 的 Service Curve</a></li><li><a href="#headroom-不是固定百分比">Headroom 不是固定百分比</a></li><li><a href="#gpu-utilization-只能解释部分设备活动">GPU utilization 只能解释部分设备活动</a></li><li><a href="#容量结果必须带失效条件">容量结果必须带失效条件</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-quantization-capacity/">LLM Infra 08：量化省下的显存为什么不等于可交付容量</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-workload-model/">LLM Infra 01：先把推理负载描述清楚</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-streaming-failure-retry/">LLM Infra 14：一次流式推理失败后，什么时候可以重试</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

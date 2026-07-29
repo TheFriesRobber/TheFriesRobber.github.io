@@ -1,0 +1,429 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Separate Weight, Activation, and KV Cache quantization, then use a memory ledger, Kernel support, quality constraints, and a workload-specific service curve to determine whether quantization adds deliverable capacity."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 08: Why Quantization's Memory Savings Do Not Equal Deliverable Capacity | Xiaoyuan"><meta property="og:description" content="Separate Weight, Activation, and KV Cache quantization, then use a memory ledger, Kernel support, quality constraints, and a workload-specific service curve to determine whether quantization adds deliverable capacity."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/llm-inference-quantization-capacity/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 08: Why Quantization's Memory Savings Do Not Equal Deliverable Capacity | Xiaoyuan"><meta name="twitter:description" content="Separate Weight, Activation, and KV Cache quantization, then use a memory ledger, Kernel support, quality constraints, and a workload-specific service curve to determine whether quantization adds deliverable capacity."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Quantization"><meta property="article:tag" content="Capacity Planning"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/llm-inference-quantization-capacity/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-quantization-capacity/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-quantization-capacity/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-quantization-capacity/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-quantization-capacity/#article","headline":"LLM Infra 08: Why Quantization's Memory Savings Do Not Equal Deliverable Capacity","description":"Separate Weight, Activation, and KV Cache quantization, then use a memory ledger, Kernel support, quality constraints, and a workload-specific service curve to determine whether quantization adds deliverable capacity.","url":"https://xiaoyuan-gu.github.io/writing/llm-inference-quantization-capacity/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-quantization-capacity/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"en","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Quantization","Capacity Planning"]}</script><title>LLM Infra 08: Why Quantization&#39;s Memory Savings Do Not Equal Deliverable Capacity | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/llm-inference-quantization-capacity/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 08: Why Quantization&#39;s Memory Savings Do Not Equal Deliverable Capacity</h1> <p class="article-deck">Separate Weight, Activation, and KV Cache quantization, then use a memory ledger, Kernel support, quality constraints, and a workload-specific service curve to determine whether quantization adds deliverable capacity.</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">07/29/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/tags/Inference/">Inference</a><a class="pill" href="/tags/Quantization/">Quantization</a><a class="pill" href="/tags/Capacity%20Planning/">Capacity Planning</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>After a model moves from BF16 weights to 4-bit weight-only quantization, its checkpoint and resident weights become substantially smaller, and the model fits on fewer GPUs. Yet long-Context concurrency remains limited by KV Cache, some hardware/shape combinations take different Kernel paths, and goodput within the TTFT/TPOT contract does not increase in proportion to compression.</p>
+<p>“The model became smaller” is a fact about the artifact and weight memory. “Deliverable capacity increased” must pass three gates: memory, execution, and quality.</p>
+<h2 id="quantization-must-first-say-what-was-quantized">Quantization must first say what was quantized</h2>
+<p>Quantization is not one uniform switch.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Type</th><th>Main object changed</th><th>Objects not changed automatically</th></tr></thead><tbody><tr><td>Weight-only</td><td>Model-weight storage and some matrix-compute paths</td><td>KV Cache, many Activations, workspace</td></tr><tr><td>Weight + Activation</td><td>Weights and selected Activation representations/computation</td><td>Uncovered operators, KV Cache</td></tr><tr><td>KV Cache quantization</td><td>KV representation for each active Token</td><td>Model weights, other Activations</td></tr></tbody></table>
+<p>AWQ is low-bit weight-only quantization. SmoothQuant aims to make weights and activations easier to execute through a W8A8 path. They do not address the same GPU-memory region and should not be compared by bit width alone.</p>
+<p>Current vLLM likewise separates model quantization from KV Cache dtype and maintains a support matrix that depends on hardware and quantization method. “The model is 4-bit” is therefore still insufficient to determine the complete execution path.</p>
+<h2 id="when-weights-shrink-the-bottleneck-moves">When weights shrink, the bottleneck moves</h2>
+<p>Consider a synthetic ledger in abstract memory units:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Item</th><th align="right">BF16 configuration</th><th align="right">4-bit weight-only</th></tr></thead><tbody><tr><td>Weights</td><td align="right">20</td><td align="right">5</td></tr><tr><td>KV Cache</td><td align="right">8</td><td align="right">8</td></tr><tr><td>Activations / workspace / Runtime</td><td align="right">4</td><td align="right">4</td></tr><tr><td>Total</td><td align="right">32</td><td align="right">17</td></tr></tbody></table>
+<p>The numbers express only the relationship and do not correspond to a specific model or device. In this example, shrinking weights by 4× reduces total use only from 32 to 17. As Context and concurrency grow, KV continues to grow as well.</p>
+<p>Weight-only quantization can therefore produce three different results:</p>
+<ul>
+<li>A model that did not fit can now load.</li>
+<li>Freed memory can be assigned to more KV blocks.</li>
+<li>Capacity remains bounded by KV, Kernels, compute, or the SLO.</li>
+</ul>
+<p>The first result does not imply the third. Capacity changes must return to the complete memory ledger from article 05.</p>
+<h2 id="a-loadable-format-does-not-prove-an-efficient-kernel-path">A loadable format does not prove an efficient Kernel path</h2>
+<p>Low-precision gains depend on joint support from hardware, the Runtime, and Kernels:</p>
+<ul>
+<li>whether the device natively supports the target dtype or requires conversion;</li>
+<li>whether the quantization method has matching Linear/MoE/attention Kernels;</li>
+<li>whether group size, shape, batch, and parallelism satisfy Kernel conditions;</li>
+<li>which precision unsupported operators use;</li>
+<li>whether dequantization, repacking, or CPU/GPU offload occurs.</li>
+</ul>
+<p>Hugging Face quantization documentation maintains multiple backends and their hardware support. vLLM also distinguishes quantization methods and supported hardware. Loading a checkpoint proves only that its format can be parsed; it does not prove that the target requests used the intended Kernels.</p>
+<p>Deployment validation should record at least:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">quantization_execution</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  weight_format</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">awq-int4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  activation_dtype</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fp16</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  kv_cache_dtype</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fp16</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  resolved_kernels</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    linear</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">observed-kernel-name</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    attention</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">observed-kernel-name</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  fallbacks</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">runtime-log-or-profiler</span></span></code></pre>
+<p>These fields are conceptual suggestions. Kernel names and fallback behavior must be observed from the target Runtime’s logs, profiler, or code path; they cannot be inferred from a checkpoint filename.</p>
+<h2 id="quality-must-be-a-hard-constraint-first">Quality must be a hard constraint first</h2>
+<p>Quantization changes numeric representation and can affect perplexity, generation quality, structured output, Tool arguments, or tasks involving particular languages or long Contexts. A paper preserving accuracy for its models and benchmarks does not prove that every workload is unchanged.</p>
+<p>The comparison order should therefore be:</p>
+<ol>
+<li>Fix the model revision, template, sampling, and workload.</li>
+<li>Choose a quality evaluation suite for the application contract.</li>
+<li>Check whether the quantized configuration passes the quality gate.</li>
+<li>Compare TTFT, TPOT, goodput, and cost only among candidates that pass.</li>
+</ol>
+<p>If a candidate is faster but lowers the success rate of structured output, it is not a capacity increase under the same service contract.</p>
+<p>The quality record must also distinguish:</p>
+<ul>
+<li>the original tasks reported in the quantization paper;</li>
+<li>offline evaluation of the current model;</li>
+<li>the target application contract;</li>
+<li>the permitted regression boundary.</li>
+</ul>
+<h2 id="rebuild-capacity-from-the-same-service-curve-method">Rebuild capacity from the same service-curve method</h2>
+<p>A quantized configuration is a new deployment manifest, so the old service curve must be invalidated.</p>
+<p>A new Benchmark should control and record the following as specified:</p>
+<ul>
+<li>the workload envelope and SLO;</li>
+<li>hardware, Replica count, and parallel topology;</li>
+<li>warm/cold Cache state;</li>
+<li>tokenized inputs, sampling/generation configuration, requested minimum/maximum output, and random-seed policy;</li>
+<li>record actual output length and EOS/stop reason rather than forcing them to be constant;</li>
+<li>the quality gate;</li>
+<li>quantization method, scales, Runtime, and Kernels.</li>
+</ul>
+<p>If a pure Kernel/throughput experiment uses <code>ignore_eos</code> or a fixed Output Sequence Length for comparability, it must be labeled as a synthetic fixed-OSL experiment. It cannot replace application-quality and service-curve measurement under normal stopping semantics.</p>
+<p>The next comparison includes more than memory:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Gate</th><th>Required evidence</th></tr></thead><tbody><tr><td>Fit</td><td>Weights, KV, Activations, and peak allocation</td></tr><tr><td>Execute</td><td>Kernels/fallbacks, TTFT, TPOT, failures</td></tr><tr><td>Quality</td><td>Results from the same evaluation suite</td></tr><tr><td>Capacity</td><td>Service curve / goodput satisfying every constraint</td></tr></tbody></table>
+<p>Suppose configuration Q reduces a Replica from two GPUs to one, but its SLO-constrained goodput falls. It may still be worthwhile because of better fleet placement or cost, or it may require enough extra Replicas to erase the gain. The answer depends on the full fleet design, not only on “one fewer GPU per Replica.”</p>
+<h2 id="an-auditable-quantization-decision">An auditable quantization decision</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">quantization_decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  candidate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    artifact_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    quantization_config_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    scales_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    kv_cache_dtype</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fp16</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  baseline</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    artifact_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  workload_fingerprint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">wl_7fd2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  evidence</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory_ledger</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact://memory-comparison</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    kernel_trace</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact://kernel-resolution</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    quality_report</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact://quality-gate</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    service_curve</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">artifact://benchmark-curve</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  result</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    quality_gate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">pass</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    capacity_change</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">measured</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cost_change</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">modeled-from-measured-capacity</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  invalidate_on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model_revision_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">quantized_artifact_or_scales_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">quantization_config_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kv_cache_dtype_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">runtime_or_kernel_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">hardware_changed</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">workload_distribution_changed</span></span></code></pre>
+<p>This record does not assume that lower bit width is always better. It requires every decision to remain traceable to complete evidence.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://docs.vllm.ai/en/stable/features/quantization/index.html">vLLM Quantization</a></li>
+<li><a href="https://huggingface.co/docs/transformers/main/quantization/concept_guide">Hugging Face Transformers Quantization Concepts</a></li>
+<li><a href="https://proceedings.mlsys.org/paper_files/paper/2024/hash/42a452cbafa9dd64e9ba4aa95cc1ef21-Abstract-Conference.html">AWQ: Activation-aware Weight Quantization for On-Device LLM Compression and Acceleration</a></li>
+<li><a href="https://proceedings.mlr.press/v202/xiao23c.html">SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models</a></li>
+</ul>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The 4-bit weight-only configuration did shrink the weights. It did not also compress the KV Cache, guarantee a faster Kernel on the target hardware, or automatically satisfy the original quality contract.</p>
+<p>Memory saved is therefore only one input to a quantization decision. A candidate becomes a deliverable-capacity improvement only after it passes the quality gate, produces a new service curve under the target workload, and yields higher fleet goodput or lower cost per qualified delivery.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#quantization-must-first-say-what-was-quantized">Quantization must first say what was quantized</a></li><li><a href="#when-weights-shrink-the-bottleneck-moves">When weights shrink, the bottleneck moves</a></li><li><a href="#a-loadable-format-does-not-prove-an-efficient-kernel-path">A loadable format does not prove an efficient Kernel path</a></li><li><a href="#quality-must-be-a-hard-constraint-first">Quality must be a hard constraint first</a></li><li><a href="#rebuild-capacity-from-the-same-service-curve-method">Rebuild capacity from the same service-curve method</a></li><li><a href="#an-auditable-quantization-decision">An auditable quantization decision</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-capacity-planning/">LLM Infra 04: How to Derive Inference Capacity from Token Workload</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-workload-model/">LLM Infra 01: Start by Describing the Inference Workload</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-continuous-batching-scheduler/">LLM Infra 06: How Continuous Batching Changes Request Scheduling</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

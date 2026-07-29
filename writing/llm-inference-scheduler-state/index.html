@@ -1,0 +1,369 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Explain why cross-Replica scheduling cannot rely on queue length alone, and define the state boundaries among requests, Endpoint observations, placement decisions, affinity, and admission outcomes."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 10: What State Must an Inference Scheduler Own? | Xiaoyuan"><meta property="og:description" content="Explain why cross-Replica scheduling cannot rely on queue length alone, and define the state boundaries among requests, Endpoint observations, placement decisions, affinity, and admission outcomes."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/llm-inference-scheduler-state/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 10: What State Must an Inference Scheduler Own? | Xiaoyuan"><meta name="twitter:description" content="Explain why cross-Replica scheduling cannot rely on queue length alone, and define the state boundaries among requests, Endpoint observations, placement decisions, affinity, and admission outcomes."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Scheduling"><meta property="article:tag" content="Control Plane"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/llm-inference-scheduler-state/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-scheduler-state/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-scheduler-state/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-scheduler-state/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-scheduler-state/#article","headline":"LLM Infra 10: What State Must an Inference Scheduler Own?","description":"Explain why cross-Replica scheduling cannot rely on queue length alone, and define the state boundaries among requests, Endpoint observations, placement decisions, affinity, and admission outcomes.","url":"https://xiaoyuan-gu.github.io/writing/llm-inference-scheduler-state/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/llm-inference-scheduler-state/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"en","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Scheduling","Control Plane"]}</script><title>LLM Infra 10: What State Must an Inference Scheduler Own? | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/llm-inference-scheduler-state/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 10: What State Must an Inference Scheduler Own?</h1> <p class="article-deck">Explain why cross-Replica scheduling cannot rely on queue length alone, and define the state boundaries among requests, Endpoint observations, placement decisions, affinity, and admission outcomes.</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">07/29/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/tags/Inference/">Inference</a><a class="pill" href="/tags/Scheduling/">Scheduling</a><a class="pill" href="/tags/Control%20Plane/">Control Plane</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>Two Replicas both have queue lengths near zero. One has already loaded the required Adapter and holds a reusable prefix. The other needs a cold load, and its KV pool is nearly full. Least-queue routing sends the request to the second Replica. The gateway then times out, and the retry reaches a different deployment generation.</p>
+<p>The queue length was not wrong. It simply did not describe whether the request could execute, how much Token work it required, or whether the Endpoint observation was still fresh.</p>
+<p>Cross-Replica inference scheduling is not stateless load balancing. It needs to keep request constraints, Endpoint observations, placement decisions, and execution admission separate.</p>
+<h2 id="request-count-is-not-service-demand">Request count is not service demand</h2>
+<p>“Three requests in the queue” could mean:</p>
+<ul>
+<li>Three short Decodes.</li>
+<li>One very long Prefill plus two short requests.</li>
+<li>Three requests waiting for an Adapter that has not been loaded.</li>
+<li>Three requests that have already missed their deadlines and are about to be cancelled.</li>
+</ul>
+<p>At minimum, the cluster scheduler needs to consume:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">request_spec</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  request_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">req_123</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  required_model_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">release_91a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  adapter</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">adapter_sql_v4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  token_envelope</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    prompt_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2400</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    max_output_tokens</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">300</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  deadline</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:02Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  affinity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    prefix_key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">optional</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    session_key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">optional</span></span></code></pre>
+<p>These fields come from the request and a trusted control plane. The Agent/model boundary has already resolved the business question of “which capability is required.” The Infra scheduler handles only requirements for an already resolved, compatible deployment.</p>
+<h2 id="endpoint-state-is-a-time-bound-observation">Endpoint state is a time-bound observation</h2>
+<p>The public scheduling designs of llm-d and the Gateway API Inference Extension observe signals such as queues, running requests, KV utilization, LoRA affinity, and prefix or session affinity before filtering, scoring, and picking. They show that these signals can support inference-aware routing, but also reveal an important fact: the scheduler sees observations, not instantaneous truth inside the device.</p>
+<p>An observation should carry its source and freshness:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">endpoint_observation</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  observation_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">obs_b_91</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  endpoint_uid</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">replica_b</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  deployment_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">release_91a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  endpoint_generation</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">42</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  collected_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:00.100Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  signals</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    queue</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">runtime-metrics</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      observed_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:00.080Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      ttl_ms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">250</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      running</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      waiting</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    kv</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">runtime-kv-events</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      watermark</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">18442</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      observed_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:00.020Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      ttl_ms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">150</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      utilization</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.91</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    adapters</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">residency-controller</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      observed_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T11:59:59.900Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      ttl_ms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">500</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      active</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">adapter_chat_v2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    health</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      source</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">endpoint-health-controller</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      observed_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:00.090Z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      ttl_ms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">200</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">ready</span></span></code></pre>
+<p>The <code>ttl_ms</code> values, field set, and generation fence are design suggestions in this article, not a shared protocol implemented by those projects. Each source retains its own timestamp and watermark so that a recent aggregate does not hide stale KV or residency data. A stale or missing hard-constraint signal should filter the Endpoint out. When an optimization signal is missing, the scheduler should assign a conservative score instead of treating the unknown as a hit. The placement record must identify the <code>observation_id</code> values it actually consumed. The principle is: <strong>without an observation age, “idle” has no defined freshness.</strong></p>
+<h2 id="filter-score-and-pick-should-leave-decision-evidence">Filter, Score, and Pick should leave decision evidence</h2>
+<p>Scheduling can be separated into three steps:</p>
+<ol>
+<li><strong>Filter</strong> out Endpoints whose model revision, Context, adapter, topology, or health state is incompatible.</li>
+<li><strong>Score</strong> candidate cost using pending Tokens, KV capacity, adapter or prefix affinity, queue age, and deadline.</li>
+<li><strong>Pick</strong> one Endpoint and retain the observation references behind that decision.</li>
+</ol>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">placement_decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  placement_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">place_456</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  request_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">req_123</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  observation_refs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">obs_a_77</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">obs_b_91</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  candidates</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#22863A;--shiki-dark:#85E89D">endpoint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">replica_a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      score</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.82</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      reasons</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">adapter_ready</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">prefix_affinity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#22863A;--shiki-dark:#85E89D">endpoint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">replica_b</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      score</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.21</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      reasons</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">adapter_missing</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kv_pressure</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  selected_endpoint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">replica_a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  policy_version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">placement-v5</span></span></code></pre>
+<p>This is an auditable decision record. It does not guarantee that replaying the same input in the future will reproduce the same result. Observations, heat, and Runtime state all change.</p>
+<h2 id="successful-placement-does-not-mean-execution-was-admitted">Successful placement does not mean execution was admitted</h2>
+<p>Even after the scheduler selects a Replica, state may change while the request crosses the network. The Replica still needs to perform admission against its latest local KV state, Token budget, and generation.</p>
+<p>This article suggests expressing the result as:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">admission_receipt</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  placement_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">place_456</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  attempt_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">attempt_07</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  admission_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">admit_802</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  endpoint_uid</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">replica_a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  outcome</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">accepted</span><span style="color:#6A737D;--shiki-dark:#6A737D"> # accepted | queued | rejected</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  execution_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">exec_991</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  reason</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kv_capacity_available</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  returned_at</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2026-07-29T12:00:00.220Z</span></span></code></pre>
+<p><code>AdmissionReceipt</code> is not an industry standard either. It clarifies the state boundary: the cluster scheduler owns the placement decision, while the Replica scheduler returns only the local execution-admission decision it has actually made.</p>
+<p>The gateway separately owns its observation of this call:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">receipt_observation</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  attempt_id</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">attempt_07</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">unknown</span><span style="color:#6A737D;--shiki-dark:#6A737D"> # received | unknown</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  reason</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">upstream_timeout_before_receipt</span></span></code></pre>
+<p><code>unknown</code> is not the Replica’s admission decision. It is the gateway’s assessment of an attempt when no receipt arrived. A missing receipt proves neither that the request was not admitted nor that execution did not begin.</p>
+<p>If the gateway times out, it cannot conclude that:</p>
+<ul>
+<li>Placement never arrived.</li>
+<li>Execution never started.</li>
+<li>Cancellation already took effect.</li>
+<li>The business operation is exactly-once.</li>
+</ul>
+<p>A retry must use a new attempt identity and follow the partial-delivery and unknown-outcome rules defined in Article 14.</p>
+<h2 id="affinity-may-optimize-only-compatible-candidates">Affinity may optimize only compatible candidates</h2>
+<p>Prefix, session, and Adapter affinity can avoid repeated Prefill work or a cold load, but they cannot override hard constraints.</p>
+<p>The correct order is:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>compatibility and health filter</span></span>
+<span class="line"><span>→ capacity / deadline feasibility</span></span>
+<span class="line"><span>→ affinity score</span></span></code></pre>
+<p>If an Endpoint holds a Prefix Cache but cannot satisfy the KV or Token budget required by the current scheduling step and local admission policy, a Cache hit does not make it feasible. A paged-KV Runtime may allocate blocks incrementally; only a platform with an explicit full-envelope reservation policy needs to make a conservative decision against the complete request limit. Likewise, an adapter being ready cannot override an incompatible deployment revision or tenant-isolation boundary.</p>
+<p>llm-d’s precise prefix-aware routing depends on Runtime KV events, while its approximate approach maintains an inferred in-memory LRU. Their freshness and accuracy differ and must remain visible in the observation source instead of being collapsed into the label “Cache aware.”</p>
+<h2 id="reschedule-the-opening-request">Reschedule the opening request</h2>
+<p>Least-queue saw only:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>replica_a.queue = 0</span></span>
+<span class="line"><span>replica_b.queue = 0</span></span></code></pre>
+<p>The inference-aware decision also sees:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>replica_a: adapter ready, prefix affinity, KV sufficient</span></span>
+<span class="line"><span>replica_b: adapter missing, KV pressure, observation older</span></span></code></pre>
+<p>Filter, Score, and Pick therefore select A, and A’s local scheduler returns <code>accepted</code>. If the gateway does not receive A’s receipt, only the gateway observation for this attempt becomes <code>unknown</code>. The gateway must not pretend that the request did not execute; it must enter the streaming-failure protocol from Article 14.</p>
+<p>References:</p>
+<ul>
+<li><a href="https://llm-d.ai/docs/dev/architecture/core/router/epp/scheduling">llm-d Endpoint Picker Scheduling</a></li>
+<li><a href="https://llm-d.ai/docs/dev/architecture/advanced/kv-management/prefix-cache-aware-routing">llm-d Prefix Cache Aware Routing</a></li>
+<li><a href="https://gateway-api-inference-extension.sigs.k8s.io/api-types/inferencepool/">Gateway API Inference Extension: InferencePool</a></li>
+<li><a href="https://docs.vllm.ai/en/stable/serving/data_parallel_deployment/">vLLM Data Parallel Deployment</a></li>
+</ul>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The opening request should not have been sent to a Replica with an equally short queue but a cold Adapter load and KV pressure. The scheduler needs four explicit objects, not more disconnected metrics: a <code>RequestSpec</code>, a time-bound <code>EndpointObservation</code>, an auditable <code>PlacementDecision</code>, and a local Admission outcome from the Replica.</p>
+<p>Once they are separate, stale state, affinity, timeout, and retry no longer collapse into a single claim that “load balancing succeeded.”</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#request-count-is-not-service-demand">Request count is not service demand</a></li><li><a href="#endpoint-state-is-a-time-bound-observation">Endpoint state is a time-bound observation</a></li><li><a href="#filter-score-and-pick-should-leave-decision-evidence">Filter, Score, and Pick should leave decision evidence</a></li><li><a href="#successful-placement-does-not-mean-execution-was-admitted">Successful placement does not mean execution was admitted</a></li><li><a href="#affinity-may-optimize-only-compatible-candidates">Affinity may optimize only compatible candidates</a></li><li><a href="#reschedule-the-opening-request">Reschedule the opening request</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-continuous-batching-scheduler/">LLM Infra 06: How Continuous Batching Changes Request Scheduling</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-benchmark/">LLM Infra 03: How an Inference Benchmark Produces a Comparable Service Curve</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/writing/llm-inference-capacity-control/">LLM Infra 12: Coordinating Queuing, Rejection, and Scaling Across Time Scales</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

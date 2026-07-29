@@ -1,0 +1,357 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="从长度不一且持续到达的 sequence 出发，解释 iteration-level scheduling、Token/KV budget、公平性、chunked prefill 与 preemption。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 06：Continuous Batching 怎样改变请求调度 | Xiaoyuan"><meta property="og:description" content="从长度不一且持续到达的 sequence 出发，解释 iteration-level scheduling、Token/KV budget、公平性、chunked prefill 与 preemption。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/llm-continuous-batching-scheduler/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 06：Continuous Batching 怎样改变请求调度 | Xiaoyuan"><meta name="twitter:description" content="从长度不一且持续到达的 sequence 出发，解释 iteration-level scheduling、Token/KV budget、公平性、chunked prefill 与 preemption。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Continuous Batching"><meta property="article:tag" content="Scheduling"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/llm-continuous-batching-scheduler/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-continuous-batching-scheduler/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-continuous-batching-scheduler/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-continuous-batching-scheduler/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-continuous-batching-scheduler/#article","headline":"LLM Infra 06：Continuous Batching 怎样改变请求调度","description":"从长度不一且持续到达的 sequence 出发，解释 iteration-level scheduling、Token/KV budget、公平性、chunked prefill 与 preemption。","url":"https://xiaoyuan-gu.github.io/zh/writing/llm-continuous-batching-scheduler/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-continuous-batching-scheduler/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Continuous Batching","Scheduling"]}</script><title>LLM Infra 06：Continuous Batching 怎样改变请求调度 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/llm-continuous-batching-scheduler/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 06：Continuous Batching 怎样改变请求调度</h1> <p class="article-deck">从长度不一且持续到达的 sequence 出发，解释 iteration-level scheduling、Token/KV budget、公平性、chunked prefill 与 preemption。</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">2026/07/29</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/zh/tags/Inference/">Inference</a><a class="pill" href="/zh/tags/Continuous%20Batching/">Continuous Batching</a><a class="pill" href="/zh/tags/Scheduling/">Scheduling</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>三个请求一起进入模型：A 输出很长，B 和 C 很快结束。Request-level batching 如果必须保持原组合，B、C 完成后的执行位置会闲置；允许每轮补入新请求后，吞吐可能提高，A 却也可能因为新请求或 KV 压力被反复推迟。</p>
+<p>Continuous Batching 解决的不是“Batch size 太小”，而是把重新组合执行集合的边界移动到模型 iteration。这个改变提高了复用机会，也把 Token budget、KV capacity、顺序和 preemption 变成 scheduler 的显式责任。</p>
+<h2 id="request-batch-与-iteration-batch-不是同一个对象">Request batch 与 iteration batch 不是同一个对象</h2>
+<p>Orca 将传统 request-level scheduling 与 iteration-level scheduling 区分开：后者每次执行模型的一轮，再根据请求是否完成和新请求是否到达重新组成下一轮 batch。</p>
+<p>概念 trace 如下，不代表真实 GPU 时间：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>Iteration 1: active = {A, B, C}</span></span>
+<span class="line"><span>Iteration 2: B finished; active = {A, C, D}</span></span>
+<span class="line"><span>Iteration 3: C finished; active = {A, D, E}</span></span></code></pre>
+<p>这里必须区分三种顺序：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request arrival order</span></span>
+<span class="line"><span>≠ per-iteration execution grouping</span></span>
+<span class="line"><span>≠ request completion order</span></span></code></pre>
+<p>并非所有非 continuous 实现都会机械等待整批结束；实现也可以缩小 active batch。真正的差别是 scheduler 是否能在 iteration boundary 重新 admission，并把变化后的 state 安全映射到下一次模型执行。</p>
+<h2 id="scheduler-每轮分配的是-token-与状态预算">Scheduler 每轮分配的是 Token 与状态预算</h2>
+<p>对每个 runnable request，scheduler 至少需要知道：</p>
+<ul>
+<li>已计算到哪个 Token；</li>
+<li>当前属于 Prefill 还是 Decode；</li>
+<li>本轮最多可以推进多少 Token；</li>
+<li>已持有和新增需要多少 KV blocks；</li>
+<li>是否达到 max tokens、stop condition 或 cancellation；</li>
+<li>priority、arrival time，以及平台自定义的 deadline policy。</li>
+</ul>
+<p>当前 vLLM 的 <code>SchedulerConfig</code> 就包含单 iteration 的 <code>max_num_batched_tokens</code>、<code>max_num_seqs</code>、chunked prefill 和 FCFS/priority policy。其 V1 scheduler 在 token budget 内处理 running requests、分配 KV slots；无法分配时可以根据策略 preempt。</p>
+<p>这些是一个具体 Runtime 的实现证据，不是所有 serving engine 的统一状态机。Deadline-aware scheduling、pause/resume 名称和 preemption 代价仍然由各实现与平台策略定义。</p>
+<h2 id="chunked-prefill-让两阶段共享-iteration">Chunked Prefill 让两阶段共享 iteration</h2>
+<p>一个长 Prefill 如果整段进入某次 execution，可能让已有 Decode sequence 等待更久。Chunked Prefill 把长 Prompt 切成多个 token chunks，使 scheduler 能在 token budget 内混合安排 Prefill 与 Decode。</p>
+<p>它引入了新的取舍：</p>
+<ul>
+<li>chunk 太大，Decode 仍可能出现长间隔；</li>
+<li>chunk 太小，调度和 Kernel 效率可能变差；</li>
+<li>优先 Decode 可以保护 TPOT，却延长长 Prompt 的 TTFT；</li>
+<li>优先 Prefill 可以快速建立新 sequence，又可能影响正在 streaming 的请求。</li>
+</ul>
+<p>所以 <code>max_num_batched_tokens</code> 不是单纯的吞吐参数。它与 Prefill chunk policy 一起决定 TTFT、TPOT、Batch opportunity 和公平性。</p>
+<h2 id="kv-不足时preemption-不是免费暂停">KV 不足时，Preemption 不是免费暂停</h2>
+<p>上一节的显存账本说明，active sequence 会持续占用 KV blocks。当新请求需要更多 blocks 而 pool 不足时，scheduler 有几种选择：</p>
+<ul>
+<li>不 admission 新请求；</li>
+<li>推迟低优先级 request；</li>
+<li>preempt 已运行 request，并在恢复时 recompute 或 swap state；</li>
+<li>拒绝请求并返回稳定 reason code。</li>
+</ul>
+<p>无论选择哪一种，preemption 都不是“把任务放回队列”这么简单。它会改变：</p>
+<ul>
+<li>已计算 Token 是否仍保留；</li>
+<li>KV state 是否需要重建；</li>
+<li>之前消耗的计算是否变成重复工作；</li>
+<li>request 的 deadline 是否还可满足；</li>
+<li>usage 与 outcome 应怎样记录。</li>
+</ul>
+<p>因此，Runtime 暴露的 preemption count 和 KV usage 是重要证据。频繁 preempt 可能表示 Token/KV budget 与 workload 不匹配，而不是“GPU 还不够忙”。</p>
+<h2 id="吞吐公平与延迟是不同策略">吞吐、公平与延迟是不同策略</h2>
+<p>Continuous Batching 本身不会必然造成 starvation，也不会自动提供公平。结果取决于 policy。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Policy 倾向</th><th>可能收益</th><th>主要风险</th></tr></thead><tbody><tr><td>最大化本轮 Token 数</td><td>聚合吞吐</td><td>长 Prefill 或大请求占用预算</td></tr><tr><td>Decode 优先</td><td>稳定 streaming TPOT</td><td>新长 Prompt TTFT 变长</td></tr><tr><td>Shortest-job-like</td><td>短请求更快完成</td><td>长请求长期等待</td></tr><tr><td>FCFS</td><td>顺序容易解释</td><td>head-of-line blocking</td></tr><tr><td>Priority / deadline</td><td>保护重要请求</td><td>低优先级 starvation，需要 aging</td></tr></tbody></table>
+<p>平台应该把 policy 当作 SLO 决策，而不是隐藏在一个 batch-size default 中。若 Runtime 只提供 FCFS/priority，deadline 与 tenant fairness 可能需要在上层 admission 完成；但上层不能假装自己拥有 iteration 内部的 KV state。</p>
+<h2 id="把开篇请求走一遍">把开篇请求走一遍</h2>
+<p>假设 A、B、C 同时开始，D、E 随后到达：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>I1: A/B/C Prefill</span></span>
+<span class="line"><span>I2: A/B/C Decode</span></span>
+<span class="line"><span>I3: B finish; admit D; A/C/D active</span></span>
+<span class="line"><span>I4: C finish; E arrives, but KV budget insufficient</span></span></code></pre>
+<p>在 I4，正确记录不是“E 排队”，而是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">scheduling_decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  iteration</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  runnable</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">A</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">D</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  waiting</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">E</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  token_budget_remaining</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">32</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  kv_blocks_free</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  kv_blocks_required_for_E_this_iteration</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">defer_E</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  reason</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">insufficient_kv_budget</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  policy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">fcfs_with_decode_priority</span></span></code></pre>
+<p>如果 A 随后被 preempt，记录还要说明其 KV state 和 recompute outcome。这样，吞吐改善和长请求受损都能从同一条 trace 解释。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://www.usenix.org/system/files/osdi22-yu.pdf">Orca: A Distributed Serving System for Transformer-Based Generative Models</a></li>
+<li><a href="https://docs.vllm.ai/en/latest/api/vllm/config/scheduler/">vLLM SchedulerConfig</a></li>
+<li><a href="https://docs.vllm.ai/en/latest/api/vllm/v1/core/sched/scheduler/">vLLM V1 Scheduler Source Documentation</a></li>
+<li><a href="https://docs.vllm.ai/en/latest/configuration/optimization/">vLLM Optimization and Tuning</a></li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>Continuous Batching 让 B、C 完成后可以立即补入 D、E，因此减少 request-level 固定组合带来的空闲。但它也迫使 scheduler 在每个 iteration 重新分配 Token 和 KV budget，并明确处理 Prefill/Decode、顺序、公平和 preemption。</p>
+<p>所以优化目标不能写成“把 Batch 做大”。应该写成：在指定 workload 与 SLO 下，用什么 iteration policy 形成更高 goodput，同时不让长请求、低优先级请求或已开始的 streaming request 失去可解释的进展。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#request-batch-与-iteration-batch-不是同一个对象">Request batch 与 iteration batch 不是同一个对象</a></li><li><a href="#scheduler-每轮分配的是-token-与状态预算">Scheduler 每轮分配的是 Token 与状态预算</a></li><li><a href="#chunked-prefill-让两阶段共享-iteration">Chunked Prefill 让两阶段共享 iteration</a></li><li><a href="#kv-不足时preemption-不是免费暂停">KV 不足时，Preemption 不是免费暂停</a></li><li><a href="#吞吐公平与延迟是不同策略">吞吐、公平与延迟是不同策略</a></li><li><a href="#把开篇请求走一遍">把开篇请求走一遍</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-scheduler-state/">LLM Infra 10：推理调度器必须拥有哪些状态</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-benchmark/">LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-capacity-control/">LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

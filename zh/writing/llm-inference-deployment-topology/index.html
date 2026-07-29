@@ -1,0 +1,361 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="将模型放不下、单请求延迟、聚合吞吐和 Prefill/Decode 资源不对称分开，再选择 Replica、Tensor/Pipeline Parallel、Context Parallel 或 P/D 分离。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 09：推理部署拓扑怎样由瓶颈反推 | Xiaoyuan"><meta property="og:description" content="将模型放不下、单请求延迟、聚合吞吐和 Prefill/Decode 资源不对称分开，再选择 Replica、Tensor/Pipeline Parallel、Context Parallel 或 P/D 分离。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-deployment-topology/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 09：推理部署拓扑怎样由瓶颈反推 | Xiaoyuan"><meta name="twitter:description" content="将模型放不下、单请求延迟、聚合吞吐和 Prefill/Decode 资源不对称分开，再选择 Replica、Tensor/Pipeline Parallel、Context Parallel 或 P/D 分离。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Parallelism"><meta property="article:tag" content="Distributed Systems"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-deployment-topology/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-deployment-topology/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-deployment-topology/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-deployment-topology/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-deployment-topology/#article","headline":"LLM Infra 09：推理部署拓扑怎样由瓶颈反推","description":"将模型放不下、单请求延迟、聚合吞吐和 Prefill/Decode 资源不对称分开，再选择 Replica、Tensor/Pipeline Parallel、Context Parallel 或 P/D 分离。","url":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-deployment-topology/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-deployment-topology/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Parallelism","Distributed Systems"]}</script><title>LLM Infra 09：推理部署拓扑怎样由瓶颈反推 | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/llm-inference-deployment-topology/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 09：推理部署拓扑怎样由瓶颈反推</h1> <p class="article-deck">将模型放不下、单请求延迟、聚合吞吐和 Prefill/Decode 资源不对称分开，再选择 Replica、Tensor/Pipeline Parallel、Context Parallel 或 P/D 分离。</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">2026/07/29</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/zh/tags/Inference/">Inference</a><a class="pill" href="/zh/tags/Parallelism/">Parallelism</a><a class="pill" href="/zh/tags/Distributed%20Systems/">Distributed Systems</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>同样是“给一个模型分配多张 GPU”，可以得到完全不同的结果：</p>
+<ul>
+<li>Tensor Parallel 让模型装下了，总吞吐却没有按 GPU 数增长；</li>
+<li>多 Replica 提高了聚合吞吐，却仍处理不了单请求的超长 Context；</li>
+<li>Prefill/Decode 分离缓解了阶段干扰，又新增了 KV 传输和跨池调度。</li>
+</ul>
+<p>这些结果没有互相矛盾。Replica、模型切分和阶段分离解决的是不同约束。部署拓扑必须从瓶颈反推，不能从“现在有几张卡”正向拼装。</p>
+<h2 id="先把约束分成四类">先把约束分成四类</h2>
+<h3 id="model-fit">Model fit</h3>
+<p>权重、KV、Activation 和 Runtime headroom 无法放进单 GPU。问题是单个可执行副本放不下，复制更多副本没有帮助。</p>
+<h3 id="single-request-latency">Single-request latency</h3>
+<p>模型能放下，但单个请求的 TTFT 或 TPOT 不达标。增加并行 degree 可能缩短部分计算，也会引入 collective 和更小 Kernel，结果必须实测。</p>
+<h3 id="aggregate-goodput">Aggregate goodput</h3>
+<p>单 Replica 已满足请求 SLO，但总到达率超过它的 service curve。此时复制独立 Replica 通常是最直接的候选。</p>
+<h3 id="phase-asymmetry">Phase asymmetry</h3>
+<p>Prefill 与 Decode 的资源偏好、SLO 或到达形态明显不对称。把它们绑在同一个 Replica 可能无法独立配比，但分离会引入 KV transfer 与两个调度阶段。</p>
+<p>只有先定位约束，才知道应该比较哪些候选拓扑。</p>
+<h2 id="replica-复制解决-fleet-throughput">Replica 复制解决 fleet throughput</h2>
+<p>对 dense model 的常见 Data Parallel serving，系统会复制完整 model weights，每个 Replica 处理独立请求并拥有自己的 KV Cache。vLLM 的 Data Parallel deployment 也支持这种结构，并允许 DP 与 TP 组合。MoE 是重要例外：DP 与 Expert/Tensor Parallel 的组合可能要求 rank 对齐 forward 并在 expert layer 同步，因此 failure group 和执行边界可能跨多个 rank。</p>
+<p>Replica 的优势是故障与调度边界较直观：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request</span></span>
+<span class="line"><span>→ choose one compatible Replica</span></span>
+<span class="line"><span>→ that Replica owns the sequence execution</span></span></code></pre>
+<p>但它有前提：</p>
+<ul>
+<li>单个 Replica 已能装下模型和目标 Context；</li>
+<li>每个副本有足够独立 batching opportunity；</li>
+<li>Router、gateway 与共享存储不会成为新瓶颈；</li>
+<li>workload 能在副本之间合理分配，不被 adapter 或 KV affinity 固定。</li>
+</ul>
+<p>所以 fleet capacity 不能默认等于 <code>Replica 数 × 单 Replica 峰值</code>。需要用真实路由和 workload 再测 fleet service curve。</p>
+<h2 id="tppp-与-context-方向切分解决不同的-fit">TP、PP 与 Context 方向切分解决不同的 fit</h2>
+<p>**Tensor Parallel（TP）**在单层内部切分矩阵或 Tensor。典型 Transformer partition 会在 block 内产生 collective communication；具体次数和位置由实现决定。TP 可以降低每卡权重占用，并可能缩短部分算子，但通信和 Kernel 变小会造成收益递减。</p>
+<p>**Pipeline Parallel（PP）**按 layer/stage 切分模型。单个 autoregressive sequence 仍要按 stage 依赖向前推进；只有足够的并发或 microbatch 填充 pipeline，bubble 才能被摊薄。因此 PP 首先是 model placement 手段，不是默认的单请求低延迟方案。</p>
+<p><strong>Context/sequence 方向切分</strong>把长 sequence 的状态或 attention 计算分散到多个 rank。它是否可用、KV 怎样分片，取决于模型架构与 Runtime，不能从“长 Context”直接推导出某个固定方案。</p>
+<p>一个规则 dense deployment 常被概念化为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>fleet GPUs ≈ DP × TP × PP</span></span></code></pre>
+<p>这只适用于规则拓扑。Context Parallel、Expert Parallel、异构设备或共享 worker 都会改变关系。</p>
+<h2 id="prefilldecode-分离解决阶段配比">Prefill/Decode 分离解决阶段配比</h2>
+<p>DistServe 和 Splitwise 都把 Prefill 与 Decode 放到不同资源池，使两阶段可以独立选择并行与扩容策略。vLLM 也提供 experimental 的 disaggregated prefill；当前官方文档将其用途限定为分别调节 TTFT 与 ITL、控制 tail ITL，并明确说明该实现不提升 throughput。其他系统也必须按各自版本与 workload 实测，不能把论文结果迁移成 Runtime 保证。</p>
+<p>P/D 分离不是“再加一层 Router”。它新增了：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>request</span></span>
+<span class="line"><span>→ Prefill placement and execution</span></span>
+<span class="line"><span>→ KV state transfer</span></span>
+<span class="line"><span>→ Decode placement and streaming</span></span></code></pre>
+<p>因此决策必须包含：</p>
+<ul>
+<li>KV transfer 的格式、带宽与失败语义；</li>
+<li>Prefill 与 Decode deployment revision 是否兼容；</li>
+<li>两个队列怎样共同满足 TTFT/TPOT；</li>
+<li>一个阶段成功、另一个阶段失败时谁拥有 outcome；</li>
+<li>跨节点 placement 是否让传输抵消独立扩容收益。</li>
+</ul>
+<p>只有当阶段不对称带来的收益大于传输与控制面成本，P/D 分离才是合理候选。论文里的性能数字只对其测试模型、硬件和网络成立，不能成为通用阈值。</p>
+<h2 id="用约束驱动候选集">用约束驱动候选集</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>首要约束</th><th>首选候选</th><th>必须验证的反作用</th></tr></thead><tbody><tr><td>单 GPU 放不下权重</td><td>TP、PP 或组合</td><td>通信、pipeline bubble、failure group</td></tr><tr><td>单请求 KV/Context 放不下</td><td>Runtime 支持的 KV/Context 切分</td><td>attention 通信、layout、兼容性</td></tr><tr><td>单 Replica latency 不达标</td><td>Benchmark TP/Kernel/Batch 候选</td><td>collective 与小 Kernel 可能抵消收益</td></tr><tr><td>聚合 goodput 不足</td><td>Replica/DP</td><td>Router、affinity、非线性扩展</td></tr><tr><td>Prefill/Decode 配比失衡</td><td>P/D disaggregation</td><td>KV transfer、双阶段调度</td></tr></tbody></table>
+<p>这个表不是自动选择器。它只是阻止不相关的拓扑进入候选集。</p>
+<p>一份设计记录可以是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">topology_decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  workload_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">wl_7fd2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  model_release</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">release_91a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  constraints</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    model_fit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">92GiB</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    max_context</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">64k</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ttft_tpot_contract</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">slo_v3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  candidate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    replicas</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    tensor_parallel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    pipeline_parallel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    prefill_pool</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">colocated</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    decode_pool</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">colocated</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  communication</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    topology</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">intra-node</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  failure_unit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ranks_required_per_replica</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  benchmark_ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">curve_aa12</span></span></code></pre>
+<p>字段是本文建议。数字与拓扑必须来自真实 artifact、目标硬件和 Batch 1 的 Benchmark。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://docs.vllm.ai/en/latest/serving/parallelism_scaling/">vLLM Parallelism and Scaling</a></li>
+<li><a href="https://docs.vllm.ai/en/stable/serving/data_parallel_deployment/">vLLM Data Parallel Deployment</a></li>
+<li><a href="https://docs.vllm.ai/en/latest/features/disagg_prefill/">vLLM Disaggregated Prefilling</a></li>
+<li><a href="https://arxiv.org/abs/2401.09670">DistServe</a></li>
+<li><a href="https://arxiv.org/abs/2311.18677">Splitwise: Efficient Generative LLM Inference Using Phase Splitting</a></li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>TP 没让总吞吐按卡数增长，是因为它首先解决单副本 fit，并在关键路径增加通信；Replica 处理不了超长 Context，是因为复制没有改变单副本状态上限；P/D 分离新增 KV transfer，则是阶段独立扩展必须支付的成本。</p>
+<p>部署拓扑的正确顺序是：先确定 model fit、single-request latency、aggregate goodput 或 phase asymmetry 哪个约束生效，再为该约束建立候选，最后用同一 workload 与 SLO 测量 service curve。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先把约束分成四类">先把约束分成四类</a></li><li><a href="#replica-复制解决-fleet-throughput">Replica 复制解决 fleet throughput</a></li><li><a href="#tppp-与-context-方向切分解决不同的-fit">TP、PP 与 Context 方向切分解决不同的 fit</a></li><li><a href="#prefilldecode-分离解决阶段配比">Prefill/Decode 分离解决阶段配比</a></li><li><a href="#用约束驱动候选集">用约束驱动候选集</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-continuous-batching-scheduler/">LLM Infra 06：Continuous Batching 怎样改变请求调度</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-benchmark/">LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-capacity-control/">LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="固定 workload distribution、arrival control、warm state、deployment manifest 与质量约束，测出可供容量规划消费的 service curve。"><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve | Xiaoyuan"><meta property="og:description" content="固定 workload distribution、arrival control、warm state、deployment manifest 与质量约束，测出可供容量规划消费的 service curve。"><meta property="og:url" content="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-benchmark/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="zh_CN"><meta property="og:locale:alternate" content="en_US"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve | Xiaoyuan"><meta name="twitter:description" content="固定 workload distribution、arrival control、warm state、deployment manifest 与质量约束，测出可供容量规划消费的 service curve。"><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="LLM Infra"><meta property="article:tag" content="Inference"><meta property="article:tag" content="Benchmark"><meta property="article:tag" content="Reproducibility"><link rel="canonical" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-benchmark/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/llm-inference-benchmark/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/llm-inference-benchmark/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan 中文文章 RSS" href="https://xiaoyuan-gu.github.io/zh/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-benchmark/#article","headline":"LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve","description":"固定 workload distribution、arrival control、warm state、deployment manifest 与质量约束，测出可供容量规划消费的 service curve。","url":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-benchmark/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/zh/writing/llm-inference-benchmark/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/zh/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"zh-CN","articleSection":["AI Infrastructure"],"keywords":["LLM Infra","Inference","Benchmark","Reproducibility"]}</script><title>LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="显示控制"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="进入全屏阅读模式" data-exit-label="退出全屏阅读模式" aria-label="进入全屏阅读模式" aria-pressed="false" title="进入全屏阅读模式"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/zh/" aria-label="Xiaoyuan, 首页"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">数据 · 机器学习 · AI Agent</p> </div> </a> <nav class="nav" aria-label="主导航"> <a href="/zh/">首页</a> <a href="/zh/writing/" aria-current="page">文章</a> <a href="/zh/about/">关于</a> <a class="nav-language" href="/writing/llm-inference-benchmark/" hreflang="en" lang="en"> English </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="true" aria-label="隐藏边栏" title="隐藏边栏"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>隐藏边栏</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="深色" data-light-label="浅色" data-dark-action="切换到深色模式" data-light-action="切换到浅色模式" aria-label="切换到深色模式" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>深色</span> </button> </div> <div class="sidebar-links" aria-label="外部链接"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">数据系统 / 机器学习平台 / 智能体基础设施</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> AI Infrastructure </p> <h1 class="page-title">LLM Infra 03：一次推理 Benchmark 怎样产生可比较的 Service Curve</h1> <p class="article-deck">固定 workload distribution、arrival control、warm state、deployment manifest 与质量约束，测出可供容量规划消费的 service curve。</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">2026/07/29</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> 阅读 <span id="busuanzi_value_page_pv"></span> 次 </span> </div> <div class="tag-row"> <a class="pill" href="/zh/tags/LLM%20Infra/">LLM Infra</a><a class="pill" href="/zh/tags/Inference/">Inference</a><a class="pill" href="/zh/tags/Benchmark/">Benchmark</a><a class="pill" href="/zh/tags/Reproducibility/">Reproducibility</a> </div> </header>  <h2 id="问题">问题</h2>
+<p>方案 B 的报告显示 tokens/s 高于方案 A。进一步查看才发现，B 使用了更短的输出、已经 warm 的 Prefix Cache，并且只统计成功请求；超时请求从延迟分布中消失了。</p>
+<p>两个结果都叫“100 QPS Benchmark”，却不是在测同一件事。QPS 没有说明 arrival pattern、并发上限、输入/输出长度、warm state 和质量条件；成功请求平均值还会把最慢的一批请求直接删掉。</p>
+<p>Benchmark 的目标不是产出一个更大的数字，而是回答一个具体决策：在固定约束下，哪个 deployment configuration 能交付多少 workload。</p>
+<h2 id="先写决策再启动压测">先写决策，再启动压测</h2>
+<p>不同问题需要不同实验：</p>
+<ul>
+<li>比较 Runtime，需要固定模型、量化、并行和 workload。</li>
+<li>比较并行策略，需要固定总硬件、模型、Runtime 与 SLO。</li>
+<li>验证容量，需要改变 arrival rate，观察 SLO attainment 何时下降。</li>
+<li>验证 cold start，需要明确每次 trial 是否重新加载模型和 Cache。</li>
+</ul>
+<p>如果实验问题只是“谁更快”，研究者很容易在看到结果后改变解释。更稳妥的方式是在运行前写出：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">decision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">choose_serving_configuration</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">hypothesis</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  candidate_b_increases_goodput_without_changing_quality</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">fixed</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  workload_fingerprint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">wl_7fd2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  model_release</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">model-manifest-sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  hardware_pool</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gpu-topology-a</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  quality_gate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">chat-contract-v3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">changed</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  serving_engine_config</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">candidate_a</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">candidate_b</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">primary_metric</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">application_goodput_rps</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">feasibility_gate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  good_request_fraction_gte</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">0.95</span></span></code></pre>
+<p>这是一份概念性 experiment contract。它强迫实验在开始前说明固定了什么、改变了什么，以及什么结果可以推翻假设。</p>
+<h2 id="workload-identity-不能只写-qps">Workload identity 不能只写 QPS</h2>
+<p>上一篇的 workload envelope 应直接进入 Benchmark，而不是重新生成一组方便的请求。至少需要固定：</p>
+<ul>
+<li>输入与输出 Token 分布以及两者相关性；</li>
+<li>model、adapter、template 与 feature 分布；</li>
+<li>arrival process、burstiness 和并发上限；</li>
+<li>streaming、deadline、priority 与取消行为；</li>
+<li>warm/cold Cache 状态；</li>
+<li>请求数量、持续时间和随机种子。</li>
+</ul>
+<p>vLLM 的 Benchmark CLI 把 <code>request-rate</code>、<code>burstiness</code> 与 <code>max-concurrency</code> 分成独立参数；NVIDIA AIPerf 也能把 Poisson request rate 与最大并发组合。这说明 request rate 和 concurrency 不是同一个旋钮。</p>
+<p>两种常见负载模式回答不同问题：</p>
+<ul>
+<li><strong>Open-loop</strong> 以外部到达过程发送请求。服务变慢时，新请求仍继续到达，可以观察排队和过载。</li>
+<li><strong>Closed-loop</strong> 保持固定并发，一个请求完成后才发下一个。服务变慢时，发送速率也随之降低，更适合观察给定并发下的响应。</li>
+</ul>
+<p>用 closed-loop 结果承诺 open-loop 容量，会让负载生成器替服务完成 backpressure；用无限 request rate 测出的 maximum throughput，也不能直接代表生产 arrival 下的 tail latency。</p>
+<h2 id="deployment-manifest-决定结果属于谁">Deployment manifest 决定结果属于谁</h2>
+<p>推理性能不是裸模型权重的属性。一次可复现 trial 至少要记录：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">deployment_manifest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  model</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    repository</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example/model</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">immutable-commit</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    tokenizer_revision</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">immutable-commit</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    chat_template_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  runtime</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    engine</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example-engine</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">x.y.z</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    quantization</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">bf16</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    scheduler_config_digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">sha256:...</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  placement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    replicas</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    tensor_parallel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    pipeline_parallel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  hardware</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    gpu_model</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">example-gpu</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    gpu_count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    interconnect</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">local-high-bandwidth</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    model_warm</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    prefix_cache</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">cold</span></span></code></pre>
+<p>同一 model name 可能解析到不同 revision；Tokenizer、chat template 和 generation defaults 也会改变实际 Token 序列。Runtime 版本、Kernel、driver、并行拓扑和 scheduler 配置则会改变执行路径。</p>
+<p>如果 manifest 不完整，结果只能被标记为一次观测，不能成为下一轮容量规划的稳定输入。</p>
+<h2 id="service-curve-不是单点峰值">Service curve 不是单点峰值</h2>
+<p>容量规划真正需要的不是“最大 tokens/s”，而是 <strong>service curve</strong>：在固定 workload 与 deployment manifest 下，随着 offered load 或 concurrency 变化，系统能交付怎样的 latency、goodput 和 failure outcome。</p>
+<p>下面是合成结果结构，不是实测数据：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th align="right">Offered load</th><th align="right">Application goodput</th><th align="right">Good-request fraction</th><th align="right">TTFT P95</th><th align="right">TPOT P95</th><th align="right">Non-good outcomes</th></tr></thead><tbody><tr><td align="right">0.5 req/s</td><td align="right">0.50 req/s</td><td align="right">100%</td><td align="right">420 ms</td><td align="right">42 ms</td><td align="right">0%</td></tr><tr><td align="right">1.0 req/s</td><td align="right">0.98 req/s</td><td align="right">98%</td><td align="right">690 ms</td><td align="right">51 ms</td><td align="right">2%</td></tr><tr><td align="right">1.5 req/s</td><td align="right">1.43 req/s</td><td align="right">95.3%</td><td align="right">1,420 ms</td><td align="right">76 ms</td><td align="right">4.7%</td></tr><tr><td align="right">2.0 req/s</td><td align="right">1.28 req/s</td><td align="right">64%</td><td align="right">2,800 ms</td><td align="right">110 ms</td><td align="right">36%</td></tr></tbody></table>
+<p>每个 request 先同时检查 TTFT ≤ 1,500 ms、TPOT ≤ 80 ms、completion 与 quality，再计算 application goodput 和 good-request fraction。如果契约要求 good-request fraction ≥ 95%，这条合成曲线能支持的结论是：满足条件的区域到 1.5 req/s 附近为止。表中的 P95 只帮助诊断分布，不能单独证明联合达标。这个例子也不能证明任何真实硬件有对应容量。</p>
+<p>Service curve 必须保留完整分布与所有 attempted outcome。若只保留成功请求平均值，过载区反而可能看起来更快，因为最慢请求已经 timeout、被拒绝或取消。</p>
+<h2 id="warm-state输出长度与质量不能成为暗门">Warm state、输出长度与质量不能成为暗门</h2>
+<p>三类常见偏差会制造虚假收益。</p>
+<p>第一，Cache 状态不同。Prefix Cache warmup 可以减少重复 Prefill，但它只对匹配前缀生效。A warm、B cold 或反过来，都不是公平比较。应分别报告 cold、steady-state warm 和 Cache hit distribution。</p>
+<p>第二，输出长度不同。如果一个候选因为 EOS、截断或 generation defaults 变化而生成更短文本，E2E latency 和 tokens/s 都会改变。实验要记录 requested 与 actual output length，并解释为什么输出仍满足同一质量约束。</p>
+<p>第三，失败样本被过滤。每个 request 应保留 arrival、first token、completion/cancellation、Token count 和 reason code。Aggregate 表只能由完整 raw results 导出，不能成为唯一证据。</p>
+<p>对于 stochastic decoding，还需要固定或记录 sampling config、随机种子和 trial repetition。质量 gate 应先于性能结论：输出协议或能力已经改变时，不能把更快称为等价优化。</p>
+<h2 id="从-benchmark-交付可消费的证据">从 Benchmark 交付可消费的证据</h2>
+<p>一次可用于容量规划的 Benchmark 至少交付四类 artifact：</p>
+<ol>
+<li><code>experiment-contract.yaml</code>：问题、假设、固定项和变更项。</li>
+<li><code>workload-envelope.yaml</code>：长度、arrival、deadline 与随机种子。</li>
+<li><code>deployment-manifest.yaml</code>：模型、Runtime、配置、硬件和 warm state。</li>
+<li><code>raw-results.*</code> 与派生脚本：每个 request 的时间戳、Token、outcome 和 trial identity。</li>
+</ol>
+<p>还需要记录 warmup、trial 数量和环境噪声。没有重复实验和 uncertainty 时，可以报告一次观测，但不应把小差异解释成稳定收益。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://docs.vllm.ai/en/latest/benchmarking/cli/">vLLM Benchmark CLI</a></li>
+<li><a href="https://docs.nvidia.com/aiperf/tutorials/load-patterns-scheduling/request-rate-with-max-concurrency">NVIDIA AIPerf Request Rate with Max Concurrency</a></li>
+<li><a href="https://docs.nvidia.com/aiperf/reference/ai-perf-metrics-reference">NVIDIA AIPerf Metrics Reference</a></li>
+<li><a href="https://arxiv.org/abs/2401.09670">DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving</a></li>
+</ul>
+<h2 id="回到问题">回到问题</h2>
+<p>方案 B 的 tokens/s 更高，原报告仍不能支持“B 更好”。它改变了输出长度与 Cache 状态，还删掉了超时请求，等于同时改变 workload、state 和结果分母。</p>
+<p>正确的重测方式是固定 experiment contract、workload envelope、deployment manifest 和 quality gate，使用相同 arrival control，并保留全部 raw outcomes。最终交付的不是单点峰值，而是 goodput、TTFT、TPOT 与 failure 随 offered load 变化的 service curve。</p>
+<p>下一篇容量规划可以消费这条曲线；如果 workload 或 manifest 改变，曲线也必须失效并重新测量。</p>
+<hr>
+<p><em>本文由 AI 辅助生成。</em></p>   </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">本文目录</p> <ol> <li><a href="#问题">问题</a></li><li><a href="#先写决策再启动压测">先写决策，再启动压测</a></li><li><a href="#workload-identity-不能只写-qps">Workload identity 不能只写 QPS</a></li><li><a href="#deployment-manifest-决定结果属于谁">Deployment manifest 决定结果属于谁</a></li><li><a href="#service-curve-不是单点峰值">Service curve 不是单点峰值</a></li><li><a href="#warm-state输出长度与质量不能成为暗门">Warm state、输出长度与质量不能成为暗门</a></li><li><a href="#从-benchmark-交付可消费的证据">从 Benchmark 交付可消费的证据</a></li><li><a href="#回到问题">回到问题</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">相关文章</p> <h2 id="related-posts-title">继续阅读</h2> <div class="related-grid"> <article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-continuous-batching-scheduler/">LLM Infra 06：Continuous Batching 怎样改变请求调度</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-capacity-control/">LLM Infra 12：容量不足时，排队、拒绝与扩容怎样按时标协作</a></h3> </article><article> <p>AI Infrastructure</p> <h3><a href="/zh/writing/llm-inference-capacity-planning/">LLM Infra 04：怎样从 Token 负载推导推理容量</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">留言</h2> <p>留言由 GitHub Discussions 提供，需要登录 GitHub。</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "zh-CN";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>把复杂问题，一点点说清楚。</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> 本站总访问量 <span id="busuanzi_value_site_pv"></span> 次 </span> <span id="busuanzi_container_site_uv" style="display: none"> 本站总访客数 <span id="busuanzi_value_site_uv"></span> 人 </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="隐藏边栏" data-expand-label="显示边栏" aria-controls="site-sidebar" aria-expanded="false" aria-label="显示边栏" title="显示边栏"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
