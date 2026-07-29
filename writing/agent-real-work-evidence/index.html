@@ -1,0 +1,436 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Use shadowing, artifact review, logs, and critical-incident reconstruction to find waiting, compensating actions, and implicit decision evidence outside the SOP."><meta name="theme-color" content="#f7f7f5"><meta property="og:type" content="article"><meta property="og:title" content="Agent 42: Requirements Research Must Reconstruct Real Work, Not Repeat the SOP | Xiaoyuan"><meta property="og:description" content="Use shadowing, artifact review, logs, and critical-incident reconstruction to find waiting, compensating actions, and implicit decision evidence outside the SOP."><meta property="og:url" content="https://xiaoyuan-gu.github.io/writing/agent-real-work-evidence/"><meta property="og:site_name" content="Xiaoyuan"><meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="zh_CN"><meta property="og:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="750"><meta property="og:image:height" content="750"><meta property="og:image:alt" content="Xiaoyuan"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Agent 42: Requirements Research Must Reconstruct Real Work, Not Repeat the SOP | Xiaoyuan"><meta name="twitter:description" content="Use shadowing, artifact review, logs, and critical-incident reconstruction to find waiting, compensating actions, and implicit decision evidence outside the SOP."><meta name="twitter:image" content="https://xiaoyuan-gu.github.io/images/avatar-furhead.jpeg"><meta name="twitter:image:alt" content="Xiaoyuan"><meta property="article:published_time" content="2026-07-29T00:00:00.000Z"><meta property="article:modified_time" content="2026-07-29T00:00:00.000Z"><meta property="article:tag" content="Agent Discovery"><meta property="article:tag" content="Agent"><meta property="article:tag" content="Product Discovery"><link rel="canonical" href="https://xiaoyuan-gu.github.io/writing/agent-real-work-evidence/"><link rel="alternate" hreflang="zh-CN" href="https://xiaoyuan-gu.github.io/zh/writing/agent-real-work-evidence/"><link rel="alternate" hreflang="en" href="https://xiaoyuan-gu.github.io/writing/agent-real-work-evidence/"><link rel="alternate" hreflang="x-default" href="https://xiaoyuan-gu.github.io/writing/agent-real-work-evidence/"><link rel="sitemap" href="https://xiaoyuan-gu.github.io/sitemap-index.xml"><link rel="alternate" type="application/rss+xml" title="Xiaoyuan English Writing RSS" href="https://xiaoyuan-gu.github.io/rss.xml"><link rel="icon" href="/images/avatar-furhead.jpeg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","@id":"https://xiaoyuan-gu.github.io/writing/agent-real-work-evidence/#article","headline":"Agent 42: Requirements Research Must Reconstruct Real Work, Not Repeat the SOP","description":"Use shadowing, artifact review, logs, and critical-incident reconstruction to find waiting, compensating actions, and implicit decision evidence outside the SOP.","url":"https://xiaoyuan-gu.github.io/writing/agent-real-work-evidence/","mainEntityOfPage":{"@type":"WebPage","@id":"https://xiaoyuan-gu.github.io/writing/agent-real-work-evidence/"},"isPartOf":{"@type":"WebSite","@id":"https://xiaoyuan-gu.github.io/#website","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/"},"author":{"@type":"Person","@id":"https://xiaoyuan-gu.github.io/#xiaoyuan","name":"Xiaoyuan","url":"https://xiaoyuan-gu.github.io/about/"},"datePublished":"2026-07-29T00:00:00.000Z","dateModified":"2026-07-29T00:00:00.000Z","inLanguage":"en","articleSection":["AI Agents"],"keywords":["Agent Discovery","Agent","Product Discovery"]}</script><title>Agent 42: Requirements Research Must Reconstruct Real Work, Not Repeat the SOP | Xiaoyuan</title><script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        let storedTheme = null;
+        try {
+          storedTheme = localStorage.getItem(storageKey);
+        } catch {
+          // Keep the system preference when storage is unavailable.
+        }
+        const theme = storedTheme === 'light' || storedTheme === 'dark'
+          ? storedTheme
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+        try {
+          if (localStorage.getItem(sidebarStorageKey) === 'collapsed') {
+            document.documentElement.dataset.sidebar = 'collapsed';
+          }
+        } catch {
+          // Keep the sidebar expanded when storage is unavailable.
+        }
+      })();
+    </script><link rel="stylesheet" href="/_astro/BaseLayout.tPyteNcT.css"></head> <body class="is-article"> <div class="reading-progress" aria-hidden="true"><span data-reading-progress></span></div> <div class="display-controls" role="group" aria-label="Display controls"> <button class="display-control reading-mode-toggle" type="button" data-reading-mode-toggle data-enter-label="Enter fullscreen reading mode" data-exit-label="Exit fullscreen reading mode" aria-label="Enter fullscreen reading mode" aria-pressed="false" title="Enter fullscreen reading mode"> <span class="display-control-icon" data-reading-mode-icon aria-hidden="true">⛶</span> </button> </div> <div class="site-shell"> <aside class="sidebar" id="site-sidebar"> <div class="sidebar-inner"> <a class="brand" href="/" aria-label="Xiaoyuan, Home"> <img class="avatar" src="/images/avatar-furhead.jpeg" alt=""> <div> <p class="brand-title">Xiaoyuan</p> <p class="brand-subtitle">Data · ML · AI agents</p> </div> </a> <nav class="nav" aria-label="Main navigation"> <a href="/">Home</a> <a href="/writing/" aria-current="page">Writing</a> <a href="/about/">About</a> <a class="nav-language" href="/zh/writing/agent-real-work-evidence/" hreflang="zh-CN" lang="zh-CN"> 中文 </a> </nav> <div class="sidebar-controls"> <button class="sidebar-action sidebar-collapse-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar"> <span class="sidebar-action-icon" data-sidebar-icon aria-hidden="true">‹</span> <span data-sidebar-label>Hide sidebar</span> </button> <button class="sidebar-action theme-toggle" type="button" data-theme-toggle data-dark-label="Dark" data-light-label="Light" data-dark-action="Switch to dark theme" data-light-action="Switch to light theme" aria-label="Switch to dark theme" aria-pressed="false"> <span class="theme-toggle-icon" data-theme-icon aria-hidden="true">☾</span> <span data-theme-label>Dark</span> </button> </div> <div class="sidebar-links" aria-label="External links"> <a href="https://github.com/xiaoyuan-gu" rel="me">GitHub <span aria-hidden="true">↗</span></a> <a href="https://www.linkedin.com/in/guxiaoyuan/" rel="me">LinkedIn <span aria-hidden="true">↗</span></a> </div> <p class="sidebar-note">Data systems / ML platforms / agent systems</p> </div> </aside> <main class="main">  <div class="article-layout"> <article class="article" data-article> <header class="article-header"> <p class="eyebrow"> Agent Discovery · 42/46 </p> <h1 class="page-title">Agent 42: Requirements Research Must Reconstruct Real Work, Not Repeat the SOP</h1> <p class="article-deck">Use shadowing, artifact review, logs, and critical-incident reconstruction to find waiting, compensating actions, and implicit decision evidence outside the SOP.</p> <div class="meta"> <time datetime="2026-07-29T00:00:00.000Z">07/29/2026</time>  <span id="busuanzi_container_page_pv" class="post-views" role="status" aria-live="polite" style="display: none"> Views <span id="busuanzi_value_page_pv"></span> </span> </div> <div class="tag-row"> <a class="pill" href="/tags/Agent%20Discovery/">Agent Discovery</a><a class="pill" href="/tags/Agent/">Agent</a><a class="pill" href="/tags/Product%20Discovery/">Product Discovery</a> </div> </header>  <h2 id="the-problem">The problem</h2>
+<p>The refund team provides a four-step SOP:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>receive request</span></span>
+<span class="line"><span>→ query order</span></span>
+<span class="line"><span>→ evaluate refund eligibility</span></span>
+<span class="line"><span>→ reply to customer</span></span></code></pre>
+<p>The team designs the Agent from it: read the ticket, call the order-query Tool, give the order and refund policy to the model, and generate a disposition.</p>
+<p>The first walkthrough with a real case tells a different story. After querying the order, the support agent opens the payment system because order status may synchronize late. They then check whether logistics has collected the shipment. When two states conflict, they message finance, record the result in a personal spreadsheet, and wait for supervisor confirmation before continuing.</p>
+<p>The SOP is not wrong. It simply omits the waits, compensating actions, and experiential judgments that make the work complete. The Agent will face this omitted reality, not the process document.</p>
+<h2 id="the-sop-describes-responsibility-real-work-exposes-dependencies">The SOP describes responsibility; real work exposes dependencies</h2>
+<p>An SOP usually supports training, responsibility assignment, and compliance, so it preserves the stable path. It does not record every system delay or informal communication channel, and it rarely explains why an experienced operator pauses at a particular step.</p>
+<p>Agent requirements depend on those details. The Agent needs to know:</p>
+<ul>
+<li>when the order system is insufficient as the only evidence;</li>
+<li>why the user queries another system;</li>
+<li>which conflicts permit continuation and which require a stop;</li>
+<li>who supplies missing information;</li>
+<li>where task state lives while the user waits;</li>
+<li>which evidence eventually confirms completion.</li>
+</ul>
+<p>“How do you usually do this?” is therefore an entry point, not an Agent Task.</p>
+<p>The research must distinguish:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>normative material: how work is supposed to happen</span></span>
+<span class="line"><span>descriptive evidence: how work actually happens</span></span></code></pre>
+<p>Both matter. Normative material supplies the policy boundary, while descriptive evidence reveals execution conditions. Looking only at the first misses exceptions. Looking only at the second can mistake a personal workaround for a process the organization wants to preserve.</p>
+<h2 id="shadowing-should-record-decisions-not-only-clicks">Shadowing should record decisions, not only clicks</h2>
+<p>One way to reconstruct real work is shadowing: observe a user handling a real task and record actions, evidence, and decisions.</p>
+<p>If the notes stop at screen operations, the result is only a more detailed flowchart:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>open order system</span></span>
+<span class="line"><span>→ copy order ID</span></span>
+<span class="line"><span>→ open payment system</span></span>
+<span class="line"><span>→ paste order ID</span></span></code></pre>
+<p>That may support UI automation, but it does not support Agent decisions. A more useful observation looks like:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>action: query payment system</span></span>
+<span class="line"><span>reason: order status may be delayed</span></span>
+<span class="line"><span>required evidence: payment record, amount, order ID</span></span>
+<span class="line"><span>decision: continue only when payment and order state agree</span></span>
+<span class="line"><span>exception: send state conflicts to finance</span></span></code></pre>
+<p>Whenever the user changes systems, pauses, reviews history, or asks a colleague, ask:</p>
+<ol>
+<li>What are you trying to establish now?</li>
+<li>Which result would change the next step?</li>
+<li>What would you do if this information were unavailable?</li>
+</ol>
+<p>These questions convert an operation sequence into decision evidence and begin to reveal the data and escalation conditions the Agent needs.</p>
+<p>Do not ask users to demonstrate only the standard case. A recent ordinary case can establish the main path; a difficult or failed case is more likely to expose the real boundary.</p>
+<h2 id="artifacts-expose-task-state-outside-the-official-system">Artifacts expose task state outside the official system</h2>
+<p>Critical task state often lives outside the official business system in user-maintained Artifacts:</p>
+<ul>
+<li>a spreadsheet that tracks who is expected to respond and when to follow up;</li>
+<li>private notes containing common decision evidence;</li>
+<li>copied chat threads showing how similar cases were handled;</li>
+<li>reply templates for different exceptions;</li>
+<li>ticket labels meaning “system says complete, but verify again.”</li>
+</ul>
+<p>These Artifacts should not automatically become long-lived product features, but they are valuable requirements evidence.</p>
+<p>A support agent may keep a personal spreadsheet for three different reasons:</p>
+<ol>
+<li>the official system lacks a waiting state;</li>
+<li>it has the state but cannot filter by responsible person;</li>
+<li>the process requires tracking, but the user does not know the existing feature.</li>
+</ol>
+<p>The three causes require different responses. The first may need a new task state. The second may be a product-query limitation. The third is not an Agent problem.</p>
+<p>Artifact review should not copy the spreadsheet. It should identify which missing capability it compensates for, which state it stores, and who depends on that state to continue work.</p>
+<h2 id="logs-calibrate-often-and-rarely">Logs calibrate “often” and “rarely”</h2>
+<p>Interviews reveal mechanisms but estimate distributions poorly. Users remember recent, difficult, or emotionally salient cases.</p>
+<p>When available, tickets, operation logs, and historical records can establish:</p>
+<ul>
+<li>how often each task type occurs;</li>
+<li>which steps contain the longest waits;</li>
+<li>where state conflicts appear;</li>
+<li>under which conditions humans take over;</li>
+<li>which step rework returns to;</li>
+<li>which cases never complete.</li>
+</ul>
+<p>Logs do not explain cause automatically. Opening two systems in sequence may be cross-checking or simply habit. A long pause may be approval wait or the user stepping away. Logs must be interpreted together with observation and interviews.</p>
+<p>Reliable requirements evidence usually comes from triangulation:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>the user explains why</span></span>
+<span class="line"><span>+ observation shows how</span></span>
+<span class="line"><span>+ historical records show how often</span></span></code></pre>
+<p>Agreement across the three supports a stronger conclusion. Disagreement is itself a research question.</p>
+<h2 id="critical-cases-reveal-boundaries-better-than-abstract-preferences">Critical cases reveal boundaries better than abstract preferences</h2>
+<p>“How should an Agent help?” tends to produce a feature wish list. “Walk through the last case that did not follow the SOP” produces execution facts.</p>
+<p>A critical-incident review can follow the timeline:</p>
+<ul>
+<li>What was the initial request?</li>
+<li>Which information was visible then?</li>
+<li>Where did progress first stop?</li>
+<li>Which compensating action did the user take?</li>
+<li>Which role made the key decision?</li>
+<li>Which evidence became available only afterward?</li>
+<li>How was the result confirmed?</li>
+<li>If an Agent had participated, where should it have stopped?</li>
+</ul>
+<p>Evidence available during execution must remain distinct from hindsight. Knowing during review that the refund eventually failed does not mean the Agent could observe that fact at execution time.</p>
+<p>This distinction feeds directly into Eval. A historical case is valid only if it preserves the state visible at the time. Leaking the later outcome to the Agent manufactures a false success rate.</p>
+<h2 id="a-real-work-record-must-preserve-evidence-provenance">A real-work record must preserve evidence provenance</h2>
+<p>The output should not be only a larger flowchart. Each important step should record:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Field</th><th>Question</th></tr></thead><tbody><tr><td>Trigger</td><td>What event starts the task?</td></tr><tr><td>Actor</td><td>Who is advancing it?</td></tr><tr><td>Action</td><td>What do they actually do?</td></tr><tr><td>Evidence</td><td>Which information supports the action?</td></tr><tr><td>Decision</td><td>Which judgment changes the next step?</td></tr><tr><td>Artifact</td><td>Where is task state stored?</td></tr><tr><td>Handoff</td><td>Who receives it, and what is awaited?</td></tr><tr><td>Exception</td><td>What departs from the main path?</td></tr><tr><td>Completion</td><td>Who confirms completion, using which evidence?</td></tr></tbody></table>
+<p>Filling this record with the opening case produces a minimal example:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Field</th><th>Observation from the opening case</th></tr></thead><tbody><tr><td>Trigger</td><td>A customer submits a refund request</td></tr><tr><td>Actor</td><td>A frontline support agent advances the ticket</td></tr><tr><td>Action</td><td>Query order state, then payment and logistics state</td></tr><tr><td>Evidence</td><td>Order record, payment record, logistics state, and their respective sources</td></tr><tr><td>Decision</td><td>Continue only when states agree; pause refund evaluation on conflict</td></tr><tr><td>Artifact</td><td>The support agent temporarily records the waiting owner and follow-up time in a personal spreadsheet</td></tr><tr><td>Handoff</td><td>Contact finance on payment conflict; wait for a supervisor on an exception decision</td></tr><tr><td>Exception</td><td>Order, payment, or logistics systems return conflicting states</td></tr><tr><td>Completion</td><td>The opening material does not record the final outcome; the completion owner and evidence still require confirmation</td></tr></tbody></table>
+<p>This table describes the observed current state. It does not say that the future system should preserve the personal spreadsheet or the same informal communication. Open design questions remain: which official system should own the waiting state, how finance confirmation should enter an auditable handoff, and which system owns the final refund fact and completion evidence.</p>
+<p>This record is still not the final Task Contract. It describes the present, not every behavior the future system should preserve.</p>
+<p>The next step classifies the compensating actions: which should be eliminated by product design, which should become Tools, which represent human decisions, and which are historical process residue. Reconstruct first and design second, or the Agent will permanently encode the inefficiency of the current process.</p>
+<h2 id="back-to-the-problem">Back to the problem</h2>
+<p>The refund SOP contained only query, evaluate, and reply. Real work also contained cross-system verification, state conflicts, informal communication, a personal spreadsheet, and later rechecking.</p>
+<p>An Agent that implements only the SOP may work on clean cases but will lose its next step at the first payment-state conflict and cannot explain why it should stop.</p>
+<p>Shadowing exposes the decisions behind actions, Artifact review finds task state outside the system, logs calibrate exception distributions, and critical-case reconstruction exposes the failure boundary. Together, they describe the work the Agent will actually face.</p>
+<p>Requirements research is not a cleaner transcription of what users say. It identifies the evidence, decisions, and handoffs on which the task truly depends.</p>
+<hr>
+<p><em>This article was generated with AI assistance.</em></p>  <nav class="series-navigation" aria-label="Series navigation" data-series-navigation> <a href="/writing/agent-demand-business-outcome/" rel="prev"> <span>Previous</span> <strong>Agent 41: Define the Business Outcome Before Deciding You Need an Agent</strong> </a> <a href="/writing/agent-task-decision-exception-map/" rel="next"> <span>Next</span> <strong>Agent 43: A Task Map Must Include State, Decisions, and Exceptions</strong> </a> </nav> </article> <aside class="article-toc" aria-labelledby="article-toc-title" data-article-toc> <p id="article-toc-title">On this page</p> <ol> <li><a href="#the-problem">The problem</a></li><li><a href="#the-sop-describes-responsibility-real-work-exposes-dependencies">The SOP describes responsibility; real work exposes dependencies</a></li><li><a href="#shadowing-should-record-decisions-not-only-clicks">Shadowing should record decisions, not only clicks</a></li><li><a href="#artifacts-expose-task-state-outside-the-official-system">Artifacts expose task state outside the official system</a></li><li><a href="#logs-calibrate-often-and-rarely">Logs calibrate “often” and “rarely”</a></li><li><a href="#critical-cases-reveal-boundaries-better-than-abstract-preferences">Critical cases reveal boundaries better than abstract preferences</a></li><li><a href="#a-real-work-record-must-preserve-evidence-provenance">A real-work record must preserve evidence provenance</a></li><li><a href="#back-to-the-problem">Back to the problem</a></li> </ol> </aside> </div> <section class="related-posts" aria-labelledby="related-posts-title"> <p class="section-kicker">Related</p> <h2 id="related-posts-title">Continue reading</h2> <div class="related-grid"> <article> <p>AI Agents</p> <h3><a href="/writing/agent-artifact-retention-deletion/">Agent 23: Artifact References, Retention, and Deletion Must Be Separate Layers</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-conversation-compression/">Agent 05: Long-Conversation Compression Must Preserve Rebuildable Source Boundaries</a></h3> </article><article> <p>AI Agents</p> <h3><a href="/writing/agent-durable-job-lifecycle/">Agent 31: How Durable Job Cancellation, Results, and Delivery Converge</a></h3> </article> </div> </section><section class="comments" data-comments aria-labelledby="comments-title"> <div class="comments-heading"> <h2 id="comments-title">Comments</h2> <p>Comments are powered by GitHub Discussions and require a GitHub account.</p> </div> <div class="giscus"></div> </section> <script>(function(){const giscusLang = "en";
+
+  (() => {
+    const container = document.querySelector('[data-comments]');
+    if (!(container instanceof HTMLElement)) return;
+
+    const root = document.documentElement;
+    const theme = () => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    const updateTheme = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      if (new URL(frame.src, window.location.href).origin !== 'https://giscus.app') return;
+      try {
+        void frame.contentWindow?.location.href;
+        return;
+      } catch {
+        // A cross-origin location confirms that the giscus document has loaded.
+      }
+      frame.contentWindow?.postMessage({
+        giscus: { setConfig: { theme: theme() } }
+      }, 'https://giscus.app');
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.referrerPolicy = 'no-referrer';
+    script.dataset.repo = 'xiaoyuan-gu/xiaoyuan-gu.github.io';
+    script.dataset.repoId = 'R_kgDOSqgwYg';
+    script.dataset.category = 'Announcements';
+    script.dataset.categoryId = 'DIC_kwDOSqgwYs4DBoiH';
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = theme();
+    script.dataset.lang = giscusLang;
+    script.dataset.loading = 'lazy';
+
+    const bindFrame = () => {
+      const frame = container.querySelector('iframe.giscus-frame');
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      frame.addEventListener('load', updateTheme);
+      frameObserver.disconnect();
+    };
+    const frameObserver = new MutationObserver(bindFrame);
+    frameObserver.observe(container, { childList: true, subtree: true });
+    const themeObserver = new MutationObserver(updateTheme);
+    themeObserver.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    container.append(script);
+  })();
+})();</script>  <footer class="footer"> <span>© 2026 Xiaoyuan</span> <span>Notes accumulated one step at a time.</span> <span class="site-stats"> <span id="busuanzi_container_site_pv" style="display: none"> Total views <span id="busuanzi_value_site_pv"></span> </span> <span id="busuanzi_container_site_uv" style="display: none"> Visitors <span id="busuanzi_value_site_uv"></span> </span> </span> </footer> </main> </div> <button class="display-control sidebar-restore-toggle" type="button" data-sidebar-toggle data-collapse-label="Hide sidebar" data-expand-label="Show sidebar" aria-controls="site-sidebar" aria-expanded="false" aria-label="Show sidebar" title="Show sidebar"> <span class="display-control-icon" data-sidebar-icon aria-hidden="true">›</span> </button> <script>
+      (() => {
+        const storageKey = 'xiaoyuan-theme';
+        const root = document.documentElement;
+        const toggle = document.querySelector('[data-theme-toggle]');
+        if (!(toggle instanceof HTMLButtonElement)) return;
+
+        const systemPreference = matchMedia('(prefers-color-scheme: dark)');
+        const storedTheme = () => {
+          try {
+            const value = localStorage.getItem(storageKey);
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch {
+            return null;
+          }
+        };
+        const updateToggle = (theme) => {
+          const dark = theme === 'dark';
+          const label = toggle.querySelector('[data-theme-label]');
+          const icon = toggle.querySelector('[data-theme-icon]');
+          toggle.setAttribute('aria-pressed', String(dark));
+          toggle.setAttribute('aria-label', dark ? toggle.dataset.lightAction : toggle.dataset.darkAction);
+          toggle.title = dark ? toggle.dataset.lightAction : toggle.dataset.darkAction;
+          if (label) label.textContent = dark ? toggle.dataset.lightLabel : toggle.dataset.darkLabel;
+          if (icon) icon.textContent = dark ? '☀︎' : '☾';
+        };
+        const applyTheme = (theme, persist = false) => {
+          root.dataset.theme = theme;
+          const themeColor = document.querySelector('meta[name="theme-color"]');
+          themeColor?.setAttribute('content', theme === 'dark' ? '#111312' : '#f7f7f5');
+          if (persist) {
+            try {
+              localStorage.setItem(storageKey, theme);
+            } catch {
+              // The selected theme still applies for the current page.
+            }
+          }
+          updateToggle(theme);
+        };
+
+        applyTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+        toggle.addEventListener('click', () => {
+          applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+        });
+        systemPreference.addEventListener('change', (event) => {
+          if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+        });
+      })();
+    </script> <script>
+      (() => {
+        const sidebarStorageKey = 'xiaoyuan-sidebar';
+        const root = document.documentElement;
+        const sidebarToggles = [...document.querySelectorAll('[data-sidebar-toggle]')];
+        const readingModeToggle = document.querySelector('[data-reading-mode-toggle]');
+
+        const persistSidebar = (collapsed) => {
+          try {
+            localStorage.setItem(sidebarStorageKey, collapsed ? 'collapsed' : 'expanded');
+          } catch {
+            // The selected layout still applies for the current page.
+          }
+        };
+        const updateSidebarToggle = () => {
+          const collapsed = root.dataset.sidebar === 'collapsed';
+          sidebarToggles.forEach((sidebarToggle) => {
+            if (!(sidebarToggle instanceof HTMLButtonElement)) return;
+            const label = collapsed ? sidebarToggle.dataset.expandLabel : sidebarToggle.dataset.collapseLabel;
+            const icon = sidebarToggle.querySelector('[data-sidebar-icon]');
+            const visibleLabel = sidebarToggle.querySelector('[data-sidebar-label]');
+            sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+            if (label) {
+              sidebarToggle.setAttribute('aria-label', label);
+              sidebarToggle.title = label;
+              if (visibleLabel) visibleLabel.textContent = label;
+            }
+            if (icon) icon.textContent = collapsed ? '›' : '‹';
+          });
+        };
+        const setSidebarCollapsed = (collapsed, persist = false) => {
+          if (collapsed) root.dataset.sidebar = 'collapsed';
+          else delete root.dataset.sidebar;
+          if (persist) persistSidebar(collapsed);
+          updateSidebarToggle();
+        };
+
+        updateSidebarToggle();
+        sidebarToggles.forEach((sidebarToggle) => {
+          sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(root.dataset.sidebar !== 'collapsed', true);
+          });
+        });
+
+        if (!(readingModeToggle instanceof HTMLButtonElement)) return;
+        const updateReadingModeToggle = () => {
+          const active = root.dataset.readingMode === 'true';
+          const label = active ? readingModeToggle.dataset.exitLabel : readingModeToggle.dataset.enterLabel;
+          const icon = readingModeToggle.querySelector('[data-reading-mode-icon]');
+          readingModeToggle.setAttribute('aria-pressed', String(active));
+          if (label) {
+            readingModeToggle.setAttribute('aria-label', label);
+            readingModeToggle.title = label;
+          }
+          if (icon) icon.textContent = active ? '×' : '⛶';
+        };
+        const setReadingMode = (active) => {
+          if (active) root.dataset.readingMode = 'true';
+          else delete root.dataset.readingMode;
+          updateReadingModeToggle();
+        };
+
+        readingModeToggle.addEventListener('click', async () => {
+          const active = root.dataset.readingMode === 'true';
+          if (active) {
+            setReadingMode(false);
+            if (document.fullscreenElement) {
+              try { await document.exitFullscreen(); } catch { /* Layout mode has already exited. */ }
+            }
+            return;
+          }
+
+          setReadingMode(true);
+          if (!document.fullscreenElement && root.requestFullscreen) {
+            try { await root.requestFullscreen(); } catch { /* Keep the layout-only reading mode. */ }
+          }
+        });
+        document.addEventListener('fullscreenchange', () => {
+          if (!document.fullscreenElement && root.dataset.readingMode === 'true') setReadingMode(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !document.fullscreenElement && root.dataset.readingMode === 'true') {
+            setReadingMode(false);
+          }
+        });
+        updateReadingModeToggle();
+      })();
+    </script> <script>
+        (() => {
+          const bar = document.querySelector('[data-reading-progress]');
+          const article = document.querySelector('[data-article]');
+          if (!(bar instanceof HTMLElement) || !(article instanceof HTMLElement)) return;
+
+          let frame = 0;
+          const update = () => {
+            frame = 0;
+            const start = article.offsetTop;
+            const distance = Math.max(article.offsetHeight - innerHeight, 1);
+            const progress = Math.min(Math.max((scrollY - start) / distance, 0), 1);
+            bar.style.transform = `scaleX(${progress})`;
+          };
+          const requestUpdate = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(update);
+          };
+
+          addEventListener('scroll', requestUpdate, { passive: true });
+          addEventListener('resize', requestUpdate);
+          update();
+        })();
+      </script> <script async referrerpolicy="no-referrer" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script> </body> </html>
